@@ -16,6 +16,8 @@ import {
   ClipboardList,
   UserCheck,
   BadgePercent,
+  MessageSquare,
+  FileText as FileTextIcon, // Import FileText icon for Reports and alias it
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -36,8 +38,9 @@ const adminNavItems: NavItem[] = [
   { label: 'Coordinators', href: '/admin/coordinators', icon: BadgePercent },
   { label: 'Orders', href: '/admin/orders', icon: Package },
   { label: 'Students', href: '/admin/students', icon: Users },
-  { label: 'Results', href: '/admin/results', icon: Award },
-  { label: 'Reports', href: '/admin/reports', icon: FileText },
+  { label: 'Support', href: '/admin/support', icon: MessageSquare }, // Corrected icon for Support
+  { label: 'Results', href: '/admin/results', icon: Award }, // Assuming Award is for Results
+  { label: 'Reports', href: '/admin/reports', icon: FileTextIcon }, // FileTextIcon for Reports
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
