@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import AdminLayout from '@/layouts/AdminLayout';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 
 // Mock courses data
@@ -113,7 +121,10 @@ const mockCourses = [
   },
 ];
 
+type Course = typeof mockCourses[0];
+
 export default function AdminCourses() {
+  const [courses, setCourses] = useState(mockCourses);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCourse, setNewCourse] = useState({
@@ -126,7 +137,21 @@ export default function AdminCourses() {
     isKit: true,
   });
 
-  const filteredCourses = mockCourses.filter(
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const moduleFromUrl = searchParams.get('module');
+    if (moduleFromUrl) {
+      setNewCourse(prev => ({ ...prev, category: moduleFromUrl }));
+      setIsAddDialogOpen(true);
+    }
+  }, [searchParams]);
+
+
+  const filteredCourses = courses.filter(
     (course) =>
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -146,6 +171,24 @@ export default function AdminCourses() {
       syllabus: '',
       isKit: true,
     });
+  };
+
+  const handleUpdateCourse = () => {
+    if (!editingCourse) return;
+
+    setCourses(prev =>
+      prev.map(course =>
+        course.id === editingCourse.id ? editingCourse : course
+      )
+    );
+
+    toast.success('Course updated successfully!');
+    setIsEditDialogOpen(false);
+    setEditingCourse(null);
+  };
+
+  const handleEditInputChange = (field: keyof Course, value: string | number | boolean) => {
+    if (editingCourse) setEditingCourse(prev => prev ? { ...prev, [field]: value } : null);
   };
 
   const formatCurrency = (amount: number) => {
@@ -269,7 +312,7 @@ export default function AdminCourses() {
                   <BookOpen className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockCourses.length}</p>
+                  <p className="text-2xl font-bold">{courses.length}</p>
                   <p className="text-sm text-muted-foreground">Total Courses</p>
                 </div>
               </div>
@@ -282,7 +325,7 @@ export default function AdminCourses() {
                   <BookOpen className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockCourses.filter(c => c.isActive).length}</p>
+                  <p className="text-2xl font-bold">{courses.filter(c => c.isActive).length}</p>
                   <p className="text-sm text-muted-foreground">Active</p>
                 </div>
               </div>
@@ -295,7 +338,7 @@ export default function AdminCourses() {
                   <Package className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockCourses.filter(c => c.isKit).length}</p>
+                  <p className="text-2xl font-bold">{courses.filter(c => c.isKit).length}</p>
                   <p className="text-sm text-muted-foreground">With Kit</p>
                 </div>
               </div>
@@ -308,7 +351,7 @@ export default function AdminCourses() {
                   <IndianRupee className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockCourses.reduce((acc, c) => acc + c.enrolledStudents, 0)}</p>
+                  <p className="text-2xl font-bold">{courses.reduce((acc, c) => acc + c.enrolledStudents, 0)}</p>
                   <p className="text-sm text-muted-foreground">Enrollments</p>
                 </div>
               </div>
@@ -340,8 +383,8 @@ export default function AdminCourses() {
                     <TableHead>Course</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Duration</TableHead>
-                    <TableHead>Fees</TableHead>
-                    <TableHead>B2B Price</TableHead>
+                    <TableHead>Kit Value</TableHead>
+                    <TableHead>Exam Only Value</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-12"></TableHead>
@@ -392,7 +435,10 @@ export default function AdminCourses() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setEditingCourse({ ...course });
+                              setIsEditDialogOpen(true);
+                            }}>
                               <Edit className="w-4 h-4 mr-2" />
                               Edit Course
                             </DropdownMenuItem>

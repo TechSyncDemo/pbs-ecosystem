@@ -72,6 +72,7 @@ export default function AdminCoordinators() {
   const [coordinators, setCoordinators] = useState(mockCoordinators);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedCoordinator, setSelectedCoordinator] = useState<Coordinator | null>(null);
   const [newCoordinator, setNewCoordinator] = useState({
     name: '',
@@ -79,6 +80,7 @@ export default function AdminCoordinators() {
     contact: '',
     commissionRate: '',
   });
+  const [editingCoordinator, setEditingCoordinator] = useState<Coordinator | null>(null);
 
   const handleCreateCoordinator = () => {
     // In a real app, you'd validate and send this to an API
@@ -86,6 +88,26 @@ export default function AdminCoordinators() {
     setIsCreateOpen(false);
     setNewCoordinator({ name: '', email: '', contact: '', commissionRate: '' });
   };
+
+  const handleUpdateCoordinator = () => {
+    if (!editingCoordinator) return;
+
+    setCoordinators(prev =>
+      prev.map(coord =>
+        coord.id === editingCoordinator.id ? editingCoordinator : coord
+      )
+    );
+
+    toast.success('Coordinator profile updated successfully!');
+    setIsEditOpen(false);
+    setEditingCoordinator(null);
+  };
+
+  const handleEditInputChange = (field: keyof Omit<Coordinator, 'id' | 'assignedCenters' | 'createdOn'>, value: string) => {
+    if (editingCoordinator) {
+      setEditingCoordinator({ ...editingCoordinator, [field]: value });
+    }
+  }
 
   return (
     <AdminLayout>
@@ -167,7 +189,9 @@ export default function AdminCoordinators() {
                             <DropdownMenuItem onClick={() => { setSelectedCoordinator(coord); setIsViewOpen(true); }}>
                               <Eye className="w-4 h-4 mr-2" /> View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem><Edit className="w-4 h-4 mr-2" /> Edit Profile</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingCoordinator({ ...coord }); setIsEditOpen(true); }}>
+                              <Edit className="w-4 h-4 mr-2" /> Edit Profile
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -205,6 +229,50 @@ export default function AdminCoordinators() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Coordinator Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Coordinator Profile</DialogTitle>
+            <DialogDescription>Update the details for {editingCoordinator?.name}.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Full Name</Label>
+              <Input
+                value={editingCoordinator?.name || ''}
+                onChange={(e) => handleEditInputChange('name', e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={editingCoordinator?.email || ''}
+                  onChange={(e) => handleEditInputChange('email', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Contact Number</Label>
+                <Input
+                  value={editingCoordinator?.contact || ''}
+                  onChange={(e) => handleEditInputChange('contact', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Commission Rate (%)</Label>
+              <Input type="number" value={editingCoordinator?.commissionRate || ''} onChange={(e) => handleEditInputChange('commissionRate', e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateCoordinator}>Save Changes</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AdminLayout>

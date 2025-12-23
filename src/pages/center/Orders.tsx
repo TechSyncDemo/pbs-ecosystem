@@ -39,6 +39,7 @@ import {
   CreditCard,
   CheckCircle,
   Clock,
+  QrCode,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { toast } from 'sonner';
@@ -129,9 +130,17 @@ export default function CenterOrders() {
 
   const orderTotal = orderItems.reduce((acc, item) => acc + item.qty * item.unitPrice, 0);
 
-  const handlePlaceOrder = () => {
+  const handlePayWithCard = () => {
     toast.success('Order placed successfully!', {
       description: 'Redirecting to payment gateway...',
+    });
+    setIsOrderDialogOpen(false);
+    setOrderItems([]);
+  };
+
+  const handlePayWithQR = () => {
+    toast.success('Order placed successfully!', {
+      description: 'Generating QR code for payment...',
     });
     setIsOrderDialogOpen(false);
     setOrderItems([]);
@@ -274,9 +283,13 @@ export default function CenterOrders() {
                 <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handlePlaceOrder} disabled={orderItems.length === 0}>
+                <Button variant="outline" onClick={handlePayWithQR} disabled={orderItems.length === 0}>
+                  <QrCode className="w-4 h-4 mr-2" />
+                  Pay with QR
+                </Button>
+                <Button onClick={handlePayWithCard} disabled={orderItems.length === 0}>
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Pay Now
+                  Pay with Cards etc
                 </Button>
               </DialogFooter>
             </DialogContent>

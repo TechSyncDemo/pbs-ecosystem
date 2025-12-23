@@ -451,10 +451,6 @@ export default function CenterEnquiries() {
                                 <Edit className="w-4 h-4 mr-2" />
                                 Edit Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Convert to Admission
-                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                           <DialogContent className="sm:max-w-[600px]">

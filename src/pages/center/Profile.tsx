@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import html2pdf from 'html2pdf.js';
 import { 
   Building,
   User,
@@ -56,8 +57,6 @@ const centerProfileData = {
   name: 'PBS Computer Education - City Center',
   address: '123, MG Road, Near Metro Station, Cityville, State, 400001',
   code: 'PBS-CC-01',
-  validity: '2025-03-31',
-  status: 'Active',
   owner: {
     name: 'Mr. Rajesh Kumar',
     contact: '+91 98765 43210',
@@ -65,9 +64,9 @@ const centerProfileData = {
     photoUrl: 'https://i.pravatar.cc/150?u=rajeshkumar',
   },
   faculty: [
-    { id: 1, name: 'Anjali Sharma', qualification: 'MCA, 5+ years experience' },
-    { id: 2, name: 'Vikram Singh', qualification: 'B.Tech (CS), Certified Java Developer' },
-    { id: 3, name: 'Sunita Patil', qualification: 'B.Com, Tally Certified Trainer' },
+    { id: 1, name: 'Anjali Sharma', qualification: 'MCA', subjectExpertise: 'C, C++, Java' },
+    { id: 2, name: 'Vikram Singh', qualification: 'B.Tech (CS)', subjectExpertise: 'Java, Python, Web Development' },
+    { id: 3, name: 'Sunita Patil', qualification: 'B.Com', subjectExpertise: 'Tally, GST, Accounting' },
   ],
   infrastructure: [
     { id: 1, type: 'classroom', name: 'Classroom A', capacity: 25, pcs: 0, projectors: 1 },
@@ -86,6 +85,11 @@ const centerProfileData = {
     opportunities: 'Growing demand for IT skills, Corporate training tie-ups.',
     threats: 'New competitors in the area, Online course platforms.',
   },
+  authorizations: [
+    { id: 1, name: 'IT Division', validity: '2025-12-31' },
+    { id: 2, name: 'Vocational Division', validity: '2024-06-30' },
+    { id: 3, name: 'Skill Development', validity: '2026-01-15' },
+  ],
 };
 
 type InfraItem = typeof centerProfileData.infrastructure[0];
@@ -139,14 +143,14 @@ export default function CenterProfile() {
   // This ensures the dialog always opens with the latest data
   const [editableProfile, setEditableProfile] = useState(profileData);
 
-  const handleFacultyChange = (index: number, field: 'name' | 'qualification', value: string) => {
+  const handleFacultyChange = (index: number, field: 'name' | 'qualification' | 'subjectExpertise', value: string) => {
     const updatedFaculty = [...editableProfile.faculty];
     updatedFaculty[index] = { ...updatedFaculty[index], [field]: value };
     setEditableProfile(prev => ({ ...prev, faculty: updatedFaculty }));
   };
 
   const handleAddFaculty = () => {
-    const newFaculty = { id: Date.now(), name: '', qualification: '' };
+    const newFaculty = { id: Date.now(), name: '', qualification: '', subjectExpertise: '' };
     setEditableProfile(prev => ({ ...prev, faculty: [...prev.faculty, newFaculty] }));
   };
 
@@ -183,14 +187,43 @@ export default function CenterProfile() {
     setIsEditDialogOpen(false);
   };
 
+  const handleDownloadCertificate = (auth: { name: string; validity: string }) => {
+    toast.info(`Generating certificate for ${auth.name}...`);
+
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <div style="border: 10px solid #003366; padding: 50px; text-align: center; font-family: sans-serif; background-color: #f0f8ff;">
+        <h1 style="color: #003366; font-size: 48px;">Certificate of Authorization</h1>
+        <p style="font-size: 20px; margin-top: 30px;">This is to certify that</p>
+        <h2 style="color: #d16002; font-size: 36px; margin: 20px 0;">${profileData.name}</h2>
+        <p style="font-size: 20px;">is an authorized center for</p>
+        <h3 style="color: #003366; font-size: 32px; margin: 20px 0;">${auth.name}</h3>
+        <p style="font-size: 18px;">This authorization is valid until:</p>
+        <p style="font-size: 24px; font-weight: bold; margin-top: 10px;">${new Date(auth.validity).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </div>
+    `;
+
+    const opt = {
+      margin:       0.5,
+      filename:     `Authorization_Certificate_${profileData.code}_${auth.name.replace(/\s+/g, '_')}.pdf`,
+      image: { type: 'jpeg' as 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' as 'landscape' }
+    };
+
+    html2pdf().from(element).set(opt).save();
+  };
+
   // Calculate infrastructure summary
   const infraSummary = profileData.infrastructure.reduce((acc, item) => {
     acc.pcs += item.pcs;
     acc.projectors += item.projectors;
     if (item.type === 'classroom') acc.classrooms += 1;
     if (item.type === 'lab') acc.labs += 1;
-    return acc;
+ return acc;
   }, { classrooms: 0, labs: 0, pcs: 0, projectors: 0, classroomCapacity: 25 }); // Assuming static capacity for now
+
+  const isAnyAuthActive = profileData.authorizations.some(auth => new Date(auth.validity) > new Date());
 
 
   return (
@@ -205,10 +238,6 @@ export default function CenterProfile() {
           <div className="flex gap-3">
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogTrigger asChild onClick={() => setEditableProfile(profileData)}>
-                <Button variant="outline">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Profile
-                </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -253,16 +282,22 @@ export default function CenterProfile() {
                   <TabsContent value="faculty" className="space-y-4 mt-4">
                     {/* In a real app, this would be more dynamic */}
                     {editableProfile.faculty.map((member, index) => (
-                      <div key={member.id} className="flex items-end gap-2">
-                        <div className="grid gap-2 flex-1">
-                          <Label>Trainer Name</Label>
-                          <Input value={member.name} onChange={(e) => handleFacultyChange(index, 'name', e.target.value)} />
+                      <div key={member.id} className="p-3 border rounded-lg space-y-2 relative">
+                        <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => handleRemoveFaculty(member.id)}><Trash2 className="w-3 h-3 text-destructive" /></Button>
+                        <div className="grid grid-cols-3 gap-2 pt-2">
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Trainer Name</Label>
+                            <Input value={member.name} onChange={(e) => handleFacultyChange(index, 'name', e.target.value)} />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Qualification</Label>
+                            <Input value={member.qualification} onChange={(e) => handleFacultyChange(index, 'qualification', e.target.value)} />
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Subject Expertise</Label>
+                            <Input value={member.subjectExpertise} onChange={(e) => handleFacultyChange(index, 'subjectExpertise', e.target.value)} />
+                          </div>
                         </div>
-                        <div className="grid gap-2 flex-1">
-                          <Label>Qualification</Label>
-                          <Input value={member.qualification} onChange={(e) => handleFacultyChange(index, 'qualification', e.target.value)} />
-                        </div>
-                        <Button variant="outline" size="icon" onClick={() => handleRemoveFaculty(member.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                       </div>
                     ))}
                     <Button variant="outline" className="w-full" onClick={handleAddFaculty}><Plus className="w-4 h-4 mr-2" />Add New Faculty</Button>
@@ -328,9 +363,9 @@ export default function CenterProfile() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button>
-              <FileDown className="w-4 h-4 mr-2" />
-              Download Certificate
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Profile
             </Button>
           </div>
         </div>
@@ -349,18 +384,29 @@ export default function CenterProfile() {
                 <h2 className="text-xl font-semibold">{profileData.name}</h2>
                 <InfoItem icon={MapPin} label="Address" value={profileData.address} />
                 <InfoItem icon={ShieldCheck} label="Center Code" value={profileData.code} />
-                <InfoItem
-                  icon={Calendar}
-                  label="Validity"
-                  value={
-                    <div className="flex items-center gap-2">
-                      <span>{new Date(profileData.validity).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                      <Badge className={profileData.status === 'Active' ? 'bg-success hover:bg-success/90' : 'bg-destructive'}>
-                        {profileData.status}
-                      </Badge>
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Authorizations</p>
+                      <div className="space-y-2 mt-2">
+                        {profileData.authorizations.map(auth => (
+                          <div key={auth.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                            <div>
+                              <p className="font-medium">{auth.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Valid until: {new Date(auth.validity).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => handleDownloadCertificate(auth)}>
+                              <FileDown className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  }
-                />
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -401,6 +447,7 @@ export default function CenterProfile() {
                       <TableRow className="bg-muted/50">
                         <TableHead>Trainer Name</TableHead>
                         <TableHead>Qualification</TableHead>
+                        <TableHead>Subject Expertise</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -408,6 +455,7 @@ export default function CenterProfile() {
                         <TableRow key={member.id}>
                           <TableCell className="font-medium">{member.name}</TableCell>
                           <TableCell>{member.qualification}</TableCell>
+                          <TableCell>{member.subjectExpertise}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

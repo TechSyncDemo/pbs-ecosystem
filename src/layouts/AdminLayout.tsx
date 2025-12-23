@@ -38,9 +38,9 @@ const adminNavItems: NavItem[] = [
   { label: 'Coordinators', href: '/admin/coordinators', icon: BadgePercent },
   { label: 'Orders', href: '/admin/orders', icon: Package },
   { label: 'Students', href: '/admin/students', icon: Users },
-  { label: 'Support', href: '/admin/support', icon: MessageSquare }, // Corrected icon for Support
   { label: 'Results', href: '/admin/results', icon: Award }, // Assuming Award is for Results
   { label: 'Reports', href: '/admin/reports', icon: FileTextIcon }, // FileTextIcon for Reports
+  { label: 'Support', href: '/admin/support', icon: MessageSquare }, // Corrected icon for Support
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

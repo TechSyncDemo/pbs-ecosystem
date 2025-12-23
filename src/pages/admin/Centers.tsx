@@ -53,6 +53,8 @@ const mockCenters = [
     email: 'delhi@pbs-edu.com',
     location: 'New Delhi, India',
     validFrom: '2024-01-01',
+    phoneNumber: '+91 98765 43210',
+    alternatePhoneNumber: '',
     validTo: '2025-12-31',
     status: 'active',
     students: 245,
@@ -66,6 +68,8 @@ const mockCenters = [
     email: 'mumbai@pbs-edu.com',
     location: 'Mumbai, India',
     validFrom: '2024-02-15',
+    phoneNumber: '+91 87654 32109',
+    alternatePhoneNumber: '',
     validTo: '2025-12-31',
     status: 'active',
     students: 198,
@@ -79,6 +83,8 @@ const mockCenters = [
     email: 'bangalore@pbs-edu.com',
     location: 'Bangalore, India',
     validFrom: '2024-03-01',
+    phoneNumber: '+91 76543 21098',
+    alternatePhoneNumber: '+91 77665 54433',
     validTo: '2025-06-30',
     status: 'active',
     students: 176,
@@ -92,6 +98,8 @@ const mockCenters = [
     email: 'chennai@pbs-edu.com',
     location: 'Chennai, India',
     validFrom: '2023-06-01',
+    phoneNumber: '+91 65432 10987',
+    alternatePhoneNumber: '',
     validTo: '2024-05-31',
     status: 'expired',
     students: 154,
@@ -105,6 +113,8 @@ const mockCenters = [
     email: 'hyderabad@pbs-edu.com',
     location: 'Hyderabad, India',
     validFrom: '2024-04-01',
+    phoneNumber: '+91 54321 09876',
+    alternatePhoneNumber: '',
     validTo: '2025-12-31',
     status: 'active',
     students: 132,
@@ -112,14 +122,20 @@ const mockCenters = [
   },
 ];
 
+type Center = typeof mockCenters[0];
+
 export default function AdminCenters() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCenter, setEditingCenter] = useState<Center | null>(null);
   const [newCenter, setNewCenter] = useState({
     name: '',
     owner: '',
     email: '',
     location: '',
+    phoneNumber: '',
+    alternatePhoneNumber: '',
   });
 
   const filteredCenters = mockCenters.filter(
@@ -134,13 +150,31 @@ export default function AdminCenters() {
       description: `${newCenter.name} has been added to the network.`,
     });
     setIsAddDialogOpen(false);
-    setNewCenter({ name: '', owner: '', email: '', location: '' });
+    setNewCenter({ name: '', owner: '', email: '', location: '', phoneNumber: '', alternatePhoneNumber: '' });
   };
 
   const handleResetPassword = (centerName: string) => {
     toast.success('Password reset link sent!', {
       description: `Reset link has been sent to ${centerName}'s email.`,
     });
+  };
+
+  const handleUpdateCenter = () => {
+    if (!editingCenter) return;
+    // In a real app, this would be an API call.
+    // For now, we update the mock data state.
+    const updatedCenters = mockCenters.map(c => c.id === editingCenter.id ? editingCenter : c);
+    // setMockCenters(updatedCenters); // If mockCenters was a state
+
+    toast.success('Center details updated successfully!');
+    setIsEditDialogOpen(false);
+    setEditingCenter(null);
+  };
+
+  const handleEditInputChange = (field: keyof Center, value: string) => {
+    if (editingCenter) {
+      setEditingCenter({ ...editingCenter, [field]: value });
+    }
   };
 
   return (
@@ -191,6 +225,24 @@ export default function AdminCenters() {
                     />
                   </div>
                   <div className="grid gap-2">
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Input
+                      id="phoneNumber"
+                      placeholder="+91 98765 43210"
+                      value={newCenter.phoneNumber}
+                      onChange={(e) => setNewCenter({ ...newCenter, phoneNumber: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="alternatePhoneNumber">Alternate Phone Number (Optional)</Label>
+                    <Input
+                      id="alternatePhoneNumber"
+                      placeholder="+91 99887 76655"
+                      value={newCenter.alternatePhoneNumber}
+                      onChange={(e) => setNewCenter({ ...newCenter, alternatePhoneNumber: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input
                       id="email"
@@ -217,6 +269,65 @@ export default function AdminCenters() {
                   <Button onClick={handleAddCenter}>Create Center</Button>
                 </DialogFooter>
               </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Edit Center Dialog */}
+        <div className="hidden">
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Center Details</DialogTitle>
+                <DialogDescription>Update details for {editingCenter?.name}.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label>Center Name</Label>
+                  <Input value={editingCenter?.name || ''} onChange={(e) => handleEditInputChange('name', e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Owner Name</Label>
+                  <Input value={editingCenter?.owner || ''} onChange={(e) => handleEditInputChange('owner', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Phone Number</Label>
+                    <Input value={editingCenter?.phoneNumber || ''} onChange={(e) => handleEditInputChange('phoneNumber', e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Alternate Phone</Label>
+                    <Input value={editingCenter?.alternatePhoneNumber || ''} onChange={(e) => handleEditInputChange('alternatePhoneNumber', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Email Address</Label>
+                  <Input type="email" value={editingCenter?.email || ''} onChange={(e) => handleEditInputChange('email', e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Location</Label>
+                  <Input value={editingCenter?.location || ''} onChange={(e) => handleEditInputChange('location', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Valid From</Label>
+                    <Input type="date" value={editingCenter?.validFrom || ''} onChange={(e) => handleEditInputChange('validFrom', e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Valid To</Label>
+                    <Input type="date" value={editingCenter?.validTo || ''} onChange={(e) => handleEditInputChange('validTo', e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingCenter(null);
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateCenter}>Save Changes</Button>
+              </DialogFooter>
+            </DialogContent>
             </Dialog>
           </div>
         </div>
@@ -353,7 +464,10 @@ export default function AdminCenters() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setEditingCenter({ ...center });
+                              setIsEditDialogOpen(true);
+                            }}>
                               <Edit className="w-4 h-4 mr-2" />
                               Edit Details
                             </DropdownMenuItem>

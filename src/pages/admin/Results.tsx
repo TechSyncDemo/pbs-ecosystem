@@ -4,6 +4,7 @@ import {
   FileText,
   Printer,
   Filter,
+  Search,
   QrCode,
   Check,
   Mail,
@@ -85,7 +86,10 @@ const mockCenters = [
 
 export default function AdminResults() {
   const [pendingResults, setPendingResults] = useState(mockPendingResults);
+  const [selectedForDeclaration, setSelectedForDeclaration] = useState<string[]>([]);
   const [selectedForPrinting, setSelectedForPrinting] = useState<string[]>([]);
+  const [declarationFilters, setDeclarationFilters] = useState({ center: 'all', startDate: '', endDate: '' });
+
 
   const handleGraceMarksChange = (studentId: string, marks: number) => {
     setPendingResults(prev =>
@@ -107,6 +111,29 @@ export default function AdminResults() {
     });
   };
 
+  const handleDeclareSelected = () => {
+    if (selectedForDeclaration.length === 0) {
+      toast.error('No students selected for declaration.');
+      return;
+    }
+    setPendingResults(prev =>
+      prev.map(student =>
+        selectedForDeclaration.includes(student.id) ? { ...student, status: 'Declared' } : student
+      )
+    );
+    toast.success(`${selectedForDeclaration.length} results declared successfully!`);
+    setSelectedForDeclaration([]);
+  };
+
+  const handlePrintMarksheets = () => {
+    if (selectedForPrinting.length === 0) {
+      toast.error('Please select at least one student to print marksheets.');
+      return;
+    }
+    toast.info(`Generating bulk marksheet PDF for ${selectedForPrinting.length} students...`);
+    // PDF generation logic would go here
+  };
+
   const handlePrintCertificates = () => {
     if (selectedForPrinting.length === 0) {
       toast.error('Please select at least one student to print certificates.');
@@ -124,6 +151,28 @@ export default function AdminResults() {
         ? prev.filter(id => id !== studentId)
         : [...prev, studentId]
     );
+  };
+
+  const toggleDeclareSelection = (studentId: string) => {
+    setSelectedForDeclaration(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const filteredPendingResults = pendingResults.filter(student => {
+    const centerMatch = declarationFilters.center === 'all' || student.centerName === mockCenters.find(c => c.id === declarationFilters.center)?.name;
+    const startDateMatch = !declarationFilters.startDate || new Date(student.examDate) >= new Date(declarationFilters.startDate);
+    const endDateMatch = !declarationFilters.endDate || new Date(student.examDate) <= new Date(declarationFilters.endDate);
+    return centerMatch && startDateMatch && endDateMatch;
+  });
+
+  const handleDeclarationFilterChange = (filterName: 'center' | 'startDate' | 'endDate', value: string) => {
+    setDeclarationFilters(prev => ({
+      ...prev,
+      [filterName]: value,
+    }));
   };
 
   return (
@@ -144,14 +193,52 @@ export default function AdminResults() {
           <TabsContent value="declaration" className="mt-6">
             <Card className="border-0 shadow-card">
               <CardHeader>
-                <CardTitle>Pending Results</CardTitle>
-                <CardDescription>Review marks, add grace marks if necessary, and declare results.</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Pending Results</CardTitle>
+                    <CardDescription>Review marks, add grace marks if necessary, and declare results.</CardDescription>
+                  </div>
+                  <Button onClick={handleDeclareSelected} disabled={selectedForDeclaration.length === 0}>
+                    <Mail className="w-4 h-4 mr-2" />
+                    Declare ({selectedForDeclaration.length}) Selected
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-end gap-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label>Center</Label>
+                    <Select value={declarationFilters.center} onValueChange={(value) => handleDeclarationFilterChange('center', value)}>
+                      <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {mockCenters.map(center => (
+                          <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>From Date</Label>
+                    <Input type="date" className="w-full sm:w-40" value={declarationFilters.startDate} onChange={(e) => handleDeclarationFilterChange('startDate', e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>To Date</Label>
+                    <Input type="date" className="w-full sm:w-40" value={declarationFilters.endDate} onChange={(e) => handleDeclarationFilterChange('endDate', e.target.value)} />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectedForDeclaration.length > 0 && selectedForDeclaration.length === filteredPendingResults.filter(s => s.status === 'Pending Declaration').length}
+                            onCheckedChange={(checked) => {
+                              const pendingIds = filteredPendingResults.filter(s => s.status === 'Pending Declaration').map(s => s.id);
+                              setSelectedForDeclaration(checked ? pendingIds : []);
+                            }}
+                          />
+                        </TableHead>
                         <TableHead>Student</TableHead>
                         <TableHead>Course</TableHead>
                         <TableHead>Marks</TableHead>
@@ -161,8 +248,16 @@ export default function AdminResults() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingResults.map((student) => (
+                      {filteredPendingResults.map((student) => (
                         <TableRow key={student.id}>
+                          <TableCell>
+                            {student.status === 'Pending Declaration' && (
+                              <Checkbox
+                                checked={selectedForDeclaration.includes(student.id)}
+                                onCheckedChange={() => toggleDeclareSelection(student.id)}
+                              />
+                            )}
+                          </TableCell>
                           <TableCell>
                             <p className="font-medium">{student.name}</p>
                             <p className="text-sm text-muted-foreground">{student.centerName}</p>
@@ -230,10 +325,14 @@ export default function AdminResults() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-end gap-2 mb-4">
+                  <Button variant="outline" onClick={handlePrintMarksheets} disabled={selectedForPrinting.length === 0}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Print Marksheet ({selectedForPrinting.length})
+                  </Button>
                   <Button onClick={handlePrintCertificates} disabled={selectedForPrinting.length === 0}>
                     <Printer className="w-4 h-4 mr-2" />
-                    Print ({selectedForPrinting.length}) Selected
+                    Print Certificate ({selectedForPrinting.length})
                   </Button>
                 </div>
                 <div className="rounded-lg border overflow-hidden">

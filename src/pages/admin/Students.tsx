@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,9 @@ import {
   Mail,
   Calendar,
   Download,
-  Filter,
+  FileText,
+  Award,
+  Edit,
 } from 'lucide-react';
 import {
   Select,
@@ -29,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import AdminLayout from '@/layouts/AdminLayout';
+import { toast } from 'sonner';
 
 // Mock students data
 const mockStudents = [
@@ -43,6 +47,7 @@ const mockStudents = [
     status: 'Active',
     feesPaid: 12000,
     feesTotal: 15000,
+    marks: null,
   },
   {
     id: 'STU-2024-002',
@@ -55,6 +60,7 @@ const mockStudents = [
     status: 'Active',
     feesPaid: 12000,
     feesTotal: 12000,
+    marks: null,
   },
   {
     id: 'STU-2024-003',
@@ -67,6 +73,7 @@ const mockStudents = [
     status: 'Exam Completed',
     feesPaid: 8000,
     feesTotal: 8000,
+    marks: 78,
   },
   {
     id: 'STU-2024-004',
@@ -79,6 +86,7 @@ const mockStudents = [
     status: 'Active',
     feesPaid: 15000,
     feesTotal: 18000,
+    marks: null,
   },
   {
     id: 'STU-2024-005',
@@ -91,6 +99,7 @@ const mockStudents = [
     status: 'Certified',
     feesPaid: 14000,
     feesTotal: 14000,
+    marks: 92,
   },
 ];
 
@@ -98,6 +107,7 @@ export default function AdminStudents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [centerFilter, setCenterFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const navigate = useNavigate();
 
   const filteredStudents = mockStudents.filter((student) => {
     const matchesSearch =
@@ -109,17 +119,28 @@ export default function AdminStudents() {
     return matchesSearch && matchesCenter && matchesStatus;
   });
 
-  const getStatusColor = (status: string) => {
+  const getExamStatusBadge = (status: string) => {
     switch (status) {
       case 'Active':
-        return 'bg-success hover:bg-success/90';
+        return <Badge variant="secondary">Pending</Badge>;
       case 'Exam Completed':
-        return 'bg-info hover:bg-info/90';
       case 'Certified':
-        return 'bg-warning hover:bg-warning/90';
+        return <Badge className="bg-success hover:bg-success/90">Completed</Badge>;
       default:
-        return '';
+        return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const handleEditMarks = (studentId: string) => {
+    // Navigate to the results page, potentially with a query to highlight the student
+    navigate(`/admin/results?student=${studentId}`);
+    toast.info(`Navigating to results for student ${studentId}...`);
+  };
+
+  const handleViewCertificate = (studentId: string) => {
+    // Navigate to the results page, and switch to the printing tab
+    navigate(`/admin/results?tab=printing&student=${studentId}`);
+    toast.info(`Navigating to certificate queue for student ${studentId}...`);
   };
 
   return (
@@ -243,8 +264,9 @@ export default function AdminStudents() {
                     <TableHead>Course</TableHead>
                     <TableHead>Center</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Fees</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Exam Status</TableHead>
+                    <TableHead>Marks</TableHead>
+                    <TableHead>Certificate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -279,20 +301,25 @@ export default function AdminStudents() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">₹{student.feesPaid.toLocaleString()}</p>
-                          <p className="text-sm text-muted-foreground">of ₹{student.feesTotal.toLocaleString()}</p>
-                          {student.feesPaid < student.feesTotal && (
-                            <Badge variant="destructive" className="mt-1 text-xs">
-                              Due: ₹{(student.feesTotal - student.feesPaid).toLocaleString()}
-                            </Badge>
-                          )}
-                        </div>
+                        {getExamStatusBadge(student.status)}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(student.status)}>
-                          {student.status}
-                        </Badge>
+                        {student.marks !== null ? (
+                          <Button variant="link" className="p-0 h-auto" onClick={() => handleEditMarks(student.id)}>
+                            {student.marks}/100 <Edit className="w-3 h-3 ml-2" />
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {student.status === 'Certified' ? (
+                          <Button variant="outline" size="sm" onClick={() => handleViewCertificate(student.id)}>
+                            <Award className="w-4 h-4 mr-2" /> View
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

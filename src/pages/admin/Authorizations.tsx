@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
-  Edit,
   PlusCircle,
   MoreHorizontal,
-  BookUp,
-  Eye,
   Plus,
   Trash2,
   Search,
+  BookOpen,
+  Building2,
+  Edit,
+  Eye,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -50,15 +52,6 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 
-// Mock Data
-const mockCoursesMaster = [
-  { id: 'CRS-001', name: 'Diploma in Digital Marketing' },
-  { id: 'CRS-002', name: 'Certificate in Tally Prime' },
-  { id: 'CRS-003', name: 'Web Development Fundamentals' },
-  { id: 'CRS-004', name: 'Certificate in Python Programming' },
-  { id: 'CRS-005', name: 'Advanced Computer Applications' },
-];
-
 const mockCenters = [
   {
     id: 'C-001',
@@ -68,12 +61,8 @@ const mockCenters = [
     commissionRate: 15,
     createdOn: '2023-04-01',
     description: 'Premier IT training center in the heart of the city.',
-    authorizationType: 'IT Division',
+    authorizationType: 'Information Technology',
     status: 'Active',
-    assignedCourses: [
-      { courseId: 'CRS-001', name: 'Diploma in Digital Marketing', kitValue: 5000, onlyExamValue: 1500, duration: '6 Months', note: 'Includes project work.' },
-      { courseId: 'CRS-002', name: 'Certificate in Tally Prime', kitValue: 3000, onlyExamValue: 1000, duration: '3 Months', note: '' },
-    ],
   },
   {
     id: 'C-002',
@@ -85,9 +74,6 @@ const mockCenters = [
     description: 'Focus on job-oriented vocational courses.',
     authorizationType: 'Vocational Division',
     status: 'Active',
-    assignedCourses: [
-      { courseId: 'CRS-002', name: 'Certificate in Tally Prime', kitValue: 3200, onlyExamValue: 1100, duration: '3 Months', note: 'Weekend batches available.' },
-    ],
   },
   {
     id: 'C-003',
@@ -101,6 +87,14 @@ const mockCenters = [
     status: 'Inactive',
     assignedCourses: [],
   },
+];
+
+const mockCoursesMaster = [
+  { id: 'CRS-001', name: 'Diploma in Digital Marketing' },
+  { id: 'CRS-002', name: 'Certificate in Tally Prime' },
+  { id: 'CRS-003', name: 'Web Development Fundamentals' },
+  { id: 'CRS-004', name: 'Certificate in Python Programming' },
+  { id: 'CRS-005', name: 'Advanced Computer Applications' },
 ];
 
 export default function AdminAuthorizations() {
@@ -118,6 +112,11 @@ export default function AdminAuthorizations() {
     examValue: '',
     duration: '',
   });
+
+  // Add assignedCourses to mock data if it doesn't exist, to prevent errors
+  const initializedCenters = centers.map(center => ({
+    ...center, assignedCourses: center.assignedCourses || []
+  }));
 
   const handleSaveChanges = () => {
     if (!editableCenter) return;
@@ -168,7 +167,7 @@ export default function AdminAuthorizations() {
     toast.success('Course added to center!');
   };
 
-  const filteredCenters = centers.filter(center =>
+  const filteredCenters = initializedCenters.filter(center =>
     center.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

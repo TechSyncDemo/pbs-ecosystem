@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import html2pdf from 'html2pdf.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ import {
   Edit,
   FileText,
   Key,
+  Award,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -65,7 +67,9 @@ const mockStudents = [
     status: 'Active',
     feesPaid: 12000,
     feesTotal: 15000,
-    examStatus: 'Pending',
+    username: 'rahul.s',
+    password: 'aBcDeFgH',
+    marks: null,
   },
   {
     id: 'STU-002',
@@ -77,7 +81,10 @@ const mockStudents = [
     status: 'Active',
     feesPaid: 12000,
     feesTotal: 12000,
-    examStatus: 'Scheduled',
+    username: 'priya.g',
+    password: 'iJkLmNoP',
+    marks: null,
+    examStatus: 'Pending', // Added examStatus
   },
   {
     id: 'STU-003',
@@ -86,10 +93,13 @@ const mockStudents = [
     mobile: '+91 76543 21098',
     email: 'amit.k@email.com',
     admissionDate: '2024-02-15',
-    status: 'Exam Completed',
+    status: 'Certified',
     feesPaid: 8000,
     feesTotal: 8000,
-    examStatus: 'Completed',
+    username: 'amit.k',
+    password: 'qRsTuVwX',
+    marks: 85,
+    examStatus: 'Completed', // Added examStatus
   },
 ];
 
@@ -118,8 +128,7 @@ export default function CenterStudents() {
     course: '',
     feesTotal: '',
     feesPaid: '',
-    practicalMarks: '',
-    internshipMarks: '',
+    remarks: '',
   });
 
   const filteredStudents = mockStudents.filter(
@@ -130,6 +139,15 @@ export default function CenterStudents() {
   );
 
   const handleAddStudent = () => {
+    // Generate username and password
+    const username = newStudent.name.toLowerCase().split(' ')[0] + '.' + newStudent.name.split(' ').slice(-1)[0].charAt(0).toLowerCase();
+    const password = Math.random().toString(36).slice(-8);
+
+    console.log('New Student Data:', {
+      ...newStudent,
+      username,
+      password,
+    });
     toast.success('Student admitted successfully!', {
       description: `${newStudent.name} has been enrolled in ${newStudent.course}.`,
     });
@@ -147,8 +165,7 @@ export default function CenterStudents() {
       course: '',
       feesTotal: '',
       feesPaid: '',
-      practicalMarks: '',
-      internshipMarks: '',
+      remarks: '',
     });
     setActiveTab('personal');
   };
@@ -170,6 +187,44 @@ export default function CenterStudents() {
       default:
         return '';
     }
+  };
+
+  const handleDownloadDocument = (student: typeof mockStudents[0], type: 'marksheet' | 'certificate') => {
+    const docTitle = type === 'marksheet' ? 'Marksheet' : 'Certificate of Completion';
+    const filename = `${docTitle.replace(/\s+/g, '_')}_${student.id}.pdf`;
+
+    toast.info(`Generating ${type} for ${student.name}...`);
+
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <div style="border: 10px solid #003366; padding: 50px; text-align: center; font-family: sans-serif; background-color: #f0f8ff;">
+        <h1 style="color: #003366; font-size: 48px;">${docTitle}</h1>
+        <p style="font-size: 20px; margin-top: 30px;">This is to certify that</p>
+        <h2 style="color: #d16002; font-size: 36px; margin: 20px 0;">${student.name}</h2>
+        <p style="font-size: 20px;">has successfully completed the course</p>
+        <h3 style="color: #003366; font-size: 32px; margin: 20px 0;">${student.course}</h3>
+        ${type === 'marksheet' ?
+        `<p style="font-size: 18px;">with a final score of:</p>
+         <p style="font-size: 24px; font-weight: bold; margin-top: 10px;">${student.marks} / 100</p>`
+        :
+        `<p style="font-size: 18px;">on ${new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>`
+        }
+      </div>
+    `;
+
+    const opt = {
+      margin: 0.5,
+      filename: filename,
+      image: { type: 'jpeg' as 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: {
+        unit: 'in',
+        format: 'letter',
+        orientation: 'landscape' as 'landscape',
+      },
+    };
+
+    html2pdf().from(element).set(opt).save();
   };
 
   const selectedCourse = courses.find(c => c.name === newStudent.course);
@@ -359,25 +414,14 @@ export default function CenterStudents() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label>Practical Marks</Label>
-                        <Input
-                          type="number"
-                          placeholder="Enter marks"
-                          value={newStudent.practicalMarks}
-                          onChange={(e) => setNewStudent({ ...newStudent, practicalMarks: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Internship Marks</Label>
-                        <Input
-                          type="number"
-                          placeholder="Enter marks"
-                          value={newStudent.internshipMarks}
-                          onChange={(e) => setNewStudent({ ...newStudent, internshipMarks: e.target.value })}
-                        />
-                      </div>
+                    <div className="grid gap-2">
+                      <Label>Remarks (Optional)</Label>
+                      <Textarea
+                        placeholder="Any additional notes about the student..."
+                        value={newStudent.remarks}
+                        onChange={(e) => setNewStudent({ ...newStudent, remarks: e.target.value })}
+                        rows={4}
+                      />
                     </div>
                   </div>
                 </TabsContent>
@@ -507,8 +551,10 @@ export default function CenterStudents() {
                     <TableHead>Student</TableHead>
                     <TableHead>Course</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Fees</TableHead>
-                    <TableHead>Exam</TableHead>
+                    <TableHead>Credentials</TableHead>
+                    <TableHead>Certificates</TableHead>
+                    {/* <TableHead>Fees</TableHead>
+                    <TableHead>Exam</TableHead> */}
                     <TableHead>Status</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -542,20 +588,22 @@ export default function CenterStudents() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">₹{student.feesPaid.toLocaleString()}</p>
-                          <p className="text-sm text-muted-foreground">of ₹{student.feesTotal.toLocaleString()}</p>
-                          {student.feesPaid < student.feesTotal && (
-                            <Badge variant="destructive" className="mt-1 text-xs">
-                              Due: ₹{(student.feesTotal - student.feesPaid).toLocaleString()}
-                            </Badge>
-                          )}
+                        <div className="text-sm">
+                          <p>ID: <span className="font-mono">{student.username}</span></p>
+                          <p>Pass: <span className="font-mono">{student.password}</span></p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={student.examStatus === 'Completed' ? 'default' : 'secondary'}>
-                          {student.examStatus}
-                        </Badge>
+                        {student.status === 'Certified' ? (
+                          <div className="flex flex-col gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(student, 'marksheet')}>
+                              <FileText className="w-3 h-3 mr-1.5" /> Marksheet
+                            </Button>
+                            <Button size="sm" onClick={() => handleDownloadDocument(student, 'certificate')}>
+                              <Award className="w-3 h-3 mr-1.5" /> Certificate
+                            </Button>
+                          </div>
+                        ) : (<span className="text-muted-foreground text-sm">Not available</span>)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(student.status)}>
