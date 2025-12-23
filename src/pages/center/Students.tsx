@@ -544,7 +544,7 @@ export default function CenterStudents() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-hidden hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -637,6 +637,46 @@ export default function CenterStudents() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            {/* Mobile Card View */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+              {filteredStudents.map((student) => (
+                <Card key={student.id} className="w-full">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold">{student.name}</p>
+                        <p className="text-sm text-muted-foreground">{student.id}</p>
+                      </div>
+                      <Badge className={getStatusColor(student.status)}>
+                        {student.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium">{student.course}</p>
+                      <p className="text-muted-foreground">Adm: {new Date(student.admissionDate).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p>ID: <span className="font-mono">{student.username}</span></p>
+                      <p>Pass: <span className="font-mono">{student.password}</span></p>
+                    </div>
+                    {student.status === 'Certified' ? (
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button size="xs" variant="outline" onClick={() => handleDownloadDocument(student, 'marksheet')}>
+                          <FileText className="w-3 h-3 mr-1.5" /> Marksheet
+                        </Button>
+                        <Button size="xs" onClick={() => handleDownloadDocument(student, 'certificate')}>
+                          <Award className="w-3 h-3 mr-1.5" /> Certificate
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm pt-2">Certificate: Not available</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>

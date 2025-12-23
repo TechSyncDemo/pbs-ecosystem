@@ -389,7 +389,7 @@ export default function CenterEnquiries() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-hidden hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -518,6 +518,43 @@ export default function CenterEnquiries() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            {/* Mobile Card View */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+              {filteredEnquiries.map((enquiry) => (
+                <Card key={enquiry.id} className="w-full">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold">{enquiry.name}</p>
+                        <p className="text-sm text-muted-foreground">{enquiry.id}</p>
+                      </div>
+                      <Badge className={getStatusColor(enquiry.status)}>
+                        {getStatusIcon(enquiry.status)}
+                        <span className="ml-1">{enquiry.status}</span>
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium">{enquiry.course}</p>
+                      <p className="text-muted-foreground">Source: {enquiry.source}</p>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <p className="text-muted-foreground flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(enquiry.date).toLocaleDateString()}
+                      </p>
+                      <Dialog>
+                        {/* Keep dialog logic but trigger from a simple button */}
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setSelectedEnquiry(enquiry)}>View</Button>
+                        </DialogTrigger>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>

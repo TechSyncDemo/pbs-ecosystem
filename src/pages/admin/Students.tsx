@@ -213,7 +213,7 @@ export default function AdminStudents() {
             </CardContent>
           </Card>
         </div>
-
+  
         {/* Filters and Table */}
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-4">
@@ -256,7 +256,7 @@ export default function AdminStudents() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-hidden hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -325,6 +325,47 @@ export default function AdminStudents() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            {/* Mobile Card View */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+              {filteredStudents.map((student) => (
+                <Card key={student.id} className="w-full">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold">{student.name}</p>
+                        <p className="text-sm text-muted-foreground">{student.id}</p>
+                      </div>
+                      {getExamStatusBadge(student.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium">{student.course}</p>
+                      <p className="text-muted-foreground">{student.center}</p>
+                    </div>
+                    <div>
+                      <p className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {student.mobile}</p>
+                      <p className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {student.email}</p>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <div>
+                        <p className="text-muted-foreground">Marks</p>
+                        {student.marks !== null ? (
+                          <Button variant="link" className="p-0 h-auto -ml-1" onClick={() => handleEditMarks(student.id)}>
+                            {student.marks}/100 <Edit className="w-3 h-3 ml-2" />
+                          </Button>
+                        ) : (<span className="text-muted-foreground">-</span>)}
+                      </div>
+                      {student.status === 'Certified' ? (
+                        <Button variant="outline" size="sm" onClick={() => handleViewCertificate(student.id)}>
+                          <Award className="w-4 h-4 mr-2" /> View Cert
+                        </Button>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>

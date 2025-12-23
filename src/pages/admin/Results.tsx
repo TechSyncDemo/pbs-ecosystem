@@ -226,7 +226,7 @@ export default function AdminResults() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="rounded-lg border overflow-hidden">
+                <div className="rounded-lg border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
@@ -335,7 +335,7 @@ export default function AdminResults() {
                     Print Certificate ({selectedForPrinting.length})
                   </Button>
                 </div>
-                <div className="rounded-lg border overflow-hidden">
+                <div className="rounded-lg border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">

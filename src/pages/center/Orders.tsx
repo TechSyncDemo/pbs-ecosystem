@@ -371,7 +371,7 @@ export default function CenterOrders() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">

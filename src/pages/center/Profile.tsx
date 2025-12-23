@@ -370,7 +370,7 @@ export default function CenterProfile() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Left Column: Center & Owner Profile */}
           <div className="lg:col-span-1 space-y-8">
             <Card className="border-0 shadow-card">
@@ -432,7 +432,7 @@ export default function CenterProfile() {
           </div>
 
           {/* Right Column: Faculty, Infra, SWOT */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="xl:col-span-2 space-y-8">
             <Card className="border-0 shadow-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-heading">
