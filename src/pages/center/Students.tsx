@@ -664,10 +664,10 @@ export default function CenterStudents() {
                     </div>
                     {student.status === 'Certified' ? (
                       <div className="flex items-center gap-2 pt-2">
-                        <Button size="xs" variant="outline" onClick={() => handleDownloadDocument(student, 'marksheet')}>
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(student, 'marksheet')}>
                           <FileText className="w-3 h-3 mr-1.5" /> Marksheet
                         </Button>
-                        <Button size="xs" onClick={() => handleDownloadDocument(student, 'certificate')}>
+                        <Button size="sm" onClick={() => handleDownloadDocument(student, 'certificate')}>
                           <Award className="w-3 h-3 mr-1.5" /> Certificate
                         </Button>
                       </div>

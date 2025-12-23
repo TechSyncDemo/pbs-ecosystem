@@ -186,7 +186,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col p-0">
+            <SheetContent side="left" className="flex flex-col p-0 bg-sidebar text-sidebar-foreground">
               <div className="p-6 border-b border-sidebar-border">
                 <Link to="/admin" className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center">
