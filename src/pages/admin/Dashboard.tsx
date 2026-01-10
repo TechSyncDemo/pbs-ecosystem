@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Building2,
   Users,
@@ -8,77 +9,62 @@ import {
   Package,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
   IndianRupee,
-  GraduationCap,
-  Award,
   Clock,
-  AlertCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '@/layouts/AdminLayout';
+import { useAdminDashboard } from '@/hooks/useAdminDashboard';
+import { formatDistanceToNow } from 'date-fns';
 
-// Mock data for dashboard
-const stats = [
-  {
-    label: 'Total Centers',
-    value: '48',
-    change: '+3',
-    trend: 'up',
-    icon: Building2,
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
-  },
-  {
-    label: 'Active Students',
-    value: '2,847',
-    change: '+127',
-    trend: 'up',
-    icon: Users,
-    color: 'text-success',
-    bgColor: 'bg-success/10',
-  },
-  {
-    label: 'Total Courses',
-    value: '24',
-    change: '+2',
-    trend: 'up',
-    icon: BookOpen,
-    color: 'text-info',
-    bgColor: 'bg-info/10',
-  },
-  {
-    label: 'Revenue (MTD)',
-    value: '₹12.4L',
-    change: '+18%',
-    trend: 'up',
-    icon: IndianRupee,
-    color: 'text-warning',
-    bgColor: 'bg-warning/10',
-  },
-];
-
-const recentOrders = [
-  { id: 'ORD-2024-001', center: 'PBS Delhi Center', amount: '₹45,000', status: 'Approved', date: '2 hours ago' },
-  { id: 'ORD-2024-002', center: 'PBS Mumbai Center', amount: '₹28,500', status: 'Pending', date: '4 hours ago' },
-  { id: 'ORD-2024-003', center: 'PBS Bangalore Center', amount: '₹62,000', status: 'Approved', date: '6 hours ago' },
-  { id: 'ORD-2024-004', center: 'PBS Chennai Center', amount: '₹35,000', status: 'Approved', date: '8 hours ago' },
-];
-
-const pendingActions = [
-  { type: 'Results', count: 12, label: 'pending declarations' },
-  { type: 'Orders', count: 5, label: 'manual verification' },
-  { type: 'Certificates', count: 28, label: 'ready to print' },
-];
-
-const topCenters = [
-  { name: 'PBS Delhi Center', students: 245, revenue: '₹4.2L' },
-  { name: 'PBS Mumbai Center', students: 198, revenue: '₹3.8L' },
-  { name: 'PBS Bangalore Center', students: 176, revenue: '₹3.2L' },
-  { name: 'PBS Chennai Center', students: 154, revenue: '₹2.9L' },
-];
+function formatCurrency(amount: number): string {
+  if (amount >= 100000) {
+    return `₹${(amount / 100000).toFixed(1)}L`;
+  }
+  if (amount >= 1000) {
+    return `₹${(amount / 1000).toFixed(1)}K`;
+  }
+  return `₹${amount.toFixed(0)}`;
+}
 
 export default function AdminDashboard() {
+  const { stats, recentOrders, topCenters, isLoading, isStatsLoading, isOrdersLoading, isTopCentersLoading } = useAdminDashboard();
+
+  const dashboardStats = [
+    {
+      label: 'Total Centers',
+      value: stats?.totalCenters?.toString() || '0',
+      change: `${stats?.activeCenters || 0} active`,
+      icon: Building2,
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
+    },
+    {
+      label: 'Active Students',
+      value: stats?.activeStudents?.toLocaleString() || '0',
+      change: `of ${stats?.totalStudents || 0}`,
+      icon: Users,
+      color: 'text-success',
+      bgColor: 'bg-success/10',
+    },
+    {
+      label: 'Total Courses',
+      value: stats?.totalCourses?.toString() || '0',
+      change: `${stats?.activeCourses || 0} active`,
+      icon: BookOpen,
+      color: 'text-info',
+      bgColor: 'bg-info/10',
+    },
+    {
+      label: 'Total Revenue',
+      value: formatCurrency(stats?.totalRevenue || 0),
+      change: `${stats?.pendingOrders || 0} pending`,
+      icon: IndianRupee,
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+    },
+  ];
+
   return (
     <AdminLayout>
       <div className="space-y-8">
@@ -103,26 +89,23 @@ export default function AdminDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
-          {stats.map((stat, index) => (
+          {dashboardStats.map((stat) => (
             <Card key={stat.label} className="card-hover border-0 shadow-card">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className={`w-12 h-12 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
                     <stat.icon className={`w-6 h-6 ${stat.color}`} />
                   </div>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${
-                    stat.trend === 'up' ? 'text-success' : 'text-destructive'
-                  }`}>
+                  <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
                     {stat.change}
-                    {stat.trend === 'up' ? (
-                      <ArrowUpRight className="w-4 h-4" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4" />
-                    )}
                   </div>
                 </div>
                 <div className="mt-4">
-                  <p className="text-3xl font-bold font-heading">{stat.value}</p>
+                  {isStatsLoading ? (
+                    <Skeleton className="h-9 w-20" />
+                  ) : (
+                    <p className="text-3xl font-bold font-heading">{stat.value}</p>
+                  )}
                   <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
                 </div>
               </CardContent>
@@ -140,40 +123,55 @@ export default function AdminDashboard() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Package className="w-5 h-5 text-primary" />
+              {isOrdersLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : recentOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No orders yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Package className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{order.order_no}</p>
+                          <p className="text-sm text-muted-foreground">{order.center_name}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{order.id}</p>
-                        <p className="text-sm text-muted-foreground">{order.center}</p>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(order.total_amount)}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge
+                            variant={order.status === 'completed' ? 'default' : 'secondary'}
+                            className={order.status === 'completed' ? 'bg-success hover:bg-success/90' : ''}
+                          >
+                            {order.status}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{order.amount}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge
-                          variant={order.status === 'Approved' ? 'default' : 'secondary'}
-                          className={order.status === 'Approved' ? 'bg-success hover:bg-success/90' : ''}
-                        >
-                          {order.status}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{order.date}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Quick Actions & Pending */}
+          {/* Right Sidebar */}
           <div className="space-y-6">
             {/* Pending Actions */}
             <Card className="border-0 shadow-card">
@@ -184,25 +182,20 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {pendingActions.map((action) => (
-                  <div
-                    key={action.type}
-                    className="flex items-center justify-between p-3 rounded-lg bg-warning/5 border border-warning/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center">
-                        <span className="text-sm font-bold text-warning">{action.count}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{action.type}</p>
-                        <p className="text-xs text-muted-foreground">{action.label}</p>
-                      </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-warning/5 border border-warning/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center">
+                      <span className="text-sm font-bold text-warning">{stats?.pendingOrders || 0}</span>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
+                    <div>
+                      <p className="text-sm font-medium">Orders</p>
+                      <p className="text-xs text-muted-foreground">pending verification</p>
+                    </div>
                   </div>
-                ))}
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/admin/orders">View</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -215,28 +208,42 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {topCenters.map((center, index) => (
-                  <div
-                    key={center.name}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        index === 0 ? 'bg-warning/20 text-warning' :
-                        index === 1 ? 'bg-muted-foreground/20 text-muted-foreground' :
-                        index === 2 ? 'bg-warning/10 text-warning/70' :
-                        'bg-muted text-muted-foreground'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium">{center.name}</p>
-                        <p className="text-xs text-muted-foreground">{center.students} students</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-success">{center.revenue}</span>
+                {isTopCentersLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
                   </div>
-                ))}
+                ) : topCenters.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No centers yet</p>
+                ) : (
+                  topCenters.map((center, index) => (
+                    <div key={center.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            index === 0
+                              ? 'bg-warning/20 text-warning'
+                              : index === 1
+                              ? 'bg-muted-foreground/20 text-muted-foreground'
+                              : index === 2
+                              ? 'bg-warning/10 text-warning/70'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium">{center.name}</p>
+                          <p className="text-xs text-muted-foreground">{center.student_count} students</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-success">
+                        {formatCurrency(center.total_revenue)}
+                      </span>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
