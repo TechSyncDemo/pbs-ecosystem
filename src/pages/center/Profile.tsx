@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import html2pdf from 'html2pdf.js';
 import { 
   Building,
   User,
@@ -190,28 +189,63 @@ export default function CenterProfile() {
   const handleDownloadCertificate = (auth: { name: string; validity: string }) => {
     toast.info(`Generating certificate for ${auth.name}...`);
 
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <div style="border: 10px solid #003366; padding: 50px; text-align: center; font-family: sans-serif; background-color: #f0f8ff;">
-        <h1 style="color: #003366; font-size: 48px;">Certificate of Authorization</h1>
-        <p style="font-size: 20px; margin-top: 30px;">This is to certify that</p>
-        <h2 style="color: #d16002; font-size: 36px; margin: 20px 0;">${profileData.name}</h2>
-        <p style="font-size: 20px;">is an authorized center for</p>
-        <h3 style="color: #003366; font-size: 32px; margin: 20px 0;">${auth.name}</h3>
-        <p style="font-size: 18px;">This authorization is valid until:</p>
-        <p style="font-size: 24px; font-weight: bold; margin-top: 10px;">${new Date(auth.validity).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-      </div>
-    `;
-
-    const opt = {
-      margin:       0.5,
-      filename:     `Authorization_Certificate_${profileData.code}_${auth.name.replace(/\s+/g, '_')}.pdf`,
-      image: { type: 'jpeg' as 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2 },
-      jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' as 'landscape' }
+    // Safely escape user data to prevent XSS
+    const escapeHtml = (text: string) => {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     };
 
-    html2pdf().from(element).set(opt).save();
+    const safeCenterName = escapeHtml(profileData.name);
+    const safeAuthName = escapeHtml(auth.name);
+    const formattedDate = new Date(auth.validity).toLocaleDateString('en-GB', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Authorization Certificate - ${safeAuthName}</title>
+        <style>
+          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+          .certificate { border: 10px solid #003366; padding: 50px; text-align: center; background-color: #f0f8ff; min-height: 80vh; box-sizing: border-box; }
+          h1 { color: #003366; font-size: 36px; margin-bottom: 20px; }
+          .center-name { color: #d16002; font-size: 28px; margin: 20px 0; }
+          .auth-name { color: #003366; font-size: 24px; margin: 20px 0; }
+          p { font-size: 16px; margin: 10px 0; }
+          .validity { font-size: 20px; font-weight: bold; margin-top: 10px; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <h1>Certificate of Authorization</h1>
+          <p>This is to certify that</p>
+          <h2 class="center-name">${safeCenterName}</h2>
+          <p>is an authorized center for</p>
+          <h3 class="auth-name">${safeAuthName}</h3>
+          <p>This authorization is valid until:</p>
+          <p class="validity">${formattedDate}</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Open print dialog in new window
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    } else {
+      toast.error('Unable to open print dialog. Please allow popups for this site.');
+    }
   };
 
   // Calculate infrastructure summary
