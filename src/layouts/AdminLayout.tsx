@@ -52,8 +52,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast.success('Logged out successfully');
     navigate('/login');
   };

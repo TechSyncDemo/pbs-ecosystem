@@ -1,66 +1,119 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Eye, EyeOff, AlertCircle, Building2, Shield } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, AlertCircle, Building2, Shield, Mail, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+// Validation schemas
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const signUpSchema = z.object({
+  fullName: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+});
 
 export default function Login() {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, signUp, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const from = location.state?.from?.pathname;
+      if (user.role === 'super_admin') {
+        navigate(from || '/admin', { replace: true });
+      } else if (user.role === 'center_admin') {
+        navigate(from || '/center', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
 
-    const result = await login(email, password);
+    try {
+      if (isSignUp) {
+        // Validate sign up data
+        const validation = signUpSchema.safeParse({ fullName, email, password, confirmPassword });
+        if (!validation.success) {
+          setError(validation.error.errors[0].message);
+          setIsSubmitting(false);
+          return;
+        }
 
-    if (result.success) {
-      toast.success('Welcome back!', {
-        description: 'You have been logged in successfully.',
-      });
-
-      // Get the intended destination or default based on role
-      const from = location.state?.from?.pathname;
-      
-      // Parse saved user to determine redirect
-      const savedUser = localStorage.getItem('pbs_user');
-      if (savedUser) {
-        const user = JSON.parse(savedUser);
-        if (user.role === 'super_admin') {
-          navigate(from || '/admin', { replace: true });
-        } else if (user.role === 'center_admin') {
-          navigate(from || '/center', { replace: true });
+        const result = await signUp(email, password, fullName);
+        
+        if (result.success) {
+          toast.success('Account created!', {
+            description: result.error || 'Please wait for an administrator to activate your account.',
+          });
+          // Switch to login view
+          setIsSignUp(false);
+          setPassword('');
+          setConfirmPassword('');
+          setFullName('');
         } else {
-          navigate('/', { replace: true });
+          setError(result.error || 'Sign up failed');
+        }
+      } else {
+        // Validate login data
+        const validation = loginSchema.safeParse({ email, password });
+        if (!validation.success) {
+          setError(validation.error.errors[0].message);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const result = await login(email, password);
+
+        if (result.success) {
+          toast.success('Welcome back!', {
+            description: 'You have been logged in successfully.',
+          });
+          // Navigation will be handled by useEffect
+        } else {
+          setError(result.error || 'Login failed');
         }
       }
-    } else {
-      setError(result.error || 'Login failed');
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  const fillDemoCredentials = (type: 'admin' | 'center') => {
-    if (type === 'admin') {
-      setEmail('admin123');
-      setPassword('admin@123');
-    } else {
-      setEmail('centre123');
-      setPassword('centre@123');
-    }
+  const toggleMode = () => {
+    setIsSignUp(!isSignUp);
     setError('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -116,7 +169,7 @@ export default function Login() {
         <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/5" />
       </div>
 
-      {/* Right Panel - Login Form */}
+      {/* Right Panel - Login/SignUp Form */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
@@ -132,9 +185,13 @@ export default function Login() {
 
           <Card className="border-0 shadow-xl">
             <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-heading">Welcome back</CardTitle>
+              <CardTitle className="text-2xl font-heading">
+                {isSignUp ? 'Create an account' : 'Welcome back'}
+              </CardTitle>
               <CardDescription>
-                Enter your credentials to access your dashboard
+                {isSignUp 
+                  ? 'Enter your details to create your account' 
+                  : 'Enter your credentials to access your dashboard'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -146,17 +203,38 @@ export default function Login() {
                   </div>
                 )}
 
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="fullName"
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        className="h-11 pl-10"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="email">Username</Label>
-                  <Input
-                    id="email"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11"
-                  />
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="h-11 pl-10"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -181,6 +259,21 @@ export default function Login() {
                   </div>
                 </div>
 
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full h-11 font-medium"
@@ -189,40 +282,25 @@ export default function Login() {
                   {isSubmitting ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                      Signing in...
+                      {isSignUp ? 'Creating account...' : 'Signing in...'}
                     </span>
                   ) : (
-                    'Sign in'
+                    isSignUp ? 'Create account' : 'Sign in'
                   )}
                 </Button>
               </form>
 
               <div className="mt-6 pt-6 border-t">
-                <p className="text-sm text-muted-foreground text-center mb-3">
-                  Demo Credentials
+                <p className="text-sm text-muted-foreground text-center">
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+                  <button
+                    type="button"
+                    onClick={toggleMode}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {isSignUp ? 'Sign in' : 'Sign up'}
+                  </button>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fillDemoCredentials('admin')}
-                    className="text-xs"
-                  >
-                    <Shield className="w-3 h-3 mr-1" />
-                    Super Admin
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fillDemoCredentials('center')}
-                    className="text-xs"
-                  >
-                    <Building2 className="w-3 h-3 mr-1" />
-                    Center Admin
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>

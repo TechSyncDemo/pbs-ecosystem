@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import html2pdf from 'html2pdf.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -191,40 +190,63 @@ export default function CenterStudents() {
 
   const handleDownloadDocument = (student: typeof mockStudents[0], type: 'marksheet' | 'certificate') => {
     const docTitle = type === 'marksheet' ? 'Marksheet' : 'Certificate of Completion';
-    const filename = `${docTitle.replace(/\s+/g, '_')}_${student.id}.pdf`;
 
     toast.info(`Generating ${type} for ${student.name}...`);
 
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <div style="border: 10px solid #003366; padding: 50px; text-align: center; font-family: sans-serif; background-color: #f0f8ff;">
-        <h1 style="color: #003366; font-size: 48px;">${docTitle}</h1>
-        <p style="font-size: 20px; margin-top: 30px;">This is to certify that</p>
-        <h2 style="color: #d16002; font-size: 36px; margin: 20px 0;">${student.name}</h2>
-        <p style="font-size: 20px;">has successfully completed the course</p>
-        <h3 style="color: #003366; font-size: 32px; margin: 20px 0;">${student.course}</h3>
-        ${type === 'marksheet' ?
-        `<p style="font-size: 18px;">with a final score of:</p>
-         <p style="font-size: 24px; font-weight: bold; margin-top: 10px;">${student.marks} / 100</p>`
-        :
-        `<p style="font-size: 18px;">on ${new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>`
-        }
-      </div>
-    `;
-
-    const opt = {
-      margin: 0.5,
-      filename: filename,
-      image: { type: 'jpeg' as 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: {
-        unit: 'in',
-        format: 'letter',
-        orientation: 'landscape' as 'landscape',
-      },
+    // Safely escape user data to prevent XSS
+    const escapeHtml = (text: string) => {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     };
 
-    html2pdf().from(element).set(opt).save();
+    const safeName = escapeHtml(student.name);
+    const safeCourse = escapeHtml(student.course);
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${escapeHtml(docTitle)} - ${safeName}</title>
+        <style>
+          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+          .certificate { border: 10px solid #003366; padding: 50px; text-align: center; background-color: #f0f8ff; min-height: 80vh; box-sizing: border-box; }
+          h1 { color: #003366; font-size: 36px; margin-bottom: 20px; }
+          .name { color: #d16002; font-size: 28px; margin: 20px 0; }
+          .course { color: #003366; font-size: 24px; margin: 20px 0; }
+          p { font-size: 16px; margin: 10px 0; }
+          .score { font-size: 20px; font-weight: bold; margin-top: 10px; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <h1>${escapeHtml(docTitle)}</h1>
+          <p>This is to certify that</p>
+          <h2 class="name">${safeName}</h2>
+          <p>has successfully completed the course</p>
+          <h3 class="course">${safeCourse}</h3>
+          ${type === 'marksheet' 
+            ? `<p>with a final score of:</p><p class="score">${student.marks} / 100</p>`
+            : `<p>on ${new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>`
+          }
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Open print dialog in new window
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    } else {
+      toast.error('Unable to open print dialog. Please allow popups for this site.');
+    }
   };
 
   const selectedCourse = courses.find(c => c.name === newStudent.course);
