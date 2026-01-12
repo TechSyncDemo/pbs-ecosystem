@@ -1,194 +1,104 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import {
-  BookOpen,
-  Search,
-  Plus,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  IndianRupee,
-  Clock,
-  Package,
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { BookOpen, Search, Plus, IndianRupee, Users, Download } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
+import { CourseForm } from '@/components/admin/CourseForm';
+import { CoursesTable } from '@/components/admin/CoursesTable';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { toast } from 'sonner';
-
-// Mock courses data
-const mockCourses = [
-  {
-    id: 'course-001',
-    name: 'Advanced Computer Applications',
-    category: 'IT Division',
-    duration: '6 months',
-    fees: 15000,
-    b2bPrice: 8000,
-    isActive: true,
-    isKit: true,
-    enrolledStudents: 342,
-  },
-  {
-    id: 'course-002',
-    name: 'Diploma in Digital Marketing',
-    category: 'IT Division',
-    duration: '4 months',
-    fees: 12000,
-    b2bPrice: 6500,
-    isActive: true,
-    isKit: true,
-    enrolledStudents: 256,
-  },
-  {
-    id: 'course-003',
-    name: 'Certificate in Tally Prime',
-    category: 'Vocational',
-    duration: '3 months',
-    fees: 8000,
-    b2bPrice: 4000,
-    isActive: true,
-    isKit: false,
-    enrolledStudents: 198,
-  },
-  {
-    id: 'course-004',
-    name: 'Web Development Fundamentals',
-    category: 'IT Division',
-    duration: '5 months',
-    fees: 18000,
-    b2bPrice: 9500,
-    isActive: true,
-    isKit: true,
-    enrolledStudents: 167,
-  },
-  {
-    id: 'course-005',
-    name: 'Spoken English Course',
-    category: 'Language',
-    duration: '3 months',
-    fees: 6000,
-    b2bPrice: 3000,
-    isActive: false,
-    isKit: false,
-    enrolledStudents: 89,
-  },
-  {
-    id: 'course-006',
-    name: 'Certificate in Python Programming',
-    category: 'IT Division',
-    duration: '4 months',
-    fees: 14000,
-    b2bPrice: 7500,
-    isActive: true,
-    isKit: true,
-    enrolledStudents: 145,
-  },
-];
-
-type Course = typeof mockCourses[0];
+  useCourseStats,
+  useCoursesWithStudentCount,
+  useCreateCourse,
+  useUpdateCourse,
+  useDeleteCourse,
+  type Course,
+  type CourseInsert,
+  type CourseUpdate,
+  type CourseWithStudentCount,
+} from '@/hooks/useCourses';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminCourses() {
-  const [courses, setCourses] = useState(mockCourses);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newCourse, setNewCourse] = useState({
-    name: '',
-    category: '',
-    duration: '',
-    fees: '',
-    b2bPrice: '',
-    syllabus: '',
-    isKit: true,
-  });
-
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [editingCourse, setEditingCourse] = useState<CourseWithStudentCount | null>(null);
 
-  const [searchParams] = useSearchParams();
+  const { data: stats, isLoading: statsLoading } = useCourseStats();
+  const { data: courses, isLoading: coursesLoading } = useCoursesWithStudentCount();
+  const createCourse = useCreateCourse();
+  const updateCourse = useUpdateCourse();
+  const deleteCourse = useDeleteCourse();
 
-  useEffect(() => {
-    const moduleFromUrl = searchParams.get('module');
-    if (moduleFromUrl) {
-      setNewCourse(prev => ({ ...prev, category: moduleFromUrl }));
-      setIsAddDialogOpen(true);
-    }
-  }, [searchParams]);
-
-
-  const filteredCourses = courses.filter(
-    (course) =>
-      course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleAddCourse = () => {
-    toast.success('Course created successfully!', {
-      description: `${newCourse.name} has been added to the course catalog.`,
-    });
-    setIsAddDialogOpen(false);
-    setNewCourse({
-      name: '',
-      category: '',
-      duration: '',
-      fees: '',
-      b2bPrice: '',
-      syllabus: '',
-      isKit: true,
-    });
-  };
-
-  const handleUpdateCourse = () => {
-    if (!editingCourse) return;
-
-    setCourses(prev =>
-      prev.map(course =>
-        course.id === editingCourse.id ? editingCourse : course
-      )
+  const filteredCourses = useMemo(() => {
+    if (!courses) return [];
+    return courses.filter(
+      (course) =>
+        course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (course.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     );
+  }, [courses, searchQuery]);
 
-    toast.success('Course updated successfully!');
-    setIsEditDialogOpen(false);
-    setEditingCourse(null);
+  const handleCreateCourse = (data: CourseInsert) => {
+    createCourse.mutate(data, {
+      onSuccess: () => {
+        setIsAddDialogOpen(false);
+      },
+    });
   };
 
-  const handleEditInputChange = (field: keyof Course, value: string | number | boolean) => {
-    if (editingCourse) setEditingCourse(prev => prev ? { ...prev, [field]: value } : null);
+  const handleUpdateCourse = (data: CourseUpdate & { id: string }) => {
+    updateCourse.mutate(data, {
+      onSuccess: () => {
+        setIsEditDialogOpen(false);
+        setEditingCourse(null);
+      },
+    });
+  };
+
+  const handleEditClick = (course: CourseWithStudentCount) => {
+    setEditingCourse(course);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteCourse = (id: string) => {
+    deleteCourse.mutate(id);
+  };
+
+  const handleExport = () => {
+    if (!courses) return;
+    
+    const headers = ['Name', 'Code', 'Duration (Months)', 'Fee', 'Students', 'Status'];
+    const csvData = courses.map(course => [
+      course.name,
+      course.code,
+      course.duration_months,
+      course.fee,
+      course.studentCount,
+      course.status,
+    ]);
+    
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `courses-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const formatCurrency = (amount: number) => {
@@ -208,99 +118,33 @@ export default function AdminCourses() {
             <h1 className="text-3xl font-heading font-bold text-foreground">Course Master</h1>
             <p className="text-muted-foreground mt-1">Manage all courses and their pricing</p>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Course
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Create New Course</DialogTitle>
-                <DialogDescription>
-                  Add a new course to the catalog.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Course Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="e.g., Advanced Excel"
-                      value={newCourse.name}
-                      onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
-                      placeholder="e.g., IT Division"
-                      value={newCourse.category}
-                      onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="duration">Duration</Label>
-                    <Input
-                      id="duration"
-                      placeholder="e.g., 3 months"
-                      value={newCourse.duration}
-                      onChange={(e) => setNewCourse({ ...newCourse, duration: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="fees">Course Fees (₹)</Label>
-                    <Input
-                      id="fees"
-                      type="number"
-                      placeholder="15000"
-                      value={newCourse.fees}
-                      onChange={(e) => setNewCourse({ ...newCourse, fees: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="b2bPrice">B2B Price (₹)</Label>
-                    <Input
-                      id="b2bPrice"
-                      type="number"
-                      placeholder="8000"
-                      value={newCourse.b2bPrice}
-                      onChange={(e) => setNewCourse({ ...newCourse, b2bPrice: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="syllabus">Syllabus</Label>
-                  <Textarea
-                    id="syllabus"
-                    placeholder="Enter course syllabus..."
-                    value={newCourse.syllabus}
-                    onChange={(e) => setNewCourse({ ...newCourse, syllabus: e.target.value })}
-                    rows={4}
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    id="isKit"
-                    checked={newCourse.isKit}
-                    onCheckedChange={(checked) => setNewCourse({ ...newCourse, isKit: checked })}
-                  />
-                  <Label htmlFor="isKit">Includes Material Kit</Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport} disabled={!courses?.length}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Course
                 </Button>
-                <Button onClick={handleAddCourse}>Create Course</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Course</DialogTitle>
+                  <DialogDescription>
+                    Add a new course to the catalog.
+                  </DialogDescription>
+                </DialogHeader>
+                <CourseForm
+                  onSubmit={handleCreateCourse}
+                  onCancel={() => setIsAddDialogOpen(false)}
+                  isSubmitting={createCourse.isPending}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats */}
@@ -312,7 +156,11 @@ export default function AdminCourses() {
                   <BookOpen className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{courses.length}</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                  )}
                   <p className="text-sm text-muted-foreground">Total Courses</p>
                 </div>
               </div>
@@ -325,7 +173,11 @@ export default function AdminCourses() {
                   <BookOpen className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{courses.filter(c => c.isActive).length}</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold">{stats?.active || 0}</p>
+                  )}
                   <p className="text-sm text-muted-foreground">Active</p>
                 </div>
               </div>
@@ -335,11 +187,15 @@ export default function AdminCourses() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-info" />
+                  <Users className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{courses.filter(c => c.isKit).length}</p>
-                  <p className="text-sm text-muted-foreground">With Kit</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold">{stats?.totalEnrollments || 0}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">Enrollments</p>
                 </div>
               </div>
             </CardContent>
@@ -351,8 +207,12 @@ export default function AdminCourses() {
                   <IndianRupee className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{courses.reduce((acc, c) => acc + c.enrolledStudents, 0)}</p>
-                  <p className="text-sm text-muted-foreground">Enrollments</p>
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : (
+                    <p className="text-2xl font-bold">{formatCurrency(stats?.avgFee || 0)}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">Avg. Fee</p>
                 </div>
               </div>
             </CardContent>
@@ -376,86 +236,45 @@ export default function AdminCourses() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Course</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Kit Value</TableHead>
-                    <TableHead>Exam Only Value</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCourses.map((course) => (
-                    <TableRow key={course.id} className="table-row-hover">
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{course.name}</p>
-                          <p className="text-sm text-muted-foreground">{course.enrolledStudents} enrolled</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{course.category}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="w-3.5 h-3.5" />
-                          {course.duration}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(course.fees)}
-                      </TableCell>
-                      <TableCell className="font-medium text-primary">
-                        {formatCurrency(course.b2bPrice)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={course.isKit ? 'default' : 'secondary'}>
-                          {course.isKit ? 'Kit' : 'Exam Only'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={course.isActive ? 'default' : 'secondary'}
-                          className={course.isActive ? 'bg-success hover:bg-success/90' : ''}
-                        >
-                          {course.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setEditingCourse({ ...course });
-                              setIsEditDialogOpen(true);
-                            }}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Course
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            {coursesLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : (
+              <CoursesTable
+                courses={filteredCourses}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteCourse}
+                isDeleting={deleteCourse.isPending}
+              />
+            )}
           </CardContent>
         </Card>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Course</DialogTitle>
+              <DialogDescription>
+                Update the course details below.
+              </DialogDescription>
+            </DialogHeader>
+            {editingCourse && (
+              <CourseForm
+                course={editingCourse}
+                onSubmit={(data) => handleUpdateCourse(data as CourseUpdate & { id: string })}
+                onCancel={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingCourse(null);
+                }}
+                isSubmitting={updateCourse.isPending}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
