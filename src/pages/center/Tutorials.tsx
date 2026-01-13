@@ -4,6 +4,7 @@ import CenterLayout from '@/layouts/CenterLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -11,64 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-// Mock data for tutorials
-const mockTutorials = [
-  {
-    id: 1,
-    title: 'Introduction to Digital Marketing',
-    description: 'A comprehensive guide covering the basics of SEO, SEM, and social media marketing.',
-    course: 'Diploma in Digital Marketing',
-    fileUrl: '/tutorials/digital-marketing-intro.pdf',
-    uploadDate: '2024-05-15',
-  },
-  {
-    id: 2,
-    title: 'Advanced Tally Prime Features',
-    description: 'Explore advanced features like payroll management, GST compliance, and inventory control.',
-    course: 'Certificate in Tally Prime',
-    fileUrl: '/tutorials/tally-advanced.pdf',
-    uploadDate: '2024-05-10',
-  },
-  {
-    id: 3,
-    title: 'React Hooks Deep Dive',
-    description: 'Master React Hooks including useState, useEffect, useContext, and custom hooks.',
-    course: 'Web Development Fundamentals',
-    fileUrl: '/tutorials/react-hooks.pdf',
-    uploadDate: '2024-05-05',
-  },
-  {
-    id: 4,
-    title: 'Python for Data Science',
-    description: 'Learn how to use Python with libraries like Pandas, NumPy, and Matplotlib for data analysis.',
-    course: 'Certificate in Python Programming',
-    fileUrl: '/tutorials/python-data-science.pdf',
-    uploadDate: '2024-04-28',
-  },
-  {
-    id: 5,
-    title: 'On-Page SEO Checklist',
-    description: 'A handy checklist for optimizing your web pages for search engines.',
-    course: 'Diploma in Digital Marketing',
-    fileUrl: '/tutorials/seo-checklist.pdf',
-    uploadDate: '2024-04-20',
-  },
-];
-
-const courses = [
-  'All Courses',
-  'Diploma in Digital Marketing',
-  'Certificate in Tally Prime',
-  'Web Development Fundamentals',
-  'Certificate in Python Programming',
-];
+import { useTutorials } from '@/hooks/useTutorials';
+import { useCourses } from '@/hooks/useCourses';
 
 export default function CenterTutorials() {
-  const [courseFilter, setCourseFilter] = useState('All Courses');
+  const [courseFilter, setCourseFilter] = useState('all');
 
-  const filteredTutorials = mockTutorials.filter(tutorial =>
-    courseFilter === 'All Courses' || tutorial.course === courseFilter
+  const { data: tutorials = [], isLoading: tutorialsLoading } = useTutorials();
+  const { data: courses = [] } = useCourses();
+
+  const filteredTutorials = tutorials.filter(tutorial =>
+    courseFilter === 'all' || tutorial.course_id === courseFilter
   );
 
   return (
@@ -87,8 +41,9 @@ export default function CenterTutorials() {
                 <SelectValue placeholder="Filter by course..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All Courses</SelectItem>
                 {courses.map(course => (
-                  <SelectItem key={course} value={course}>{course}</SelectItem>
+                  <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -96,25 +51,59 @@ export default function CenterTutorials() {
         </div>
 
         {/* Tutorials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTutorials.map(tutorial => (
-            <Card key={tutorial.id} className="flex flex-col border-0 shadow-card">
-              <CardHeader>
-                <CardTitle className="flex items-start gap-3"><FileText className="w-5 h-5 text-primary flex-shrink-0 mt-1" /> {tutorial.title}</CardTitle>
-                <CardDescription>{tutorial.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <Badge variant="secondary">{tutorial.course}</Badge>
-              </CardContent>
-              <CardFooter className="flex justify-between items-center">
-                <p className="text-xs text-muted-foreground">Uploaded: {new Date(tutorial.uploadDate).toLocaleDateString()}</p>
-                <Button size="sm" asChild>
-                  <a href={tutorial.fileUrl} download><Download className="w-4 h-4 mr-2" />Download</a>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+        {tutorialsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="border-0 shadow-card">
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full mt-2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-6 w-1/2" />
+                </CardContent>
+                <CardFooter>
+                  <Skeleton className="h-8 w-full" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : filteredTutorials.length === 0 ? (
+          <Card className="border-0 shadow-card">
+            <CardContent className="py-12 text-center text-muted-foreground">
+              No tutorials available yet.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTutorials.map(tutorial => (
+              <Card key={tutorial.id} className="flex flex-col border-0 shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-start gap-3">
+                    <FileText className="w-5 h-5 text-primary flex-shrink-0 mt-1" /> 
+                    {tutorial.title}
+                  </CardTitle>
+                  <CardDescription>{tutorial.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <Badge variant="secondary">{tutorial.course_name || 'General'}</Badge>
+                </CardContent>
+                <CardFooter className="flex justify-between items-center">
+                  <p className="text-xs text-muted-foreground">
+                    Uploaded: {new Date(tutorial.created_at).toLocaleDateString()}
+                  </p>
+                  {tutorial.file_url && (
+                    <Button size="sm" asChild>
+                      <a href={tutorial.file_url} download>
+                        <Download className="w-4 h-4 mr-2" />Download
+                      </a>
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </CenterLayout>
   );

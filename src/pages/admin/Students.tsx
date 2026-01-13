@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -20,7 +21,6 @@ import {
   Mail,
   Calendar,
   Download,
-  FileText,
   Award,
   Edit,
 } from 'lucide-react';
@@ -33,75 +33,8 @@ import {
 } from '@/components/ui/select';
 import AdminLayout from '@/layouts/AdminLayout';
 import { toast } from 'sonner';
-
-// Mock students data
-const mockStudents = [
-  {
-    id: 'STU-2024-001',
-    name: 'Rahul Sharma',
-    course: 'Advanced Computer Applications',
-    center: 'PBS Delhi Center',
-    mobile: '+91 98765 43210',
-    email: 'rahul.s@email.com',
-    admissionDate: '2024-01-15',
-    status: 'Active',
-    feesPaid: 12000,
-    feesTotal: 15000,
-    marks: null,
-  },
-  {
-    id: 'STU-2024-002',
-    name: 'Priya Gupta',
-    course: 'Diploma in Digital Marketing',
-    center: 'PBS Mumbai Center',
-    mobile: '+91 87654 32109',
-    email: 'priya.g@email.com',
-    admissionDate: '2024-02-01',
-    status: 'Active',
-    feesPaid: 12000,
-    feesTotal: 12000,
-    marks: null,
-  },
-  {
-    id: 'STU-2024-003',
-    name: 'Amit Kumar',
-    course: 'Certificate in Tally Prime',
-    center: 'PBS Bangalore Center',
-    mobile: '+91 76543 21098',
-    email: 'amit.k@email.com',
-    admissionDate: '2024-02-15',
-    status: 'Exam Completed',
-    feesPaid: 8000,
-    feesTotal: 8000,
-    marks: 78,
-  },
-  {
-    id: 'STU-2024-004',
-    name: 'Sneha Reddy',
-    course: 'Web Development Fundamentals',
-    center: 'PBS Chennai Center',
-    mobile: '+91 65432 10987',
-    email: 'sneha.r@email.com',
-    admissionDate: '2024-03-01',
-    status: 'Active',
-    feesPaid: 15000,
-    feesTotal: 18000,
-    marks: null,
-  },
-  {
-    id: 'STU-2024-005',
-    name: 'Vikram Singh',
-    course: 'Certificate in Python Programming',
-    center: 'PBS Delhi Center',
-    mobile: '+91 54321 09876',
-    email: 'vikram.s@email.com',
-    admissionDate: '2024-03-10',
-    status: 'Certified',
-    feesPaid: 14000,
-    feesTotal: 14000,
-    marks: 92,
-  },
-];
+import { useAllStudents, useStudentStats } from '@/hooks/useStudents';
+import { useCenters } from '@/hooks/useCenters';
 
 export default function AdminStudents() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,38 +42,66 @@ export default function AdminStudents() {
   const [statusFilter, setStatusFilter] = useState('all');
   const navigate = useNavigate();
 
-  const filteredStudents = mockStudents.filter((student) => {
-    const matchesSearch =
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.course.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCenter = centerFilter === 'all' || student.center === centerFilter;
-    const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
-    return matchesSearch && matchesCenter && matchesStatus;
-  });
+  const { data: students = [], isLoading: studentsLoading } = useAllStudents();
+  const { data: stats, isLoading: statsLoading } = useStudentStats();
+  const { data: centers = [] } = useCenters();
 
-  const getExamStatusBadge = (status: string) => {
+  const filteredStudents = useMemo(() => {
+    return students.filter((student) => {
+      const matchesSearch =
+        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.enrollment_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.course_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCenter = centerFilter === 'all' || student.center_id === centerFilter;
+      const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
+      return matchesSearch && matchesCenter && matchesStatus;
+    });
+  }, [students, searchQuery, centerFilter, statusFilter]);
+
+  const getExamStatusBadge = (status: string | null) => {
     switch (status) {
-      case 'Active':
+      case 'active':
         return <Badge variant="secondary">Pending</Badge>;
-      case 'Exam Completed':
-      case 'Certified':
+      case 'completed':
+      case 'certified':
         return <Badge className="bg-success hover:bg-success/90">Completed</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
   };
 
   const handleEditMarks = (studentId: string) => {
-    // Navigate to the results page, potentially with a query to highlight the student
     navigate(`/admin/results?student=${studentId}`);
-    toast.info(`Navigating to results for student ${studentId}...`);
+    toast.info(`Navigating to results for student...`);
   };
 
   const handleViewCertificate = (studentId: string) => {
-    // Navigate to the results page, and switch to the printing tab
     navigate(`/admin/results?tab=printing&student=${studentId}`);
-    toast.info(`Navigating to certificate queue for student ${studentId}...`);
+    toast.info(`Navigating to certificate queue...`);
+  };
+
+  const handleExport = () => {
+    const csvContent = [
+      ['Enrollment No', 'Name', 'Course', 'Center', 'Phone', 'Email', 'Status', 'Admission Date'].join(','),
+      ...students.map(s => [
+        s.enrollment_no,
+        s.name,
+        s.course_name || '',
+        s.center_name || '',
+        s.phone,
+        s.email || '',
+        s.status || '',
+        s.admission_date
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'students.csv';
+    a.click();
+    toast.success('Students exported to CSV!');
   };
 
   return (
@@ -152,7 +113,7 @@ export default function AdminStudents() {
             <h1 className="text-3xl font-heading font-bold text-foreground">Student Records</h1>
             <p className="text-muted-foreground mt-1">View and manage all student records across centers</p>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export to Excel
           </Button>
@@ -160,58 +121,72 @@ export default function AdminStudents() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{mockStudents.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Students</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{mockStudents.filter(s => s.status === 'Active').length}</p>
-                  <p className="text-sm text-muted-foreground">Active</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-info" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{mockStudents.filter(s => s.status === 'Exam Completed').length}</p>
-                  <p className="text-sm text-muted-foreground">Exam Done</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{mockStudents.filter(s => s.status === 'Certified').length}</p>
-                  <p className="text-sm text-muted-foreground">Certified</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {statsLoading ? (
+            <>
+              {[...Array(4)].map((_, i) => (
+                <Card key={i} className="border-0 shadow-card">
+                  <CardContent className="p-4">
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <Card className="border-0 shadow-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                      <p className="text-sm text-muted-foreground">Total Students</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats?.active || 0}</p>
+                      <p className="text-sm text-muted-foreground">Active</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5 text-info" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats?.completed || 0}</p>
+                      <p className="text-sm text-muted-foreground">Exam Done</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats?.certified || 0}</p>
+                      <p className="text-sm text-muted-foreground">Certified</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
   
         {/* Filters and Table */}
@@ -235,10 +210,9 @@ export default function AdminStudents() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Centers</SelectItem>
-                    <SelectItem value="PBS Delhi Center">PBS Delhi Center</SelectItem>
-                    <SelectItem value="PBS Mumbai Center">PBS Mumbai Center</SelectItem>
-                    <SelectItem value="PBS Bangalore Center">PBS Bangalore Center</SelectItem>
-                    <SelectItem value="PBS Chennai Center">PBS Chennai Center</SelectItem>
+                    {centers.map(center => (
+                      <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -247,126 +221,130 @@ export default function AdminStudents() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Exam Completed">Exam Completed</SelectItem>
-                    <SelectItem value="Certified">Certified</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="certified">Certified</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Student</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Center</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Exam Status</TableHead>
-                    <TableHead>Marks</TableHead>
-                    <TableHead>Certificate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            {studentsLoading ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border overflow-hidden hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Student</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead>Center</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Exam Status</TableHead>
+                        <TableHead>Certificate</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredStudents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No students found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredStudents.map((student) => (
+                          <TableRow key={student.id} className="table-row-hover">
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{student.name}</p>
+                                <p className="text-sm text-muted-foreground">{student.enrollment_no}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-medium">{student.course_name}</p>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(student.admission_date).toLocaleDateString()}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{student.center_name}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="text-sm flex items-center gap-1">
+                                  <Phone className="w-3 h-3 text-muted-foreground" />
+                                  {student.phone}
+                                </p>
+                                {student.email && (
+                                  <p className="text-sm flex items-center gap-1 text-muted-foreground">
+                                    <Mail className="w-3 h-3" />
+                                    {student.email}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {getExamStatusBadge(student.status)}
+                            </TableCell>
+                            <TableCell>
+                              {student.status === 'certified' ? (
+                                <Button variant="outline" size="sm" onClick={() => handleViewCertificate(student.id)}>
+                                  <Award className="w-4 h-4 mr-2" /> View
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                {/* Mobile Card View */}
+                <div className="grid grid-cols-1 gap-4 md:hidden">
                   {filteredStudents.map((student) => (
-                    <TableRow key={student.id} className="table-row-hover">
-                      <TableCell>
+                    <Card key={student.id} className="w-full">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold">{student.name}</p>
+                            <p className="text-sm text-muted-foreground">{student.enrollment_no}</p>
+                          </div>
+                          {getExamStatusBadge(student.status)}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm">
                         <div>
-                          <p className="font-medium">{student.name}</p>
-                          <p className="text-sm text-muted-foreground">{student.id}</p>
+                          <p className="font-medium">{student.course_name}</p>
+                          <p className="text-muted-foreground">{student.center_name}</p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{student.course}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(student.admissionDate).toLocaleDateString()}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{student.center}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-sm flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-muted-foreground" />
-                            {student.mobile}
-                          </p>
-                          <p className="text-sm flex items-center gap-1 text-muted-foreground">
-                            <Mail className="w-3 h-3" />
-                            {student.email}
-                          </p>
+                        <div>
+                          <p className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {student.phone}</p>
+                          {student.email && (
+                            <p className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {student.email}</p>
+                          )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {getExamStatusBadge(student.status)}
-                      </TableCell>
-                      <TableCell>
-                        {student.marks !== null ? (
-                          <Button variant="link" className="p-0 h-auto" onClick={() => handleEditMarks(student.id)}>
-                            {student.marks}/100 <Edit className="w-3 h-3 ml-2" />
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {student.status === 'Certified' ? (
-                          <Button variant="outline" size="sm" onClick={() => handleViewCertificate(student.id)}>
-                            <Award className="w-4 h-4 mr-2" /> View
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                        <div className="flex justify-end pt-2">
+                          {student.status === 'certified' && (
+                            <Button variant="outline" size="sm" onClick={() => handleViewCertificate(student.id)}>
+                              <Award className="w-4 h-4 mr-2" /> View Cert
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-            {/* Mobile Card View */}
-            <div className="grid grid-cols-1 gap-4 md:hidden">
-              {filteredStudents.map((student) => (
-                <Card key={student.id} className="w-full">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold">{student.name}</p>
-                        <p className="text-sm text-muted-foreground">{student.id}</p>
-                      </div>
-                      {getExamStatusBadge(student.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div>
-                      <p className="font-medium">{student.course}</p>
-                      <p className="text-muted-foreground">{student.center}</p>
-                    </div>
-                    <div>
-                      <p className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {student.mobile}</p>
-                      <p className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {student.email}</p>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <div>
-                        <p className="text-muted-foreground">Marks</p>
-                        {student.marks !== null ? (
-                          <Button variant="link" className="p-0 h-auto -ml-1" onClick={() => handleEditMarks(student.id)}>
-                            {student.marks}/100 <Edit className="w-3 h-3 ml-2" />
-                          </Button>
-                        ) : (<span className="text-muted-foreground">-</span>)}
-                      </div>
-                      {student.status === 'Certified' ? (
-                        <Button variant="outline" size="sm" onClick={() => handleViewCertificate(student.id)}>
-                          <Award className="w-4 h-4 mr-2" /> View Cert
-                        </Button>
-                      ) : null}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
