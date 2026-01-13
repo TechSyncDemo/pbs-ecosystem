@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -30,61 +31,20 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
-import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  useAllTickets,
+  useTicketStats,
+  useAddTicketReply,
+  useUpdateTicketStatus,
+  type TicketWithDetails,
+} from '@/hooks/useSupportTickets';
 
-// Mock support tickets data from all centers
-const mockAdminTickets = [
-  {
-    id: 'TKT-001',
-    centerName: 'PBS Computer Education - City Center',
-    subject: 'Exam credentials not received for a student',
-    category: 'Exam',
-    status: 'Open',
-    priority: 'High',
-    date: '2024-03-21',
-    description: 'Student Priya Gupta (STU-002) has not received her exam credentials yet. The exam is scheduled for tomorrow. Please assist urgently.',
-    replies: [
-      { user: 'Center Staff', text: 'We have raised a ticket for the issue.', timestamp: '2024-03-21 10:00' },
-      { user: 'Admin', text: 'We are looking into it. The credentials will be resent shortly.', timestamp: '2024-03-21 10:15' },
-    ],
-  },
-  {
-    id: 'TKT-002',
-    centerName: 'Vocational Skills Institute - Suburb',
-    subject: 'Issue with stock order ORD-2024-099',
-    category: 'Admin',
-    status: 'Closed',
-    priority: 'Medium',
-    date: '2024-03-18',
-    description: 'Our payment for order ORD-2024-099 was successful via Bank Transfer, but the order status is still "Pending".',
-    replies: [
-      { user: 'Center Staff', text: 'Please check the payment status for our recent order.', timestamp: '2024-03-18 14:00' },
-      { user: 'Admin', text: 'We have verified the payment. The order has been approved.', timestamp: '2024-03-18 16:30' },
-      { user: 'Center Staff', text: 'Thank you for the quick resolution!', timestamp: '2024-03-18 16:35' },
-    ],
-  },
-  {
-    id: 'TKT-003',
-    centerName: 'Tech Learners Hub - North',
-    subject: 'Login issue on the portal',
-    category: 'Technical',
-    status: 'Open',
-    priority: 'Low',
-    date: '2024-03-20',
-    description: 'One of our staff members is unable to log in. They are getting a "password incorrect" error, but the password is correct.',
-    replies: [
-      { user: 'Center Staff', text: 'We are facing a login problem.', timestamp: '2024-03-20 11:00' },
-    ],
-  },
-];
-
-type Ticket = typeof mockAdminTickets[0];
-
-const StatCard = ({ icon: Icon, label, value, color }) => (
+const StatCard = ({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) => (
   <Card className="border-0 shadow-card">
     <CardContent className="p-4">
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-lg ${color}/10 flex items-center justify-center`}>
+        <div className={`w-12 h-12 rounded-lg bg-${color}/10 flex items-center justify-center`}>
           <Icon className={`w-6 h-6 text-${color}`} />
         </div>
         <div>
@@ -98,30 +58,51 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
 
 export default function AdminSupport() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<TicketWithDetails | null>(null);
   const [newReply, setNewReply] = useState('');
 
+  const { user } = useAuth();
+  const { data: tickets = [], isLoading: ticketsLoading } = useAllTickets();
+  const { data: stats, isLoading: statsLoading } = useTicketStats();
+  const addReply = useAddTicketReply();
+  const updateStatus = useUpdateTicketStatus();
+
   const handleSendReply = () => {
-    if (newReply.trim()) {
-      toast.success('Reply sent!');
-      setNewReply('');
-    }
+    if (!newReply.trim() || !selectedTicket || !user) return;
+
+    addReply.mutate({
+      ticket_id: selectedTicket.id,
+      message: newReply,
+      sender_type: 'admin',
+      sender_id: user.id,
+    }, {
+      onSuccess: () => {
+        setNewReply('');
+      },
+    });
   };
 
-  const handleViewTicket = (ticket: Ticket) => {
+  const handleCloseTicket = () => {
+    if (!selectedTicket) return;
+    updateStatus.mutate({ id: selectedTicket.id, status: 'closed' }, {
+      onSuccess: () => {
+        setIsViewDialogOpen(false);
+        setSelectedTicket(null);
+      },
+    });
+  };
+
+  const handleViewTicket = (ticket: TicketWithDetails) => {
     setSelectedTicket(ticket);
     setIsViewDialogOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'Open') {
+    if (status === 'open') {
       return <Badge className="bg-success hover:bg-success/90"><CheckCircle className="w-3 h-3 mr-1" />Open</Badge>;
     }
     return <Badge variant="secondary"><XCircle className="w-3 h-3 mr-1" />Closed</Badge>;
   };
-
-  const openTicketsCount = mockAdminTickets.filter(t => t.status === 'Open').length;
-  const highPriorityCount = mockAdminTickets.filter(t => t.priority === 'High' && t.status === 'Open').length;
 
   return (
     <AdminLayout>
@@ -132,8 +113,22 @@ export default function AdminSupport() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Ticket} label="Open Tickets" value={openTicketsCount} color="success" />
-          <StatCard icon={AlertTriangle} label="High Priority" value={highPriorityCount} color="destructive" />
+          {statsLoading ? (
+            <>
+              {[...Array(2)].map((_, i) => (
+                <Card key={i} className="border-0 shadow-card">
+                  <CardContent className="p-4">
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <StatCard icon={Ticket} label="Open Tickets" value={stats?.open || 0} color="success" />
+              <StatCard icon={AlertTriangle} label="High Priority" value={stats?.highPriority || 0} color="destructive" />
+            </>
+          )}
         </div>
 
         <Card className="border-0 shadow-card">
@@ -141,36 +136,52 @@ export default function AdminSupport() {
             <CardTitle className="font-heading">All Tickets</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Center</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockAdminTickets.map((ticket) => (
-                    <TableRow key={ticket.id} className="cursor-pointer table-row-hover" onClick={() => handleViewTicket(ticket)}>
-                      <TableCell className="font-medium">{ticket.centerName}</TableCell>
-                      <TableCell>{ticket.subject}</TableCell>
-                      <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                      <TableCell><Badge variant={ticket.priority === 'High' ? 'destructive' : 'outline'}>{ticket.priority}</Badge></TableCell>
-                      <TableCell>{new Date(ticket.date).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MessageSquare className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
+            {ticketsLoading ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Center</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {tickets.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No tickets found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      tickets.map((ticket) => (
+                        <TableRow key={ticket.id} className="cursor-pointer table-row-hover" onClick={() => handleViewTicket(ticket)}>
+                          <TableCell className="font-medium">{ticket.center_name}</TableCell>
+                          <TableCell>{ticket.subject}</TableCell>
+                          <TableCell>{getStatusBadge(ticket.status)}</TableCell>
+                          <TableCell><Badge variant={ticket.priority === 'high' ? 'destructive' : 'outline'}>{ticket.priority}</Badge></TableCell>
+                          <TableCell>{new Date(ticket.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MessageSquare className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -178,7 +189,7 @@ export default function AdminSupport() {
           <DialogContent className="sm:max-w-[650px]">
             <DialogHeader>
               <DialogTitle>Ticket: {selectedTicket?.subject}</DialogTitle>
-              <DialogDescription>From: {selectedTicket?.centerName} | ID: {selectedTicket?.id}</DialogDescription>
+              <DialogDescription>From: {selectedTicket?.center_name}</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="p-4 bg-muted/50 rounded-lg">
@@ -186,14 +197,16 @@ export default function AdminSupport() {
                 <p className="text-sm text-muted-foreground mt-1">{selectedTicket?.description}</p>
               </div>
               <div className="space-y-4">
-                {selectedTicket?.replies.map((reply, index) => (
-                  <div key={index} className={`flex gap-3 ${reply.user === 'Admin' ? 'justify-start' : 'justify-end'}`}>
-                    {reply.user === 'Admin' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0"><ShieldAlert className="w-4 h-4" /></div>}
-                    <div className={`p-3 rounded-lg max-w-[80%] ${reply.user === 'Admin' ? 'bg-muted' : 'bg-primary text-primary-foreground'}`}>
-                      <p className="text-sm">{reply.text}</p>
-                      <p className={`text-xs mt-1 ${reply.user === 'Admin' ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}>{reply.user} - {reply.timestamp}</p>
+                {selectedTicket?.replies?.map((reply) => (
+                  <div key={reply.id} className={`flex gap-3 ${reply.sender_type === 'admin' ? 'justify-start' : 'justify-end'}`}>
+                    {reply.sender_type === 'admin' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0"><ShieldAlert className="w-4 h-4" /></div>}
+                    <div className={`p-3 rounded-lg max-w-[80%] ${reply.sender_type === 'admin' ? 'bg-muted' : 'bg-primary text-primary-foreground'}`}>
+                      <p className="text-sm">{reply.message}</p>
+                      <p className={`text-xs mt-1 ${reply.sender_type === 'admin' ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}>
+                        {reply.sender_type === 'admin' ? 'Admin' : 'Center'} - {new Date(reply.created_at).toLocaleString()}
+                      </p>
                     </div>
-                    {reply.user !== 'Admin' && <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0"><Ticket className="w-4 h-4" /></div>}
+                    {reply.sender_type !== 'admin' && <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0"><Ticket className="w-4 h-4" /></div>}
                   </div>
                 ))}
               </div>
@@ -202,12 +215,14 @@ export default function AdminSupport() {
               <Label>Your Reply</Label>
               <div className="flex gap-2 mt-2">
                 <Textarea placeholder="Type your message..." value={newReply} onChange={(e) => setNewReply(e.target.value)} rows={2} />
-                <Button onClick={handleSendReply} size="icon" className="flex-shrink-0"><Send className="w-4 h-4" /></Button>
+                <Button onClick={handleSendReply} size="icon" className="flex-shrink-0" disabled={addReply.isPending}>
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
             </div>
             <DialogFooter className="mt-4">
-              {selectedTicket?.status === 'Open' && (
-                <Button variant="destructive" onClick={() => toast.info('Ticket has been closed.')}>
+              {selectedTicket?.status === 'open' && (
+                <Button variant="destructive" onClick={handleCloseTicket} disabled={updateStatus.isPending}>
                   <XCircle className="w-4 h-4 mr-2" />
                   Close Ticket
                 </Button>

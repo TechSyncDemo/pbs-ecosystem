@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      center_courses: {
+        Row: {
+          center_id: string
+          commission_percent: number | null
+          course_id: string
+          created_at: string
+          duration_override: number | null
+          exam_value: number | null
+          id: string
+          kit_value: number | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          center_id: string
+          commission_percent?: number | null
+          course_id: string
+          created_at?: string
+          duration_override?: number | null
+          exam_value?: number | null
+          id?: string
+          kit_value?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          center_id?: string
+          commission_percent?: number | null
+          course_id?: string
+          created_at?: string
+          duration_override?: number | null
+          exam_value?: number | null
+          id?: string
+          kit_value?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "center_courses_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "center_courses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       center_stock: {
         Row: {
           center_id: string
@@ -97,6 +184,42 @@ export type Database = {
           pincode?: string | null
           state?: string | null
           status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coordinators: {
+        Row: {
+          assigned_centers: string[] | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          region: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_centers?: string[] | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          region?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_centers?: string[] | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          region?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -468,6 +591,132 @@ export type Database = {
             columns: ["enquiry_id"]
             isOneToOne: false
             referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_replies: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          sender_id: string | null
+          sender_type: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          sender_id?: string | null
+          sender_type?: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          sender_id?: string | null
+          sender_type?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_replies_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          center_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          priority: string
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          priority?: string
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          priority?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tutorials: {
+        Row: {
+          course_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutorials_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
         ]
