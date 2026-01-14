@@ -1,16 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  ShieldCheck,
   PlusCircle,
   MoreHorizontal,
   Plus,
   Trash2,
   Search,
-  BookOpen,
-  Building2,
   Edit,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,7 +28,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -42,7 +38,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -51,125 +46,134 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-
-const mockCenters = [
-  {
-    id: 'C-001',
-    name: 'PBS Computer Education - City Center',
-    feesPaid: 50000,
-    validity: '2025-03-31',
-    commissionRate: 15,
-    createdOn: '2023-04-01',
-    description: 'Premier IT training center in the heart of the city.',
-    authorizationType: 'Information Technology',
-    status: 'Active',
-  },
-  {
-    id: 'C-002',
-    name: 'Vocational Skills Institute - Suburb',
-    feesPaid: 35000,
-    validity: '2024-12-31',
-    commissionRate: 20,
-    createdOn: '2023-08-15',
-    description: 'Focus on job-oriented vocational courses.',
-    authorizationType: 'Vocational Division',
-    status: 'Active',
-  },
-  {
-    id: 'C-003',
-    name: 'Tech Learners Hub - North',
-    feesPaid: 50000,
-    validity: '2025-06-30',
-    commissionRate: 15,
-    createdOn: '2024-01-10',
-    description: 'New center with modern infrastructure.',
-    authorizationType: 'IT Division',
-    status: 'Inactive',
-    assignedCourses: [],
-  },
-];
-
-const mockCoursesMaster = [
-  { id: 'CRS-001', name: 'Diploma in Digital Marketing' },
-  { id: 'CRS-002', name: 'Certificate in Tally Prime' },
-  { id: 'CRS-003', name: 'Web Development Fundamentals' },
-  { id: 'CRS-004', name: 'Certificate in Python Programming' },
-  { id: 'CRS-005', name: 'Advanced Computer Applications' },
-];
+import { useCenters, type Center } from '@/hooks/useCenters';
+import { useCourses } from '@/hooks/useCourses';
+import {
+  useAllCenterCourses,
+  useCenterAuthorizations,
+  useAssignCourseToCenter,
+  useUpdateCenterCourse,
+  useRemoveCenterCourse,
+  type CenterCourseWithDetails,
+} from '@/hooks/useCenterCourses';
 
 export default function AdminAuthorizations() {
-  const [centers, setCenters] = useState(mockCenters);
-  const [selectedCenter, setSelectedCenter] = useState(null);
-  const [editableCenter, setEditableCenter] = useState(null);
-  const [isEditCenterOpen, setIsEditCenterOpen] = useState(false);
+  const { data: centers = [], isLoading: centersLoading } = useCenters();
+  const { data: courses = [] } = useCourses();
+  const { data: allCenterCourses = [] } = useAllCenterCourses();
+  const assignCourse = useAssignCourseToCenter();
+  const updateCenterCourse = useUpdateCenterCourse();
+  const removeCenterCourse = useRemoveCenterCourse();
+
+  const [selectedCenter, setSelectedCenter] = useState<Center | null>(null);
   const [isAddCoursesOpen, setIsAddCoursesOpen] = useState(false);
   const [isCourseDetailsOpen, setIsCourseDetailsOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState<CenterCourseWithDetails | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [newCourseData, setNewCourseData] = useState({
     courseId: '',
     kitValue: '',
     examValue: '',
     duration: '',
+    commission: '',
   });
 
-  // Add assignedCourses to mock data if it doesn't exist, to prevent errors
-  const initializedCenters = centers.map(center => ({
-    ...center, assignedCourses: center.assignedCourses || []
-  }));
+  const [editCourseData, setEditCourseData] = useState({
+    kitValue: '',
+    examValue: '',
+    duration: '',
+    notes: '',
+    commission: '',
+  });
 
-  const handleSaveChanges = () => {
-    if (!editableCenter) return;
+  // Get center courses for selected center
+  const { data: selectedCenterCourses = [], refetch: refetchCenterCourses } = useCenterAuthorizations(selectedCenter?.id);
 
-    const updatedCenters = centers.map(center =>
-      center.id === editableCenter.id ? editableCenter : center
-    );
-    setCenters(updatedCenters);
+  const filteredCenters = centers.filter(center =>
+    center.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    toast.success('Center details updated successfully!');
-    setIsEditCenterOpen(false);
-    setEditableCenter(null);
+  // Get count of assigned courses per center
+  const getCenterCourseCount = (centerId: string) => {
+    return allCenterCourses.filter(cc => cc.center_id === centerId).length;
   };
 
-  const handleEditCenterChange = (field, value) => {
-    if (!editableCenter) return;
-    setEditableCenter(prev => ({ ...prev, [field]: value }));
+  const handleOpenAddCourses = (center: Center) => {
+    setSelectedCenter(center);
+    setIsAddCoursesOpen(true);
   };
 
-  const handleAddCourse = () => {
-    if (!newCourseData.courseId) {
+  const handleAddCourse = async () => {
+    if (!selectedCenter || !newCourseData.courseId) {
       toast.error('Please select a course to add.');
       return;
     }
 
-    const courseMaster = mockCoursesMaster.find(c => c.id === newCourseData.courseId);
-    if (!courseMaster) return;
-
-    const newAssignedCourse = {
-      courseId: courseMaster.id,
-      name: courseMaster.name,
-      kitValue: Number(newCourseData.kitValue) || 0,
-      onlyExamValue: Number(newCourseData.examValue) || 0,
-      duration: newCourseData.duration || 'N/A',
-      note: '', // Default value
-    };
-
-    // This is a mock update. In a real app, you'd send this to an API.
-    const updatedCenters = centers.map(center => {
-      if (center.id === selectedCenter?.id) {
-        return { ...center, assignedCourses: [...center.assignedCourses, newAssignedCourse] };
-      }
-      return center;
+    await assignCourse.mutateAsync({
+      center_id: selectedCenter.id,
+      course_id: newCourseData.courseId,
+      kit_value: Number(newCourseData.kitValue) || 0,
+      exam_value: Number(newCourseData.examValue) || 0,
+      duration_override: newCourseData.duration ? parseInt(newCourseData.duration) : null,
+      commission_percent: Number(newCourseData.commission) || 0,
+      status: 'active',
     });
-    setCenters(updatedCenters);
-    setSelectedCenter(prev => ({ ...prev, assignedCourses: [...prev.assignedCourses, newAssignedCourse] }));
-    setNewCourseData({ courseId: '', kitValue: '', examValue: '', duration: '' });
-    toast.success('Course added to center!');
+
+    setNewCourseData({ courseId: '', kitValue: '', examValue: '', duration: '', commission: '' });
+    refetchCenterCourses();
   };
 
-  const filteredCenters = initializedCenters.filter(center =>
-    center.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleViewCourse = (course: any) => {
+    setSelectedCourse(course);
+    setEditCourseData({
+      kitValue: String(course.kit_value || 0),
+      examValue: String(course.exam_value || 0),
+      duration: String(course.duration_override || ''),
+      notes: course.notes || '',
+      commission: String(course.commission_percent || 0),
+    });
+    setIsCourseDetailsOpen(true);
+  };
+
+  const handleUpdateCourse = async () => {
+    if (!selectedCourse) return;
+
+    await updateCenterCourse.mutateAsync({
+      id: selectedCourse.id,
+      kit_value: Number(editCourseData.kitValue) || 0,
+      exam_value: Number(editCourseData.examValue) || 0,
+      duration_override: editCourseData.duration ? parseInt(editCourseData.duration) : null,
+      notes: editCourseData.notes || null,
+      commission_percent: Number(editCourseData.commission) || 0,
+    });
+
+    setIsCourseDetailsOpen(false);
+    refetchCenterCourses();
+  };
+
+  const handleRemoveCourse = async () => {
+    if (!selectedCourse) return;
+
+    await removeCenterCourse.mutateAsync(selectedCourse.id);
+    setIsCourseDetailsOpen(false);
+    refetchCenterCourses();
+  };
+
+  // Get courses not yet assigned to selected center
+  const availableCoursesForCenter = courses.filter(
+    course => !selectedCenterCourses.some((cc: any) => cc.course_id === course.id)
   );
+
+  if (centersLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -183,13 +187,13 @@ export default function AdminAuthorizations() {
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle>Authorized Centers</CardTitle>
-                <CardDescription>View and manage all authorized training centers.</CardDescription>
+                <CardTitle>Centers & Course Assignments</CardTitle>
+                <CardDescription>Assign courses to centers and manage authorization details.</CardDescription>
               </div>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search centers by name..."
+                  placeholder="Search centers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -198,88 +202,71 @@ export default function AdminAuthorizations() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Center</TableHead>
-                    <TableHead>Fees Paid</TableHead>
-                    <TableHead>Commission</TableHead>
-                    <TableHead>Validity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCenters.map((center) => (
-                    <TableRow key={center.id}>
-                      <TableCell>
-                        <p className="font-medium">{center.name}</p>
-                        <p className="text-sm text-muted-foreground">{center.authorizationType}</p>
-                      </TableCell>
-                      <TableCell>₹{center.feesPaid.toLocaleString('en-IN')}</TableCell>
-                      <TableCell>{center.commissionRate}%</TableCell>
-                      <TableCell>{new Date(center.validity).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Badge className={center.status === 'Active' ? 'bg-success' : 'bg-destructive'}>{center.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => { setSelectedCenter(center); setEditableCenter({ ...center }); setIsEditCenterOpen(true); }}>
-                              <Edit className="w-4 h-4 mr-2" /> Edit Authorization
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setSelectedCenter(center); setIsAddCoursesOpen(true); }}>
-                              <PlusCircle className="w-4 h-4 mr-2" /> Add/View Courses
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+            {filteredCenters.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No centers found. Create centers first to manage authorizations.
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Center</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Courses</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCenters.map((center) => (
+                      <TableRow key={center.id}>
+                        <TableCell>
+                          <p className="font-medium">{center.name}</p>
+                          <p className="text-sm text-muted-foreground">{center.contact_person || 'No contact'}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{center.code}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {center.city || 'N/A'}, {center.state || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge>{getCenterCourseCount(center.id)} courses</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={center.status === 'active' ? 'bg-success' : 'bg-destructive'}>
+                            {center.status || 'active'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenAddCourses(center)}>
+                                <PlusCircle className="w-4 h-4 mr-2" /> Manage Courses
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Edit Center Dialog */}
-      <Dialog open={isEditCenterOpen} onOpenChange={setIsEditCenterOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Authorization for {editableCenter?.name}</DialogTitle>
-            <DialogDescription>Modify commission, description, and status.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="commission" className="text-right">Commission (%)</Label>
-              <Input id="commission" type="number" value={editableCenter?.commissionRate || ''} onChange={(e) => handleEditCenterChange('commissionRate', Number(e.target.value))} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="description" className="text-right pt-2">Description</Label>
-              <Textarea id="description" value={editableCenter?.description || ''} onChange={(e) => handleEditCenterChange('description', e.target.value)} className="col-span-3" />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch id="status-mode" checked={editableCenter?.status === 'Active'} onCheckedChange={(checked) => handleEditCenterChange('status', checked ? 'Active' : 'Inactive')} />
-              <Label htmlFor="status-mode">Set Authorization as Active</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditCenterOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveChanges}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Add/View Courses Dialog */}
       <Dialog open={isAddCoursesOpen} onOpenChange={setIsAddCoursesOpen}>
-        <DialogContent className="sm:max-w-[750px]">
+        <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Courses for {selectedCenter?.name}</DialogTitle>
             <DialogDescription>Assign new courses and manage existing ones for this center.</DialogDescription>
@@ -292,34 +279,57 @@ export default function AdminAuthorizations() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-6 items-end gap-4">
                   <div className="grid gap-1.5 sm:col-span-2">
-                    <Label htmlFor="course-select">Select a Course</Label>
-                    <Select value={newCourseData.courseId} onValueChange={(value) => setNewCourseData(prev => ({ ...prev, courseId: value }))}>
-                      <SelectTrigger id="course-select">
+                    <Label>Select a Course</Label>
+                    <Select
+                      value={newCourseData.courseId}
+                      onValueChange={(value) => setNewCourseData(prev => ({ ...prev, courseId: value }))}
+                    >
+                      <SelectTrigger>
                         <SelectValue placeholder="Choose a course..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockCoursesMaster
-                          .filter(mc => !selectedCenter?.assignedCourses.some(ac => ac.courseId === mc.id))
-                          .map(course => (
+                        {availableCoursesForCenter.length === 0 ? (
+                          <SelectItem value="none" disabled>All courses assigned</SelectItem>
+                        ) : (
+                          availableCoursesForCenter.map(course => (
                             <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
-                          ))}
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid gap-1.5">
                     <Label>Kit Value (₹)</Label>
-                    <Input type="number" placeholder="e.g., 5000" value={newCourseData.kitValue} onChange={(e) => setNewCourseData(prev => ({ ...prev, kitValue: e.target.value }))} />
+                    <Input
+                      type="number"
+                      placeholder="5000"
+                      value={newCourseData.kitValue}
+                      onChange={(e) => setNewCourseData(prev => ({ ...prev, kitValue: e.target.value }))}
+                    />
                   </div>
                   <div className="grid gap-1.5">
                     <Label>Exam Value (₹)</Label>
-                    <Input type="number" placeholder="e.g., 1500" value={newCourseData.examValue} onChange={(e) => setNewCourseData(prev => ({ ...prev, examValue: e.target.value }))} />
+                    <Input
+                      type="number"
+                      placeholder="1500"
+                      value={newCourseData.examValue}
+                      onChange={(e) => setNewCourseData(prev => ({ ...prev, examValue: e.target.value }))}
+                    />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Duration</Label>
-                    <Input placeholder="e.g., 6 Months" value={newCourseData.duration} onChange={(e) => setNewCourseData(prev => ({ ...prev, duration: e.target.value }))} />
+                    <Label>Commission %</Label>
+                    <Input
+                      type="number"
+                      placeholder="10"
+                      value={newCourseData.commission}
+                      onChange={(e) => setNewCourseData(prev => ({ ...prev, commission: e.target.value }))}
+                    />
                   </div>
                   <div className="sm:col-span-1">
-                    <Button onClick={handleAddCourse} className="w-full"><Plus className="w-4 h-4 mr-2" />Add</Button>
+                    <Button onClick={handleAddCourse} className="w-full" disabled={assignCourse.isPending}>
+                      {assignCourse.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Add
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -329,32 +339,44 @@ export default function AdminAuthorizations() {
                 <CardTitle className="text-lg">Assigned Courses</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Course Name</TableHead>
-                      <TableHead>Kit Value</TableHead>
-                      <TableHead>Exam Value</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedCenter?.assignedCourses.map(course => (
-                      <TableRow key={course.courseId}>
-                        <TableCell className="font-medium">{course.name}</TableCell>
-                        <TableCell>₹{course.kitValue}</TableCell>
-                        <TableCell>₹{course.onlyExamValue}</TableCell>
-                        <TableCell>{course.duration}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => { setSelectedCourse(course); setIsCourseDetailsOpen(true); }}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
+                {selectedCenterCourses.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No courses assigned yet.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Course Name</TableHead>
+                        <TableHead>Kit Value</TableHead>
+                        <TableHead>Exam Value</TableHead>
+                        <TableHead>Commission</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-12"></TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedCenterCourses.map((course: any) => (
+                        <TableRow key={course.id}>
+                          <TableCell className="font-medium">{course.course_name}</TableCell>
+                          <TableCell>₹{Number(course.kit_value || 0).toLocaleString()}</TableCell>
+                          <TableCell>₹{Number(course.exam_value || 0).toLocaleString()}</TableCell>
+                          <TableCell>{course.commission_percent || 0}%</TableCell>
+                          <TableCell>
+                            <Badge className={course.status === 'active' ? 'bg-success' : 'bg-muted-foreground'}>
+                              {course.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleViewCourse(course)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -365,33 +387,73 @@ export default function AdminAuthorizations() {
       <Dialog open={isCourseDetailsOpen} onOpenChange={setIsCourseDetailsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Course Details: {selectedCourse?.name}</DialogTitle>
-            <DialogDescription>Modify course parameters for this center only.</DialogDescription>
+            <DialogTitle>Edit Course: {selectedCourse?.course_name}</DialogTitle>
+            <DialogDescription>Modify course parameters for this center.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Kit Value (₹)</Label>
-                <Input type="number" defaultValue={selectedCourse?.kitValue} />
+                <Input
+                  type="number"
+                  value={editCourseData.kitValue}
+                  onChange={(e) => setEditCourseData({ ...editCourseData, kitValue: e.target.value })}
+                />
               </div>
               <div className="grid gap-2">
-                <Label>Only Exam Value (₹)</Label>
-                <Input type="number" defaultValue={selectedCourse?.onlyExamValue} />
+                <Label>Exam Value (₹)</Label>
+                <Input
+                  type="number"
+                  value={editCourseData.examValue}
+                  onChange={(e) => setEditCourseData({ ...editCourseData, examValue: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Duration Override (months)</Label>
+                <Input
+                  type="number"
+                  placeholder="Leave empty for default"
+                  value={editCourseData.duration}
+                  onChange={(e) => setEditCourseData({ ...editCourseData, duration: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Commission %</Label>
+                <Input
+                  type="number"
+                  value={editCourseData.commission}
+                  onChange={(e) => setEditCourseData({ ...editCourseData, commission: e.target.value })}
+                />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Duration</Label>
-              <Input defaultValue={selectedCourse?.duration} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Note</Label>
-              <Textarea defaultValue={selectedCourse?.note} />
+              <Label>Notes</Label>
+              <Textarea
+                value={editCourseData.notes}
+                onChange={(e) => setEditCourseData({ ...editCourseData, notes: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="destructive" className="mr-auto"><Trash2 className="w-4 h-4 mr-2" />Remove Course</Button>
-            <Button variant="outline" onClick={() => setIsCourseDetailsOpen(false)}>Cancel</Button>
-            <Button onClick={() => { toast.success("Course details updated!"); setIsCourseDetailsOpen(false); }}>Save Changes</Button>
+            <Button
+              variant="destructive"
+              className="mr-auto"
+              onClick={handleRemoveCourse}
+              disabled={removeCenterCourse.isPending}
+            >
+              {removeCenterCourse.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Trash2 className="w-4 h-4 mr-2" />
+              Remove Course
+            </Button>
+            <Button variant="outline" onClick={() => setIsCourseDetailsOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateCourse} disabled={updateCenterCourse.isPending}>
+              {updateCenterCourse.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

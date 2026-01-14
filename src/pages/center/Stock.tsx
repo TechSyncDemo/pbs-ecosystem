@@ -16,90 +16,41 @@ import {
   Search,
   ShoppingCart,
   AlertCircle,
-  TrendingUp,
-  TrendingDown,
   BookOpen,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CenterLayout from '@/layouts/CenterLayout';
-
-// Mock stock data
-const mockStock = [
-  {
-    id: 'stock-001',
-    course: 'Advanced Computer Applications',
-    category: 'IT Division',
-    opening: 30,
-    purchased: 10,
-    used: 15,
-    closing: 25,
-    lastUpdated: '2024-03-18',
-  },
-  {
-    id: 'stock-002',
-    course: 'Diploma in Digital Marketing',
-    category: 'IT Division',
-    opening: 20,
-    purchased: 5,
-    used: 7,
-    closing: 18,
-    lastUpdated: '2024-03-19',
-  },
-  {
-    id: 'stock-003',
-    course: 'Certificate in Tally Prime',
-    category: 'Vocational',
-    opening: 15,
-    purchased: 0,
-    used: 10,
-    closing: 5,
-    lastUpdated: '2024-03-20',
-  },
-  {
-    id: 'stock-004',
-    course: 'Web Development Fundamentals',
-    category: 'IT Division',
-    opening: 18,
-    purchased: 8,
-    used: 14,
-    closing: 12,
-    lastUpdated: '2024-03-17',
-  },
-  {
-    id: 'stock-005',
-    course: 'Certificate in Python Programming',
-    category: 'IT Division',
-    opening: 12,
-    purchased: 0,
-    used: 9,
-    closing: 3,
-    lastUpdated: '2024-03-20',
-  },
-  {
-    id: 'stock-006',
-    course: 'Spoken English Course',
-    category: 'Language',
-    opening: 25,
-    purchased: 5,
-    used: 8,
-    closing: 22,
-    lastUpdated: '2024-03-15',
-  },
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { useCenterStock, useCenterStockStats } from '@/hooks/useStock';
+import { format } from 'date-fns';
 
 export default function CenterStock() {
+  const { user } = useAuth();
+  const centerId = user?.centerId;
+
+  const { data: stockData = [], isLoading } = useCenterStock(centerId);
+  const { data: stats } = useCenterStockStats(centerId);
+
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredStock = mockStock.filter(
+  const filteredStock = stockData.filter(
     (item) =>
-      item.course.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+      item.stock_item?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.stock_item?.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalStock = mockStock.reduce((acc, item) => acc + item.closing, 0);
-  const lowStockItems = mockStock.filter((item) => item.closing <= 5);
-  const totalPurchased = mockStock.reduce((acc, item) => acc + item.purchased, 0);
-  const totalUsed = mockStock.reduce((acc, item) => acc + item.used, 0);
+  const lowStockItems = stockData.filter((item) => item.quantity <= 5);
+
+  if (isLoading) {
+    return (
+      <CenterLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </CenterLayout>
+    );
+  }
 
   return (
     <CenterLayout>
@@ -119,7 +70,7 @@ export default function CenterStock() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="border-0 shadow-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -127,7 +78,7 @@ export default function CenterStock() {
                   <Package className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{totalStock}</p>
+                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
                   <p className="text-sm text-muted-foreground">Total Stock</p>
                 </div>
               </div>
@@ -136,25 +87,12 @@ export default function CenterStock() {
           <Card className="border-0 shadow-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{totalPurchased}</p>
-                  <p className="text-sm text-muted-foreground">Purchased (MTD)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                  <TrendingDown className="w-5 h-5 text-info" />
+                  <BookOpen className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{totalUsed}</p>
-                  <p className="text-sm text-muted-foreground">Used (MTD)</p>
+                  <p className="text-2xl font-bold">{stockData.length}</p>
+                  <p className="text-sm text-muted-foreground">Item Types</p>
                 </div>
               </div>
             </CardContent>
@@ -166,7 +104,7 @@ export default function CenterStock() {
                   <AlertCircle className="w-5 h-5 text-destructive" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{lowStockItems.length}</p>
+                  <p className="text-2xl font-bold">{stats?.lowStock || 0}</p>
                   <p className="text-sm text-muted-foreground">Low Stock Items</p>
                 </div>
               </div>
@@ -185,12 +123,12 @@ export default function CenterStock() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-destructive">Low Stock Alert</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    The following courses have low inventory (≤5 units):
+                    The following items have low inventory (≤5 units):
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {lowStockItems.map((item) => (
                       <Badge key={item.id} variant="destructive">
-                        {item.course} ({item.closing} left)
+                        {item.stock_item?.name} ({item.quantity} left)
                       </Badge>
                     ))}
                   </div>
@@ -220,79 +158,83 @@ export default function CenterStock() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Course</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-center">Opening</TableHead>
-                    <TableHead className="text-center">Purchased</TableHead>
-                    <TableHead className="text-center">Used</TableHead>
-                    <TableHead className="text-center">Closing</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStock.map((item) => (
-                    <TableRow key={item.id} className="table-row-hover">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            item.closing <= 5 ? 'bg-destructive/10' : 'bg-primary/10'
-                          }`}>
-                            <BookOpen className={`w-5 h-5 ${
-                              item.closing <= 5 ? 'text-destructive' : 'text-primary'
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium">{item.course}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Updated: {new Date(item.lastUpdated).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{item.category}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center font-medium">
-                        {item.opening}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="text-success font-medium">+{item.purchased}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="text-destructive font-medium">-{item.used}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className={`text-xl font-bold ${
-                          item.closing <= 5 ? 'text-destructive' : ''
-                        }`}>
-                          {item.closing}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {item.closing <= 5 ? (
-                          <Badge variant="destructive">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Low Stock
-                          </Badge>
-                        ) : item.closing <= 10 ? (
-                          <Badge className="bg-warning hover:bg-warning/90">
-                            Medium
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-success hover:bg-success/90">
-                            Adequate
-                          </Badge>
-                        )}
-                      </TableCell>
+            {filteredStock.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {stockData.length === 0 ? 'No stock items yet. Place an order to get started!' : 'No items match your search.'}
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Item</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-center">Quantity</TableHead>
+                      <TableHead>Last Updated</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStock.map((item) => (
+                      <TableRow key={item.id} className="table-row-hover">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              item.quantity <= 5 ? 'bg-destructive/10' : 'bg-primary/10'
+                            }`}>
+                              <BookOpen className={`w-5 h-5 ${
+                                item.quantity <= 5 ? 'text-destructive' : 'text-primary'
+                              }`} />
+                            </div>
+                            <div>
+                              <p className="font-medium">{item.stock_item?.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {item.stock_item?.description || 'No description'}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{item.stock_item?.code}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">{item.stock_item?.category || 'N/A'}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`text-xl font-bold ${
+                            item.quantity <= 5 ? 'text-destructive' : ''
+                          }`}>
+                            {item.quantity}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(item.last_updated), 'dd/MM/yyyy')}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {item.quantity <= 5 ? (
+                            <Badge variant="destructive">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Low Stock
+                            </Badge>
+                          ) : item.quantity <= 10 ? (
+                            <Badge className="bg-warning hover:bg-warning/90">
+                              Medium
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-success hover:bg-success/90">
+                              Adequate
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

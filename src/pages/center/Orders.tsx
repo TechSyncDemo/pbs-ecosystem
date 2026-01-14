@@ -35,92 +35,65 @@ import {
   Package,
   IndianRupee,
   Calendar,
-  FileText,
   CreditCard,
   CheckCircle,
   Clock,
   QrCode,
+  Loader2,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { toast } from 'sonner';
-
-// Mock orders data
-const mockOrders = [
-  {
-    id: 'ORD-2024-101',
-    date: '2024-03-20',
-    items: [
-      { course: 'Advanced Computer Applications', type: 'Kit', qty: 10, unitPrice: 8000 },
-    ],
-    total: 80000,
-    status: 'Approved',
-    paymentMethod: 'Razorpay',
-  },
-  {
-    id: 'ORD-2024-100',
-    date: '2024-03-18',
-    items: [
-      { course: 'Digital Marketing', type: 'Kit', qty: 5, unitPrice: 6500 },
-      { course: 'Tally Prime', type: 'Exam Only', qty: 3, unitPrice: 2000 },
-    ],
-    total: 38500,
-    status: 'Approved',
-    paymentMethod: 'Razorpay',
-  },
-  {
-    id: 'ORD-2024-099',
-    date: '2024-03-15',
-    items: [
-      { course: 'Web Development', type: 'Kit', qty: 8, unitPrice: 9500 },
-    ],
-    total: 76000,
-    status: 'Pending',
-    paymentMethod: 'Bank Transfer',
-  },
-];
-
-const availableCourses = [
-  { name: 'Advanced Computer Applications', kitPrice: 8000, examPrice: 3000 },
-  { name: 'Diploma in Digital Marketing', kitPrice: 6500, examPrice: 2500 },
-  { name: 'Certificate in Tally Prime', kitPrice: 4000, examPrice: 2000 },
-  { name: 'Web Development Fundamentals', kitPrice: 9500, examPrice: 3500 },
-  { name: 'Certificate in Python Programming', kitPrice: 7500, examPrice: 3000 },
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { useCenterOrders, useCreateOrder } from '@/hooks/useOrders';
+import { useStockItems } from '@/hooks/useStock';
+import { format } from 'date-fns';
 
 export default function CenterOrders() {
+  const { user } = useAuth();
+  const centerId = user?.centerId;
+
+  const { data: orders = [], isLoading } = useCenterOrders(centerId);
+  const { data: stockItems = [] } = useStockItems();
+  const createOrder = useCreateOrder();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [orderItems, setOrderItems] = useState<Array<{
-    course: string;
-    type: 'Kit' | 'Exam Only';
+    stock_item_id: string;
+    name: string;
     qty: number;
-    unitPrice: number;
+    unit_price: number;
   }>>([]);
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedType, setSelectedType] = useState<'Kit' | 'Exam Only'>('Kit');
+  const [selectedItem, setSelectedItem] = useState('');
   const [quantity, setQuantity] = useState('1');
 
-  const filteredOrders = mockOrders.filter(
+  const filteredOrders = orders.filter(
     (order) =>
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.items.some((item) => item.course.toLowerCase().includes(searchQuery.toLowerCase()))
+      order.order_no.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddItem = () => {
-    const course = availableCourses.find((c) => c.name === selectedCourse);
-    if (!course) return;
+    const item = stockItems.find((s) => s.id === selectedItem);
+    if (!item) return;
 
-    const unitPrice = selectedType === 'Kit' ? course.kitPrice : course.examPrice;
-    setOrderItems([
-      ...orderItems,
-      {
-        course: selectedCourse,
-        type: selectedType,
-        qty: parseInt(quantity),
-        unitPrice,
-      },
-    ]);
-    setSelectedCourse('');
+    // Check if already in cart
+    const existingIndex = orderItems.findIndex(i => i.stock_item_id === selectedItem);
+    if (existingIndex >= 0) {
+      const updated = [...orderItems];
+      updated[existingIndex].qty += parseInt(quantity);
+      setOrderItems(updated);
+    } else {
+      setOrderItems([
+        ...orderItems,
+        {
+          stock_item_id: item.id,
+          name: item.name,
+          qty: parseInt(quantity),
+          unit_price: Number(item.unit_price),
+        },
+      ]);
+    }
+    setSelectedItem('');
     setQuantity('1');
   };
 
@@ -128,36 +101,62 @@ export default function CenterOrders() {
     setOrderItems(orderItems.filter((_, i) => i !== index));
   };
 
-  const orderTotal = orderItems.reduce((acc, item) => acc + item.qty * item.unitPrice, 0);
+  const orderTotal = orderItems.reduce((acc, item) => acc + item.qty * item.unit_price, 0);
 
-  const handlePayWithCard = () => {
-    toast.success('Order placed successfully!', {
-      description: 'Redirecting to payment gateway...',
-    });
-    setIsOrderDialogOpen(false);
-    setOrderItems([]);
-  };
+  const handlePlaceOrder = async (paymentMethod: string) => {
+    if (!centerId || orderItems.length === 0) return;
 
-  const handlePayWithQR = () => {
-    toast.success('Order placed successfully!', {
-      description: 'Generating QR code for payment...',
+    await createOrder.mutateAsync({
+      order: {
+        center_id: centerId,
+        order_no: '', // Generated by database
+        total_amount: orderTotal,
+        status: 'pending',
+        payment_status: 'pending',
+        notes: `Payment method: ${paymentMethod}`,
+      },
+      items: orderItems.map(item => ({
+        stock_item_id: item.stock_item_id,
+        quantity: item.qty,
+        unit_price: item.unit_price,
+        total_price: item.qty * item.unit_price,
+      })),
     });
+
     setIsOrderDialogOpen(false);
     setOrderItems([]);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Approved':
+      case 'completed':
+      case 'approved':
         return 'bg-success hover:bg-success/90';
-      case 'Pending':
+      case 'pending':
         return 'bg-warning hover:bg-warning/90';
-      case 'Rejected':
+      case 'rejected':
         return 'bg-destructive hover:bg-destructive/90';
       default:
         return '';
     }
   };
+
+  const stats = {
+    total: orders.length,
+    approved: orders.filter(o => o.status === 'completed' || o.status === 'approved').length,
+    pending: orders.filter(o => o.status === 'pending').length,
+    totalValue: orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0),
+  };
+
+  if (isLoading) {
+    return (
+      <CenterLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </CenterLayout>
+    );
+  }
 
   return (
     <CenterLayout>
@@ -179,36 +178,24 @@ export default function CenterOrders() {
               <DialogHeader>
                 <DialogTitle>Create New Order</DialogTitle>
                 <DialogDescription>
-                  Select courses and quantities to purchase inventory.
+                  Select items and quantities to purchase.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
                 {/* Add Item Form */}
                 <div className="grid grid-cols-12 gap-3 items-end">
-                  <div className="col-span-5">
-                    <Label>Course</Label>
-                    <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                  <div className="col-span-7">
+                    <Label>Stock Item</Label>
+                    <Select value={selectedItem} onValueChange={setSelectedItem}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select course" />
+                        <SelectValue placeholder="Select item" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableCourses.map((course) => (
-                          <SelectItem key={course.name} value={course.name}>
-                            {course.name}
+                        {stockItems.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name} - ₹{Number(item.unit_price).toLocaleString()}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    <Label>Type</Label>
-                    <Select value={selectedType} onValueChange={(v) => setSelectedType(v as 'Kit' | 'Exam Only')}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Kit">Kit</SelectItem>
-                        <SelectItem value="Exam Only">Exam Only</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -221,8 +208,8 @@ export default function CenterOrders() {
                       onChange={(e) => setQuantity(e.target.value)}
                     />
                   </div>
-                  <div className="col-span-2">
-                    <Button onClick={handleAddItem} disabled={!selectedCourse} className="w-full">
+                  <div className="col-span-3">
+                    <Button onClick={handleAddItem} disabled={!selectedItem} className="w-full">
                       Add
                     </Button>
                   </div>
@@ -235,7 +222,6 @@ export default function CenterOrders() {
                       <TableHeader>
                         <TableRow className="bg-muted/50">
                           <TableHead>Item</TableHead>
-                          <TableHead>Type</TableHead>
                           <TableHead className="text-center">Qty</TableHead>
                           <TableHead className="text-right">Unit Price</TableHead>
                           <TableHead className="text-right">Total</TableHead>
@@ -245,14 +231,11 @@ export default function CenterOrders() {
                       <TableBody>
                         {orderItems.map((item, index) => (
                           <TableRow key={index}>
-                            <TableCell className="font-medium">{item.course}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{item.type}</Badge>
-                            </TableCell>
+                            <TableCell className="font-medium">{item.name}</TableCell>
                             <TableCell className="text-center">{item.qty}</TableCell>
-                            <TableCell className="text-right">₹{item.unitPrice.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">₹{item.unit_price.toLocaleString()}</TableCell>
                             <TableCell className="text-right font-medium">
-                              ₹{(item.qty * item.unitPrice).toLocaleString()}
+                              ₹{(item.qty * item.unit_price).toLocaleString()}
                             </TableCell>
                             <TableCell>
                               <Button
@@ -283,13 +266,21 @@ export default function CenterOrders() {
                 <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button variant="outline" onClick={handlePayWithQR} disabled={orderItems.length === 0}>
+                <Button
+                  variant="outline"
+                  onClick={() => handlePlaceOrder('QR')}
+                  disabled={orderItems.length === 0 || createOrder.isPending}
+                >
                   <QrCode className="w-4 h-4 mr-2" />
                   Pay with QR
                 </Button>
-                <Button onClick={handlePayWithCard} disabled={orderItems.length === 0}>
+                <Button
+                  onClick={() => handlePlaceOrder('Card')}
+                  disabled={orderItems.length === 0 || createOrder.isPending}
+                >
+                  {createOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Pay with Cards etc
+                  Pay with Card
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -305,7 +296,7 @@ export default function CenterOrders() {
                   <ShoppingCart className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockOrders.length}</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
                   <p className="text-sm text-muted-foreground">Total Orders</p>
                 </div>
               </div>
@@ -318,7 +309,7 @@ export default function CenterOrders() {
                   <CheckCircle className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockOrders.filter(o => o.status === 'Approved').length}</p>
+                  <p className="text-2xl font-bold">{stats.approved}</p>
                   <p className="text-sm text-muted-foreground">Approved</p>
                 </div>
               </div>
@@ -331,7 +322,7 @@ export default function CenterOrders() {
                   <Clock className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockOrders.filter(o => o.status === 'Pending').length}</p>
+                  <p className="text-2xl font-bold">{stats.pending}</p>
                   <p className="text-sm text-muted-foreground">Pending</p>
                 </div>
               </div>
@@ -345,7 +336,7 @@ export default function CenterOrders() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    ₹{(mockOrders.reduce((acc, o) => acc + o.total, 0) / 1000).toFixed(0)}K
+                    ₹{(stats.totalValue / 1000).toFixed(0)}K
                   </p>
                   <p className="text-sm text-muted-foreground">Total Value</p>
                 </div>
@@ -371,63 +362,69 @@ export default function CenterOrders() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrders.map((order) => (
-                    <TableRow key={order.id} className="table-row-hover">
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Package className="w-4 h-4 text-primary" />
-                          </div>
-                          <span className="font-medium">{order.id}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {new Date(order.date).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {order.items.map((item, index) => (
-                            <div key={index} className="text-sm">
-                              <span className="font-medium">{item.course}</span>
-                              <span className="text-muted-foreground"> × {item.qty}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-bold">₹{order.total.toLocaleString()}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{order.paymentMethod}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status === 'Approved' && <CheckCircle className="w-3 h-3 mr-1" />}
-                          {order.status === 'Pending' && <Clock className="w-3 h-3 mr-1" />}
-                          {order.status}
-                        </Badge>
-                      </TableCell>
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {orders.length === 0 ? 'No orders yet. Place your first order!' : 'No orders match your search.'}
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Order No</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredOrders.map((order) => (
+                      <TableRow key={order.id} className="table-row-hover">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Package className="w-4 h-4 text-primary" />
+                            </div>
+                            <span className="font-medium">{order.order_no}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {format(new Date(order.created_at), 'dd/MM/yyyy')}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {order.order_items?.map((item: any, index: number) => (
+                              <div key={index} className="text-sm">
+                                <span className="font-medium">{item.stock_items?.name || 'Item'}</span>
+                                <span className="text-muted-foreground"> × {item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-bold">₹{Number(order.total_amount).toLocaleString()}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">{order.payment_status || 'pending'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`capitalize ${getStatusColor(order.status || 'pending')}`}>
+                            {order.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
+                            {order.status === 'pending' && <Clock className="w-3 h-3 mr-1" />}
+                            {order.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

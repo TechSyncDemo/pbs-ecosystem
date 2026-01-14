@@ -1,13 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Settings,
   Building,
-  DollarSign,
   Bell,
   User,
   Save,
-  Upload,
   IndianRupeeIcon,
+  Loader2,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,35 +14,152 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppSettings, useBatchUpdateSettings } from '@/hooks/useAppSettings';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-// Mock initial settings data
-const mockSettings = {
-  general: {
+export default function AdminSettings() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: settingsData, isLoading: settingsLoading } = useAppSettings();
+  const batchUpdateSettings = useBatchUpdateSettings();
+
+  // Fetch admin profile
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ['admin-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Update profile mutation
+  const updateProfile = useMutation({
+    mutationFn: async (updates: { full_name?: string; phone?: string }) => {
+      if (!user?.id) throw new Error('No user');
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-profile'] });
+      toast.success('Profile updated successfully!');
+    },
+    onError: (error) => {
+      toast.error('Failed to update profile: ' + error.message);
+    },
+  });
+
+  const [generalSettings, setGeneralSettings] = useState({
     appName: 'PBS Ecosystem',
-    logoUrl: '/logo.png',
-    adminEmail: 'admin@pbsecosystem.com',
-    supportContact: '+91 12345 67890',
-  },
-  financial: {
+    adminEmail: '',
+    supportContact: '',
+  });
+
+  const [financialSettings, setFinancialSettings] = useState({
     defaultCommission: 15,
-    gstNumber: '27ABCDE1234F1Z5',
-  },
-  notifications: {
+    gstNumber: '',
+  });
+
+  const [notificationSettings, setNotificationSettings] = useState({
     newCenterRegistration: true,
     orderPaymentReceived: true,
     resultDeclared: true,
     newSupportTicket: true,
-  },
-};
+  });
 
-export default function AdminSettings() {
-  const [settings, setSettings] = useState(mockSettings);
+  const [profileSettings, setProfileSettings] = useState({
+    fullName: '',
+    email: '',
+  });
 
-  const handleSave = (section: string) => {
-    toast.success(`${section} settings saved successfully!`);
-    // In a real app, you would make an API call here to persist the settings.
+  // Load settings from database
+  useEffect(() => {
+    if (settingsData?.grouped) {
+      const s = settingsData.grouped;
+      setGeneralSettings({
+        appName: (s.app_name as string) || 'PBS Ecosystem',
+        adminEmail: (s.admin_email as string) || '',
+        supportContact: (s.support_contact as string) || '',
+      });
+      setFinancialSettings({
+        defaultCommission: (s.default_commission as number) || 15,
+        gstNumber: (s.gst_number as string) || '',
+      });
+      setNotificationSettings({
+        newCenterRegistration: s.notify_new_center !== false,
+        orderPaymentReceived: s.notify_order_payment !== false,
+        resultDeclared: s.notify_result !== false,
+        newSupportTicket: s.notify_support_ticket !== false,
+      });
+    }
+  }, [settingsData]);
+
+  useEffect(() => {
+    if (profile) {
+      setProfileSettings({
+        fullName: profile.full_name || '',
+        email: profile.email || '',
+      });
+    }
+  }, [profile]);
+
+  const handleSaveGeneral = async () => {
+    await batchUpdateSettings.mutateAsync([
+      { key: 'app_name', value: generalSettings.appName, category: 'general' },
+      { key: 'admin_email', value: generalSettings.adminEmail, category: 'general' },
+      { key: 'support_contact', value: generalSettings.supportContact, category: 'general' },
+    ]);
   };
+
+  const handleSaveFinancial = async () => {
+    await batchUpdateSettings.mutateAsync([
+      { key: 'default_commission', value: financialSettings.defaultCommission, category: 'financial' },
+      { key: 'gst_number', value: financialSettings.gstNumber, category: 'financial' },
+    ]);
+  };
+
+  const handleSaveNotifications = async () => {
+    await batchUpdateSettings.mutateAsync([
+      { key: 'notify_new_center', value: notificationSettings.newCenterRegistration, category: 'notifications' },
+      { key: 'notify_order_payment', value: notificationSettings.orderPaymentReceived, category: 'notifications' },
+      { key: 'notify_result', value: notificationSettings.resultDeclared, category: 'notifications' },
+      { key: 'notify_support_ticket', value: notificationSettings.newSupportTicket, category: 'notifications' },
+    ]);
+  };
+
+  const handleSaveProfile = async () => {
+    await updateProfile.mutateAsync({
+      full_name: profileSettings.fullName,
+    });
+  };
+
+  const isLoading = settingsLoading || profileLoading;
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -72,28 +187,35 @@ export default function AdminSettings() {
               <CardContent className="space-y-6">
                 <div className="grid gap-2">
                   <Label>Application Name</Label>
-                  <Input defaultValue={settings.general.appName} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Application Logo</Label>
-                  <div className="flex items-center gap-4">
-                    <img src={settings.general.logoUrl} alt="Logo" className="h-12 w-12 rounded-md bg-muted p-1" />
-                    <Button variant="outline"><Upload className="w-4 h-4 mr-2" />Upload New Logo</Button>
-                  </div>
+                  <Input
+                    value={generalSettings.appName}
+                    onChange={(e) => setGeneralSettings({ ...generalSettings, appName: e.target.value })}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="grid gap-2">
                     <Label>Admin Email</Label>
-                    <Input type="email" defaultValue={settings.general.adminEmail} />
+                    <Input
+                      type="email"
+                      value={generalSettings.adminEmail}
+                      onChange={(e) => setGeneralSettings({ ...generalSettings, adminEmail: e.target.value })}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label>Support Contact</Label>
-                    <Input defaultValue={settings.general.supportContact} />
+                    <Input
+                      value={generalSettings.supportContact}
+                      onChange={(e) => setGeneralSettings({ ...generalSettings, supportContact: e.target.value })}
+                    />
                   </div>
                 </div>
               </CardContent>
               <CardHeader className="border-t pt-6">
-                <Button onClick={() => handleSave('General')}><Save className="w-4 h-4 mr-2" />Save General Settings</Button>
+                <Button onClick={handleSaveGeneral} disabled={batchUpdateSettings.isPending}>
+                  {batchUpdateSettings.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Save General Settings
+                </Button>
               </CardHeader>
             </Card>
           </TabsContent>
@@ -109,16 +231,27 @@ export default function AdminSettings() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="grid gap-2">
                     <Label>Default Commission Rate (%)</Label>
-                    <Input type="number" defaultValue={settings.financial.defaultCommission} />
+                    <Input
+                      type="number"
+                      value={financialSettings.defaultCommission}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, defaultCommission: Number(e.target.value) })}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label>GST Number</Label>
-                    <Input defaultValue={settings.financial.gstNumber} />
+                    <Input
+                      value={financialSettings.gstNumber}
+                      onChange={(e) => setFinancialSettings({ ...financialSettings, gstNumber: e.target.value })}
+                    />
                   </div>
                 </div>
               </CardContent>
               <CardHeader className="border-t pt-6">
-                <Button onClick={() => handleSave('Financial')}><Save className="w-4 h-4 mr-2" />Save Financial Settings</Button>
+                <Button onClick={handleSaveFinancial} disabled={batchUpdateSettings.isPending}>
+                  {batchUpdateSettings.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Financial Settings
+                </Button>
               </CardHeader>
             </Card>
           </TabsContent>
@@ -128,7 +261,7 @@ export default function AdminSettings() {
             <Card className="border-0 shadow-card">
               <CardHeader>
                 <CardTitle>Notification Settings</CardTitle>
-                <CardDescription>Enable or disable automatic email/SMS notifications.</CardDescription>
+                <CardDescription>Enable or disable automatic notifications.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border p-3">
@@ -136,32 +269,48 @@ export default function AdminSettings() {
                     <Label>New Center Registration</Label>
                     <p className="text-xs text-muted-foreground">Notify when a new center signs up.</p>
                   </div>
-                  <Switch defaultChecked={settings.notifications.newCenterRegistration} />
+                  <Switch
+                    checked={notificationSettings.newCenterRegistration}
+                    onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, newCenterRegistration: checked })}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <Label>Order Payment Received</Label>
                     <p className="text-xs text-muted-foreground">Notify when a center makes a payment for an order.</p>
                   </div>
-                  <Switch defaultChecked={settings.notifications.orderPaymentReceived} />
+                  <Switch
+                    checked={notificationSettings.orderPaymentReceived}
+                    onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, orderPaymentReceived: checked })}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <Label>Result Declared</Label>
                     <p className="text-xs text-muted-foreground">Notify students when their results are declared.</p>
                   </div>
-                  <Switch defaultChecked={settings.notifications.resultDeclared} />
+                  <Switch
+                    checked={notificationSettings.resultDeclared}
+                    onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, resultDeclared: checked })}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <Label>New Support Ticket</Label>
                     <p className="text-xs text-muted-foreground">Notify when a center raises a new support ticket.</p>
                   </div>
-                  <Switch defaultChecked={settings.notifications.newSupportTicket} />
+                  <Switch
+                    checked={notificationSettings.newSupportTicket}
+                    onCheckedChange={(checked) => setNotificationSettings({ ...notificationSettings, newSupportTicket: checked })}
+                  />
                 </div>
               </CardContent>
               <CardHeader className="border-t pt-6">
-                <Button onClick={() => handleSave('Notification')}><Save className="w-4 h-4 mr-2" />Save Notification Settings</Button>
+                <Button onClick={handleSaveNotifications} disabled={batchUpdateSettings.isPending}>
+                  {batchUpdateSettings.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Notification Settings
+                </Button>
               </CardHeader>
             </Card>
           </TabsContent>
@@ -176,28 +325,23 @@ export default function AdminSettings() {
               <CardContent className="space-y-6">
                 <div className="grid gap-2">
                   <Label>Full Name</Label>
-                  <Input defaultValue="Super Admin" />
+                  <Input
+                    value={profileSettings.fullName}
+                    onChange={(e) => setProfileSettings({ ...profileSettings, fullName: e.target.value })}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>Email</Label>
-                  <Input type="email" defaultValue="superadmin@pbsecosystem.com" readOnly />
-                </div>
-                <h4 className="font-medium pt-4 border-t">Change Password</h4>
-                <div className="grid gap-2">
-                  <Label>Current Password</Label>
-                  <Input type="password" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>New Password</Label>
-                  <Input type="password" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Confirm New Password</Label>
-                  <Input type="password" />
+                  <Input type="email" value={profileSettings.email} readOnly className="bg-muted" />
+                  <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
                 </div>
               </CardContent>
               <CardHeader className="border-t pt-6">
-                <Button onClick={() => handleSave('Profile')}><Save className="w-4 h-4 mr-2" />Update Profile</Button>
+                <Button onClick={handleSaveProfile} disabled={updateProfile.isPending}>
+                  {updateProfile.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Update Profile
+                </Button>
               </CardHeader>
             </Card>
           </TabsContent>
