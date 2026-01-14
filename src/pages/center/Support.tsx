@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -22,6 +21,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -35,96 +35,110 @@ import {
   Send,
   CheckCircle,
   XCircle,
-  Clock,
   ShieldAlert,
   Ticket,
+  Loader2,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
-import { toast } from 'sonner';
-
-// Mock support tickets data
-const mockTickets = [
-  {
-    id: 'TKT-001',
-    subject: 'Exam credentials not received for a student',
-    category: 'Exam',
-    status: 'Open',
-    priority: 'High',
-    date: '2024-03-21',
-    description: 'Student Priya Gupta (STU-002) has not received her exam credentials yet. The exam is scheduled for tomorrow. Please assist urgently.',
-    replies: [
-      { user: 'Center Staff', text: 'We have raised a ticket for the issue.', timestamp: '2024-03-21 10:00' },
-      { user: 'Admin', text: 'We are looking into it. The credentials will be resent shortly.', timestamp: '2024-03-21 10:15' },
-    ],
-  },
-  {
-    id: 'TKT-002',
-    subject: 'Issue with stock order ORD-2024-099',
-    category: 'Admin',
-    status: 'Closed',
-    priority: 'Medium',
-    date: '2024-03-18',
-    description: 'Our payment for order ORD-2024-099 was successful via Bank Transfer, but the order status is still "Pending".',
-    replies: [
-      { user: 'Center Staff', text: 'Please check the payment status for our recent order.', timestamp: '2024-03-18 14:00' },
-      { user: 'Admin', text: 'We have verified the payment. The order has been approved.', timestamp: '2024-03-18 16:30' },
-      { user: 'Center Staff', text: 'Thank you for the quick resolution!', timestamp: '2024-03-18 16:35' },
-    ],
-  },
-  {
-    id: 'TKT-003',
-    subject: 'Login issue on the portal',
-    category: 'Technical',
-    status: 'Open',
-    priority: 'Low',
-    date: '2024-03-20',
-    description: 'One of our staff members is unable to log in. They are getting a "password incorrect" error, but the password is correct.',
-    replies: [
-      { user: 'Center Staff', text: 'We are facing a login problem.', timestamp: '2024-03-20 11:00' },
-    ],
-  },
-];
-
-type Ticket = typeof mockTickets[0];
+import { useAuth } from '@/contexts/AuthContext';
+import { useCenterTickets, useCreateTicket, useAddTicketReply, useUpdateTicketStatus, type TicketWithDetails } from '@/hooks/useSupportTickets';
+import { format } from 'date-fns';
 
 export default function CenterSupport() {
+  const { user } = useAuth();
+  const centerId = user?.centerId;
+
+  const { data: tickets = [], isLoading } = useCenterTickets(centerId);
+  const createTicket = useCreateTicket();
+  const addReply = useAddTicketReply();
+  const updateStatus = useUpdateTicketStatus();
+
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<TicketWithDetails | null>(null);
   const [newReply, setNewReply] = useState('');
   const [newTicket, setNewTicket] = useState({
     subject: '',
-    category: '',
     description: '',
-    priority: 'Medium',
+    priority: 'medium',
   });
 
-  const handleCreateTicket = () => {
-    toast.success('Ticket created successfully!', {
-      description: `Ticket for "${newTicket.subject}" has been submitted.`,
+  const handleCreateTicket = async () => {
+    if (!centerId) return;
+
+    await createTicket.mutateAsync({
+      center_id: centerId,
+      subject: newTicket.subject,
+      description: newTicket.description,
+      priority: newTicket.priority,
+      status: 'open',
     });
+
     setIsCreateDialogOpen(false);
-    setNewTicket({ subject: '', category: '', description: '', priority: 'Medium' });
+    setNewTicket({ subject: '', description: '', priority: 'medium' });
   };
 
-  const handleSendReply = () => {
-    if (newReply.trim()) {
-      toast.success('Reply sent!');
-      setNewReply('');
-    }
+  const handleSendReply = async () => {
+    if (!selectedTicket || !newReply.trim()) return;
+
+    await addReply.mutateAsync({
+      ticket_id: selectedTicket.id,
+      message: newReply,
+      sender_type: 'center',
+    });
+
+    setNewReply('');
+    // Refresh ticket data
+    const updatedReplies = [...(selectedTicket.replies || []), {
+      id: 'temp',
+      ticket_id: selectedTicket.id,
+      message: newReply,
+      sender_type: 'center',
+      sender_id: null,
+      created_at: new Date().toISOString(),
+    }];
+    setSelectedTicket({ ...selectedTicket, replies: updatedReplies });
   };
 
-  const handleViewTicket = (ticket: Ticket) => {
+  const handleViewTicket = (ticket: TicketWithDetails) => {
     setSelectedTicket(ticket);
     setIsViewDialogOpen(true);
   };
 
+  const handleToggleStatus = async () => {
+    if (!selectedTicket) return;
+    const newStatus = selectedTicket.status === 'open' ? 'closed' : 'open';
+    await updateStatus.mutateAsync({ id: selectedTicket.id, status: newStatus });
+    setSelectedTicket({ ...selectedTicket, status: newStatus });
+  };
+
   const getStatusBadge = (status: string) => {
-    if (status === 'Open') {
+    if (status === 'open') {
       return <Badge className="bg-success hover:bg-success/90"><CheckCircle className="w-3 h-3 mr-1" />Open</Badge>;
     }
     return <Badge variant="secondary"><XCircle className="w-3 h-3 mr-1" />Closed</Badge>;
   };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return <Badge variant="destructive">High</Badge>;
+      case 'medium':
+        return <Badge className="bg-warning hover:bg-warning/90">Medium</Badge>;
+      default:
+        return <Badge variant="secondary">Low</Badge>;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <CenterLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </CenterLayout>
+    );
+  }
 
   return (
     <CenterLayout>
@@ -152,40 +166,51 @@ export default function CenterSupport() {
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" placeholder="e.g., Issue with student admission" value={newTicket.subject} onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })} />
+                  <Input
+                    id="subject"
+                    placeholder="e.g., Issue with student admission"
+                    value={newTicket.subject}
+                    onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select value={newTicket.category} onValueChange={(value) => setNewTicket({ ...newTicket, category: value })}>
-                      <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Technical">Technical</SelectItem>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Exam">Exam</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="priority">Priority</Label>
-                    <Select value={newTicket.priority} onValueChange={(value) => setNewTicket({ ...newTicket, priority: value })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select
+                    value={newTicket.priority}
+                    onValueChange={(value) => setNewTicket({ ...newTicket, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" placeholder="Please provide a detailed description of the issue..." rows={4} value={newTicket.description} onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })} />
+                  <Textarea
+                    id="description"
+                    placeholder="Please provide a detailed description of the issue..."
+                    rows={4}
+                    value={newTicket.description}
+                    onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+                  />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateTicket}>Submit Ticket</Button>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateTicket}
+                  disabled={createTicket.isPending || !newTicket.subject || !newTicket.description}
+                >
+                  {createTicket.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Submit Ticket
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -197,34 +222,44 @@ export default function CenterSupport() {
             <CardTitle className="font-heading">My Tickets</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Ticket ID</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockTickets.map((ticket) => (
-                    <TableRow key={ticket.id} className="cursor-pointer table-row-hover" onClick={() => handleViewTicket(ticket)}>
-                      <TableCell className="font-medium">{ticket.id}</TableCell>
-                      <TableCell>{ticket.subject}</TableCell>
-                      <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                      <TableCell>{new Date(ticket.date).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MessageSquare className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
+            {tickets.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No support tickets yet. Create one if you need help!
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {tickets.map((ticket) => (
+                      <TableRow
+                        key={ticket.id}
+                        className="cursor-pointer table-row-hover"
+                        onClick={() => handleViewTicket(ticket)}
+                      >
+                        <TableCell className="font-medium">{ticket.subject}</TableCell>
+                        <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
+                        <TableCell>{getStatusBadge(ticket.status)}</TableCell>
+                        <TableCell>{format(new Date(ticket.created_at), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MessageSquare className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -234,7 +269,7 @@ export default function CenterSupport() {
             <DialogHeader>
               <DialogTitle>Ticket: {selectedTicket?.subject}</DialogTitle>
               <DialogDescription>
-                ID: {selectedTicket?.id} | Priority: {selectedTicket?.priority} | Category: {selectedTicket?.category}
+                Priority: {selectedTicket?.priority} | Created: {selectedTicket ? format(new Date(selectedTicket.created_at), 'dd/MM/yyyy HH:mm') : ''}
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -246,35 +281,70 @@ export default function CenterSupport() {
 
               {/* Chat-style replies */}
               <div className="space-y-4">
-                {selectedTicket?.replies.map((reply, index) => (
-                  <div key={index} className={`flex gap-3 ${reply.user === 'Admin' ? 'justify-start' : 'justify-end'}`}>
-                    {reply.user === 'Admin' && <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0"><ShieldAlert className="w-4 h-4" /></div>}
-                    <div className={`p-3 rounded-lg max-w-[80%] ${reply.user === 'Admin' ? 'bg-muted' : 'bg-primary text-primary-foreground'}`}>
-                      <p className="text-sm">{reply.text}</p>
-                      <p className={`text-xs mt-1 ${reply.user === 'Admin' ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}>
-                        {reply.user} - {reply.timestamp}
+                {selectedTicket?.replies?.map((reply, index) => (
+                  <div
+                    key={index}
+                    className={`flex gap-3 ${reply.sender_type === 'admin' ? 'justify-start' : 'justify-end'}`}
+                  >
+                    {reply.sender_type === 'admin' && (
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
+                        <ShieldAlert className="w-4 h-4" />
+                      </div>
+                    )}
+                    <div
+                      className={`p-3 rounded-lg max-w-[80%] ${
+                        reply.sender_type === 'admin' ? 'bg-muted' : 'bg-primary text-primary-foreground'
+                      }`}
+                    >
+                      <p className="text-sm">{reply.message}</p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          reply.sender_type === 'admin' ? 'text-muted-foreground' : 'text-primary-foreground/70'
+                        }`}
+                      >
+                        {reply.sender_type === 'admin' ? 'Admin' : 'You'} - {format(new Date(reply.created_at), 'dd/MM HH:mm')}
                       </p>
                     </div>
-                    {reply.user !== 'Admin' && <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0"><Ticket className="w-4 h-4" /></div>}
+                    {reply.sender_type !== 'admin' && (
+                      <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0">
+                        <Ticket className="w-4 h-4" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
-            <div className="mt-4">
-              <Label>Your Reply</Label>
-              <div className="flex gap-2 mt-2">
-                <Textarea placeholder="Type your message..." value={newReply} onChange={(e) => setNewReply(e.target.value)} rows={2} />
-                <Button onClick={handleSendReply} size="icon" className="flex-shrink-0"><Send className="w-4 h-4" /></Button>
+            {selectedTicket?.status === 'open' && (
+              <div className="mt-4">
+                <Label>Your Reply</Label>
+                <div className="flex gap-2 mt-2">
+                  <Textarea
+                    placeholder="Type your message..."
+                    value={newReply}
+                    onChange={(e) => setNewReply(e.target.value)}
+                    rows={2}
+                  />
+                  <Button
+                    onClick={handleSendReply}
+                    size="icon"
+                    className="flex-shrink-0"
+                    disabled={addReply.isPending || !newReply.trim()}
+                  >
+                    {addReply.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
             <DialogFooter className="mt-4">
-              {selectedTicket?.status === 'Open' ? (
-                <Button variant="destructive">
+              {selectedTicket?.status === 'open' ? (
+                <Button variant="destructive" onClick={handleToggleStatus} disabled={updateStatus.isPending}>
+                  {updateStatus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <XCircle className="w-4 h-4 mr-2" />
                   Close Ticket
                 </Button>
               ) : (
-                <Button className="bg-success hover:bg-success/90">
+                <Button className="bg-success hover:bg-success/90" onClick={handleToggleStatus} disabled={updateStatus.isPending}>
+                  {updateStatus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Re-open Ticket
                 </Button>

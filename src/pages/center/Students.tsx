@@ -35,221 +35,126 @@ import {
   Search,
   Plus,
   Phone,
-  Mail,
-  Calendar,
   GraduationCap,
   IndianRupee,
-  MoreHorizontal,
-  Edit,
-  FileText,
-  Key,
-  Award,
+  Loader2,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import CenterLayout from '@/layouts/CenterLayout';
-import { toast } from 'sonner';
-
-// Mock students data
-const mockStudents = [
-  {
-    id: 'STU-001',
-    name: 'Rahul Sharma',
-    course: 'Advanced Computer Applications',
-    mobile: '+91 98765 43210',
-    email: 'rahul.s@email.com',
-    admissionDate: '2024-01-15',
-    status: 'Active',
-    feesPaid: 12000,
-    feesTotal: 15000,
-    username: 'rahul.s',
-    password: 'aBcDeFgH',
-    marks: null,
-  },
-  {
-    id: 'STU-002',
-    name: 'Priya Gupta',
-    course: 'Diploma in Digital Marketing',
-    mobile: '+91 87654 32109',
-    email: 'priya.g@email.com',
-    admissionDate: '2024-02-01',
-    status: 'Active',
-    feesPaid: 12000,
-    feesTotal: 12000,
-    username: 'priya.g',
-    password: 'iJkLmNoP',
-    marks: null,
-    examStatus: 'Pending', // Added examStatus
-  },
-  {
-    id: 'STU-003',
-    name: 'Amit Kumar',
-    course: 'Certificate in Tally Prime',
-    mobile: '+91 76543 21098',
-    email: 'amit.k@email.com',
-    admissionDate: '2024-02-15',
-    status: 'Certified',
-    feesPaid: 8000,
-    feesTotal: 8000,
-    username: 'amit.k',
-    password: 'qRsTuVwX',
-    marks: 85,
-    examStatus: 'Completed', // Added examStatus
-  },
-];
-
-const courses = [
-  { name: 'Advanced Computer Applications', stock: 25 },
-  { name: 'Diploma in Digital Marketing', stock: 18 },
-  { name: 'Certificate in Tally Prime', stock: 5 },
-  { name: 'Web Development Fundamentals', stock: 12 },
-  { name: 'Certificate in Python Programming', stock: 3 },
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { useCenterStudents, useCreateStudent, type StudentWithDetails } from '@/hooks/useStudents';
+import { useCourses } from '@/hooks/useCourses';
+import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
+import { format } from 'date-fns';
 
 export default function CenterStudents() {
+  const { user } = useAuth();
+  const centerId = user?.centerId;
+
+  const { data: students = [], isLoading } = useCenterStudents(centerId);
+  const { data: courses = [] } = useCourses();
+  const { data: authorizations = [] } = useCenterAuthorizations(centerId);
+  const createStudent = useCreateStudent();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('personal');
+  const [activeTab, setActiveTab] = useState('course');
   const [newStudent, setNewStudent] = useState({
     name: '',
-    dob: '',
+    date_of_birth: '',
     gender: '',
-    category: '',
-    mobile: '',
+    phone: '',
     email: '',
-    parentMobile: '',
+    guardian_phone: '',
     address: '',
-    qualification: '',
-    course: '',
-    feesTotal: '',
-    feesPaid: '',
-    remarks: '',
+    city: '',
+    state: '',
+    pincode: '',
+    course_id: '',
+    fee_paid: '',
+    fee_pending: '',
   });
 
-  const filteredStudents = mockStudents.filter(
+  const filteredStudents = students.filter(
     (student) =>
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.course.toLowerCase().includes(searchQuery.toLowerCase())
+      student.enrollment_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.course_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  const handleAddStudent = () => {
-    // Generate username and password
-    const username = newStudent.name.toLowerCase().split(' ')[0] + '.' + newStudent.name.split(' ').slice(-1)[0].charAt(0).toLowerCase();
-    const password = Math.random().toString(36).slice(-8);
+  // Get authorized courses for this center
+  const authorizedCourseIds = authorizations.map(a => a.course_id);
+  const availableCourses = courses.filter(c => authorizedCourseIds.includes(c.id) && c.status === 'active');
 
-    console.log('New Student Data:', {
-      ...newStudent,
-      username,
-      password,
+  const handleAddStudent = async () => {
+    if (!centerId || !newStudent.course_id) return;
+
+    await createStudent.mutateAsync({
+      center_id: centerId,
+      course_id: newStudent.course_id,
+      name: newStudent.name,
+      phone: newStudent.phone,
+      email: newStudent.email || null,
+      date_of_birth: newStudent.date_of_birth || null,
+      gender: newStudent.gender || null,
+      guardian_phone: newStudent.guardian_phone || null,
+      address: newStudent.address || null,
+      city: newStudent.city || null,
+      state: newStudent.state || null,
+      pincode: newStudent.pincode || null,
+      fee_paid: Number(newStudent.fee_paid) || 0,
+      fee_pending: Number(newStudent.fee_pending) || 0,
+      status: 'active',
+      enrollment_no: '', // Will be generated by database trigger
     });
-    toast.success('Student admitted successfully!', {
-      description: `${newStudent.name} has been enrolled in ${newStudent.course}.`,
-    });
+
     setIsAddDialogOpen(false);
     setNewStudent({
       name: '',
-      dob: '',
+      date_of_birth: '',
       gender: '',
-      category: '',
-      mobile: '',
+      phone: '',
       email: '',
-      parentMobile: '',
+      guardian_phone: '',
       address: '',
-      qualification: '',
-      course: '',
-      feesTotal: '',
-      feesPaid: '',
-      remarks: '',
+      city: '',
+      state: '',
+      pincode: '',
+      course_id: '',
+      fee_paid: '',
+      fee_pending: '',
     });
-    setActiveTab('personal');
-  };
-
-  const handleGenerateExamCredentials = (studentName: string) => {
-    toast.success('Exam credentials generated!', {
-      description: `Login credentials for ${studentName} have been created and sent via SMS/Email.`,
-    });
+    setActiveTab('course');
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active':
+      case 'active':
         return 'bg-success hover:bg-success/90';
-      case 'Exam Completed':
+      case 'completed':
         return 'bg-info hover:bg-info/90';
-      case 'Certified':
+      case 'certified':
         return 'bg-warning hover:bg-warning/90';
       default:
         return '';
     }
   };
 
-  const handleDownloadDocument = (student: typeof mockStudents[0], type: 'marksheet' | 'certificate') => {
-    const docTitle = type === 'marksheet' ? 'Marksheet' : 'Certificate of Completion';
-
-    toast.info(`Generating ${type} for ${student.name}...`);
-
-    // Safely escape user data to prevent XSS
-    const escapeHtml = (text: string) => {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    };
-
-    const safeName = escapeHtml(student.name);
-    const safeCourse = escapeHtml(student.course);
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${escapeHtml(docTitle)} - ${safeName}</title>
-        <style>
-          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-          .certificate { border: 10px solid #003366; padding: 50px; text-align: center; background-color: #f0f8ff; min-height: 80vh; box-sizing: border-box; }
-          h1 { color: #003366; font-size: 36px; margin-bottom: 20px; }
-          .name { color: #d16002; font-size: 28px; margin: 20px 0; }
-          .course { color: #003366; font-size: 24px; margin: 20px 0; }
-          p { font-size: 16px; margin: 10px 0; }
-          .score { font-size: 20px; font-weight: bold; margin-top: 10px; }
-          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        </style>
-      </head>
-      <body>
-        <div class="certificate">
-          <h1>${escapeHtml(docTitle)}</h1>
-          <p>This is to certify that</p>
-          <h2 class="name">${safeName}</h2>
-          <p>has successfully completed the course</p>
-          <h3 class="course">${safeCourse}</h3>
-          ${type === 'marksheet' 
-            ? `<p>with a final score of:</p><p class="score">${student.marks} / 100</p>`
-            : `<p>on ${new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>`
-          }
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Open print dialog in new window
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-      }, 250);
-    } else {
-      toast.error('Unable to open print dialog. Please allow popups for this site.');
-    }
+  const stats = {
+    total: students.length,
+    active: students.filter(s => s.status === 'active').length,
+    completed: students.filter(s => s.status === 'completed').length,
+    totalFees: students.reduce((sum, s) => sum + Number(s.fee_paid || 0), 0),
   };
 
-  const selectedCourse = courses.find(c => c.name === newStudent.course);
+  if (isLoading) {
+    return (
+      <CenterLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </CenterLayout>
+    );
+  }
 
   return (
     <CenterLayout>
@@ -275,53 +180,35 @@ export default function CenterStudents() {
                 </DialogDescription>
               </DialogHeader>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="course">Course</TabsTrigger>
                   <TabsTrigger value="personal">Personal</TabsTrigger>
-                  <TabsTrigger value="academic">Academic</TabsTrigger>
                   <TabsTrigger value="fees">Fees</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="course" className="space-y-4 mt-4">
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label>Select Course</Label>
                       <Select
-                        value={newStudent.course}
-                        onValueChange={(value) => {
-                          const course = courses.find(c => c.name === value);
-                          setNewStudent({ ...newStudent, course: value });
-                        }}
+                        value={newStudent.course_id}
+                        onValueChange={(value) => setNewStudent({ ...newStudent, course_id: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Choose a course" />
                         </SelectTrigger>
                         <SelectContent>
-                          {courses.map((course) => (
-                            <SelectItem key={course.name} value={course.name} disabled={course.stock === 0}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{course.name}</span>
-                                <Badge variant={course.stock > 5 ? 'default' : 'destructive'} className="ml-2">
-                                  Stock: {course.stock}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
+                          {availableCourses.length === 0 ? (
+                            <SelectItem value="none" disabled>No courses authorized for this center</SelectItem>
+                          ) : (
+                            availableCourses.map((course) => (
+                              <SelectItem key={course.id} value={course.id}>
+                                {course.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
-                    </div>
-                    {selectedCourse && (
-                      <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Available Stock</p>
-                        <p className="text-2xl font-bold">{selectedCourse.stock} units</p>
-                      </div>
-                    )}
-                    <div className="grid gap-2">
-                      <Label>Admission Date</Label>
-                      <Input
-                        type="date"
-                        defaultValue={new Date().toISOString().split('T')[0]}
-                      />
                     </div>
                   </div>
                 </TabsContent>
@@ -329,7 +216,7 @@ export default function CenterStudents() {
                 <TabsContent value="personal" className="space-y-4 mt-4">
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label>Full Name</Label>
+                      <Label>Full Name *</Label>
                       <Input
                         placeholder="Enter full name"
                         value={newStudent.name}
@@ -341,8 +228,8 @@ export default function CenterStudents() {
                         <Label>Date of Birth</Label>
                         <Input
                           type="date"
-                          value={newStudent.dob}
-                          onChange={(e) => setNewStudent({ ...newStudent, dob: e.target.value })}
+                          value={newStudent.date_of_birth}
+                          onChange={(e) => setNewStudent({ ...newStudent, date_of_birth: e.target.value })}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -362,49 +249,32 @@ export default function CenterStudents() {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Category</Label>
-                        <Select
-                          value={newStudent.category}
-                          onValueChange={(value) => setNewStudent({ ...newStudent, category: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="general">General</SelectItem>
-                            <SelectItem value="sc">SC</SelectItem>
-                            <SelectItem value="st">ST</SelectItem>
-                            <SelectItem value="obc">OBC</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label>Phone *</Label>
+                        <Input
+                          placeholder="+91 98765 43210"
+                          value={newStudent.phone}
+                          onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
+                        />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
-                        <Label>Mobile Number</Label>
+                        <Label>Email</Label>
                         <Input
-                          placeholder="+91 98765 43210"
-                          value={newStudent.mobile}
-                          onChange={(e) => setNewStudent({ ...newStudent, mobile: e.target.value })}
+                          type="email"
+                          placeholder="student@email.com"
+                          value={newStudent.email}
+                          onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Parent's Mobile</Label>
+                        <Label>Guardian Phone</Label>
                         <Input
                           placeholder="+91 98765 43210"
-                          value={newStudent.parentMobile}
-                          onChange={(e) => setNewStudent({ ...newStudent, parentMobile: e.target.value })}
+                          value={newStudent.guardian_phone}
+                          onChange={(e) => setNewStudent({ ...newStudent, guardian_phone: e.target.value })}
                         />
                       </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Email</Label>
-                      <Input
-                        type="email"
-                        placeholder="student@email.com"
-                        value={newStudent.email}
-                        onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
-                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Address</Label>
@@ -414,36 +284,31 @@ export default function CenterStudents() {
                         onChange={(e) => setNewStudent({ ...newStudent, address: e.target.value })}
                       />
                     </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="academic" className="space-y-4 mt-4">
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label>Highest Qualification</Label>
-                      <Select
-                        value={newStudent.qualification}
-                        onValueChange={(value) => setNewStudent({ ...newStudent, qualification: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select qualification" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10th">10th Pass</SelectItem>
-                          <SelectItem value="12th">12th Pass</SelectItem>
-                          <SelectItem value="graduate">Graduate</SelectItem>
-                          <SelectItem value="postgraduate">Post Graduate</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Remarks (Optional)</Label>
-                      <Textarea
-                        placeholder="Any additional notes about the student..."
-                        value={newStudent.remarks}
-                        onChange={(e) => setNewStudent({ ...newStudent, remarks: e.target.value })}
-                        rows={4}
-                      />
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="grid gap-2">
+                        <Label>City</Label>
+                        <Input
+                          placeholder="City"
+                          value={newStudent.city}
+                          onChange={(e) => setNewStudent({ ...newStudent, city: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>State</Label>
+                        <Input
+                          placeholder="State"
+                          value={newStudent.state}
+                          onChange={(e) => setNewStudent({ ...newStudent, state: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Pincode</Label>
+                        <Input
+                          placeholder="400001"
+                          value={newStudent.pincode}
+                          onChange={(e) => setNewStudent({ ...newStudent, pincode: e.target.value })}
+                        />
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -452,32 +317,24 @@ export default function CenterStudents() {
                   <div className="grid gap-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
-                        <Label>Total Fees (₹)</Label>
+                        <Label>Fees Paid (₹)</Label>
                         <Input
                           type="number"
-                          placeholder="15000"
-                          value={newStudent.feesTotal}
-                          onChange={(e) => setNewStudent({ ...newStudent, feesTotal: e.target.value })}
+                          placeholder="0"
+                          value={newStudent.fee_paid}
+                          onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })}
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Amount Paid (₹)</Label>
+                        <Label>Fees Pending (₹)</Label>
                         <Input
                           type="number"
-                          placeholder="10000"
-                          value={newStudent.feesPaid}
-                          onChange={(e) => setNewStudent({ ...newStudent, feesPaid: e.target.value })}
+                          placeholder="0"
+                          value={newStudent.fee_pending}
+                          onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })}
                         />
                       </div>
                     </div>
-                    {newStudent.feesTotal && newStudent.feesPaid && (
-                      <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Balance Due</p>
-                        <p className="text-2xl font-bold text-destructive">
-                          ₹{(parseInt(newStudent.feesTotal) - parseInt(newStudent.feesPaid)).toLocaleString()}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </TabsContent>
               </Tabs>
@@ -485,7 +342,13 @@ export default function CenterStudents() {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddStudent}>Complete Admission</Button>
+                <Button
+                  onClick={handleAddStudent}
+                  disabled={createStudent.isPending || !newStudent.name || !newStudent.phone || !newStudent.course_id}
+                >
+                  {createStudent.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Admit Student
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -500,8 +363,8 @@ export default function CenterStudents() {
                   <Users className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockStudents.length}</p>
-                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-muted-foreground">Total Students</p>
                 </div>
               </div>
             </CardContent>
@@ -513,7 +376,7 @@ export default function CenterStudents() {
                   <GraduationCap className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockStudents.filter(s => s.status === 'Active').length}</p>
+                  <p className="text-2xl font-bold">{stats.active}</p>
                   <p className="text-sm text-muted-foreground">Active</p>
                 </div>
               </div>
@@ -526,8 +389,8 @@ export default function CenterStudents() {
                   <GraduationCap className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockStudents.filter(s => s.examStatus === 'Completed').length}</p>
-                  <p className="text-sm text-muted-foreground">Exam Done</p>
+                  <p className="text-2xl font-bold">{stats.completed}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
               </div>
             </CardContent>
@@ -535,21 +398,19 @@ export default function CenterStudents() {
           <Card className="border-0 shadow-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <IndianRupee className="w-5 h-5 text-destructive" />
+                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                  <IndianRupee className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
-                    ₹{mockStudents.reduce((acc, s) => acc + (s.feesTotal - s.feesPaid), 0).toLocaleString()}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Dues</p>
+                  <p className="text-2xl font-bold">₹{(stats.totalFees / 1000).toFixed(0)}K</p>
+                  <p className="text-sm text-muted-foreground">Fees Collected</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Table */}
+        {/* Students Table */}
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -566,140 +427,65 @@ export default function CenterStudents() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Student</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Credentials</TableHead>
-                    <TableHead>Certificates</TableHead>
-                    {/* <TableHead>Fees</TableHead>
-                    <TableHead>Exam</TableHead> */}
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.map((student) => (
-                    <TableRow key={student.id} className="table-row-hover">
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{student.name}</p>
-                          <p className="text-sm text-muted-foreground">{student.id}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{student.course}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(student.admissionDate).toLocaleDateString()}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-sm flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-muted-foreground" />
-                            {student.mobile}
-                          </p>
-                          <p className="text-sm flex items-center gap-1 text-muted-foreground">
-                            <Mail className="w-3 h-3" />
-                            {student.email}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <p>ID: <span className="font-mono">{student.username}</span></p>
-                          <p>Pass: <span className="font-mono">{student.password}</span></p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {student.status === 'Certified' ? (
-                          <div className="flex flex-col gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(student, 'marksheet')}>
-                              <FileText className="w-3 h-3 mr-1.5" /> Marksheet
-                            </Button>
-                            <Button size="sm" onClick={() => handleDownloadDocument(student, 'certificate')}>
-                              <Award className="w-3 h-3 mr-1.5" /> Certificate
-                            </Button>
-                          </div>
-                        ) : (<span className="text-muted-foreground text-sm">Not available</span>)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(student.status)}>
-                          {student.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleGenerateExamCredentials(student.name)}>
-                              <Key className="w-4 h-4 mr-2" />
-                              Generate Exam ID
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <FileText className="w-4 h-4 mr-2" />
-                              View Certificate
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+            {filteredStudents.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {students.length === 0 ? 'No students yet. Add your first admission!' : 'No students match your search.'}
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Student</TableHead>
+                      <TableHead>Enrollment No</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Admission Date</TableHead>
+                      <TableHead>Fees</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {/* Mobile Card View */}
-            <div className="grid grid-cols-1 gap-4 md:hidden">
-              {filteredStudents.map((student) => (
-                <Card key={student.id} className="w-full">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold">{student.name}</p>
-                        <p className="text-sm text-muted-foreground">{student.id}</p>
-                      </div>
-                      <Badge className={getStatusColor(student.status)}>
-                        {student.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div>
-                      <p className="font-medium">{student.course}</p>
-                      <p className="text-muted-foreground">Adm: {new Date(student.admissionDate).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <p>ID: <span className="font-mono">{student.username}</span></p>
-                      <p>Pass: <span className="font-mono">{student.password}</span></p>
-                    </div>
-                    {student.status === 'Certified' ? (
-                      <div className="flex items-center gap-2 pt-2">
-                        <Button size="sm" variant="outline" onClick={() => handleDownloadDocument(student, 'marksheet')}>
-                          <FileText className="w-3 h-3 mr-1.5" /> Marksheet
-                        </Button>
-                        <Button size="sm" onClick={() => handleDownloadDocument(student, 'certificate')}>
-                          <Award className="w-3 h-3 mr-1.5" /> Certificate
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm pt-2">Certificate: Not available</p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStudents.map((student) => (
+                      <TableRow key={student.id} className="table-row-hover">
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{student.name}</p>
+                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Phone className="w-3 h-3" />
+                              {student.phone}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{student.enrollment_no}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">{student.course_name || 'N/A'}</p>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(student.admission_date), 'dd/MM/yyyy')}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <span className="text-success font-medium">₹{Number(student.fee_paid || 0).toLocaleString()}</span>
+                            {Number(student.fee_pending || 0) > 0 && (
+                              <span className="text-destructive ml-2">/ ₹{Number(student.fee_pending).toLocaleString()} pending</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`capitalize ${getStatusColor(student.status || 'active')}`}>
+                            {student.status || 'active'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

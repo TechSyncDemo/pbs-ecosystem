@@ -34,14 +34,13 @@ import {
   Search,
   Plus,
   Phone,
-  Mail,
-  Calendar,
   MessageSquare,
   MoreHorizontal,
   Edit,
   CheckCircle,
   XCircle,
   Clock,
+  Loader2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -50,136 +49,93 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import CenterLayout from '@/layouts/CenterLayout';
-import { toast } from 'sonner';
-
-// Mock enquiries data
-const mockEnquiries = [
-  {
-    id: 'ENQ-001',
-    name: 'Arun Kumar',
-    mobile: '+91 98765 43210',
-    email: 'arun.k@email.com',
-    course: 'Diploma in Digital Marketing',
-    source: 'Walk-in',
-    status: 'New',
-    date: '2024-03-20',
-    remarks: [
-      { text: 'Initial enquiry about course details', timestamp: '2024-03-20 10:30', user: 'Staff1' },
-    ],
-  },
-  {
-    id: 'ENQ-002',
-    name: 'Meera Joshi',
-    mobile: '+91 87654 32109',
-    email: 'meera.j@email.com',
-    course: 'Web Development Fundamentals',
-    source: 'Online',
-    status: 'Callback',
-    date: '2024-03-19',
-    remarks: [
-      { text: 'Called but no response', timestamp: '2024-03-19 14:00', user: 'Staff2' },
-      { text: 'Will call back tomorrow', timestamp: '2024-03-19 14:05', user: 'Staff2' },
-    ],
-  },
-  {
-    id: 'ENQ-003',
-    name: 'Rakesh Singh',
-    mobile: '+91 76543 21098',
-    email: 'rakesh.s@email.com',
-    course: 'Certificate in Tally Prime',
-    source: 'Referral',
-    status: 'New',
-    date: '2024-03-20',
-    remarks: [
-      { text: 'Referred by Priya Gupta', timestamp: '2024-03-20 09:00', user: 'Staff1' },
-    ],
-  },
-  {
-    id: 'ENQ-004',
-    name: 'Sunita Devi',
-    mobile: '+91 65432 10987',
-    email: 'sunita.d@email.com',
-    course: 'Advanced Computer Applications',
-    source: 'Walk-in',
-    status: 'Enrolled',
-    date: '2024-03-18',
-    remarks: [
-      { text: 'Very interested, will join this week', timestamp: '2024-03-18 11:00', user: 'Staff1' },
-      { text: 'Enrolled successfully', timestamp: '2024-03-19 10:00', user: 'Staff1' },
-    ],
-  },
-  {
-    id: 'ENQ-005',
-    name: 'Vinod Patel',
-    mobile: '+91 54321 09876',
-    email: 'vinod.p@email.com',
-    course: 'Certificate in Python Programming',
-    source: 'Social Media',
-    status: 'Not Interested',
-    date: '2024-03-17',
-    remarks: [
-      { text: 'Looking for shorter course', timestamp: '2024-03-17 15:00', user: 'Staff2' },
-      { text: 'Decided not to pursue', timestamp: '2024-03-18 12:00', user: 'Staff2' },
-    ],
-  },
-];
-
-const courses = [
-  'Advanced Computer Applications',
-  'Diploma in Digital Marketing',
-  'Certificate in Tally Prime',
-  'Web Development Fundamentals',
-  'Certificate in Python Programming',
-  'Spoken English Course',
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { useCenterEnquiries, useEnquiryStats, useCreateEnquiry, useUpdateEnquiry, type EnquiryWithDetails } from '@/hooks/useEnquiries';
+import { useCourses } from '@/hooks/useCourses';
+import { format } from 'date-fns';
 
 export default function CenterEnquiries() {
+  const { user } = useAuth();
+  const centerId = user?.centerId;
+
+  const { data: enquiries = [], isLoading } = useCenterEnquiries(centerId);
+  const { data: stats } = useEnquiryStats(centerId);
+  const { data: courses = [] } = useCourses();
+  const createEnquiry = useCreateEnquiry();
+  const updateEnquiry = useUpdateEnquiry();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedEnquiry, setSelectedEnquiry] = useState<typeof mockEnquiries[0] | null>(null);
+  const [selectedEnquiry, setSelectedEnquiry] = useState<EnquiryWithDetails | null>(null);
   const [newRemark, setNewRemark] = useState('');
   const [newEnquiry, setNewEnquiry] = useState({
     name: '',
-    mobile: '',
+    phone: '',
     email: '',
-    course: '',
+    course_id: '',
     source: '',
   });
 
-  const filteredEnquiries = mockEnquiries.filter((enquiry) => {
+  const filteredEnquiries = enquiries.filter((enquiry) => {
     const matchesSearch =
       enquiry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      enquiry.mobile.includes(searchQuery) ||
-      enquiry.course.toLowerCase().includes(searchQuery.toLowerCase());
+      enquiry.phone.includes(searchQuery) ||
+      (enquiry.course_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesStatus = statusFilter === 'all' || enquiry.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddEnquiry = () => {
-    toast.success('Enquiry added successfully!', {
-      description: `${newEnquiry.name} has been added to the enquiry list.`,
+  const handleAddEnquiry = async () => {
+    if (!centerId) return;
+
+    await createEnquiry.mutateAsync({
+      center_id: centerId,
+      name: newEnquiry.name,
+      phone: newEnquiry.phone,
+      email: newEnquiry.email || null,
+      course_id: newEnquiry.course_id || null,
+      source: newEnquiry.source || 'walk-in',
+      status: 'new',
     });
+
     setIsAddDialogOpen(false);
-    setNewEnquiry({ name: '', mobile: '', email: '', course: '', source: '' });
+    setNewEnquiry({ name: '', phone: '', email: '', course_id: '', source: '' });
   };
 
-  const handleAddRemark = () => {
-    if (newRemark.trim()) {
-      toast.success('Remark added!');
-      setNewRemark('');
-    }
+  const handleAddRemark = async () => {
+    if (!selectedEnquiry || !newRemark.trim()) return;
+
+    const currentNotes = selectedEnquiry.notes || '';
+    const timestamp = format(new Date(), 'yyyy-MM-dd HH:mm');
+    const newNote = `[${timestamp}] ${newRemark}`;
+    const updatedNotes = currentNotes ? `${currentNotes}\n${newNote}` : newNote;
+
+    await updateEnquiry.mutateAsync({
+      id: selectedEnquiry.id,
+      notes: updatedNotes,
+    });
+
+    setNewRemark('');
+    setSelectedEnquiry({ ...selectedEnquiry, notes: updatedNotes });
+  };
+
+  const handleStatusChange = async (enquiryId: string, newStatus: string) => {
+    await updateEnquiry.mutateAsync({
+      id: enquiryId,
+      status: newStatus,
+    });
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'New':
+      case 'new':
         return <Clock className="w-3 h-3" />;
-      case 'Callback':
+      case 'callback':
         return <Phone className="w-3 h-3" />;
-      case 'Enrolled':
+      case 'enrolled':
         return <CheckCircle className="w-3 h-3" />;
-      case 'Not Interested':
+      case 'not_interested':
         return <XCircle className="w-3 h-3" />;
       default:
         return null;
@@ -188,18 +144,38 @@ export default function CenterEnquiries() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'New':
+      case 'new':
         return 'bg-info hover:bg-info/90';
-      case 'Callback':
+      case 'callback':
         return 'bg-warning hover:bg-warning/90';
-      case 'Enrolled':
+      case 'enrolled':
         return 'bg-success hover:bg-success/90';
-      case 'Not Interested':
+      case 'not_interested':
         return 'bg-muted-foreground/50';
       default:
         return '';
     }
   };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'new': return 'New';
+      case 'callback': return 'Callback';
+      case 'enrolled': return 'Enrolled';
+      case 'not_interested': return 'Not Interested';
+      default: return status;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <CenterLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </CenterLayout>
+    );
+  }
 
   return (
     <CenterLayout>
@@ -236,12 +212,12 @@ export default function CenterEnquiries() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="mobile">Mobile Number</Label>
+                    <Label htmlFor="phone">Mobile Number</Label>
                     <Input
-                      id="mobile"
+                      id="phone"
                       placeholder="+91 98765 43210"
-                      value={newEnquiry.mobile}
-                      onChange={(e) => setNewEnquiry({ ...newEnquiry, mobile: e.target.value })}
+                      value={newEnquiry.phone}
+                      onChange={(e) => setNewEnquiry({ ...newEnquiry, phone: e.target.value })}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -258,16 +234,16 @@ export default function CenterEnquiries() {
                 <div className="grid gap-2">
                   <Label htmlFor="course">Interested Course</Label>
                   <Select
-                    value={newEnquiry.course}
-                    onValueChange={(value) => setNewEnquiry({ ...newEnquiry, course: value })}
+                    value={newEnquiry.course_id}
+                    onValueChange={(value) => setNewEnquiry({ ...newEnquiry, course_id: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a course" />
                     </SelectTrigger>
                     <SelectContent>
                       {courses.map((course) => (
-                        <SelectItem key={course} value={course}>
-                          {course}
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -283,11 +259,11 @@ export default function CenterEnquiries() {
                       <SelectValue placeholder="How did they hear about us?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Walk-in">Walk-in</SelectItem>
-                      <SelectItem value="Online">Online</SelectItem>
-                      <SelectItem value="Referral">Referral</SelectItem>
-                      <SelectItem value="Social Media">Social Media</SelectItem>
-                      <SelectItem value="Newspaper">Newspaper</SelectItem>
+                      <SelectItem value="walk-in">Walk-in</SelectItem>
+                      <SelectItem value="online">Online</SelectItem>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="social-media">Social Media</SelectItem>
+                      <SelectItem value="newspaper">Newspaper</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -296,7 +272,10 @@ export default function CenterEnquiries() {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddEnquiry}>Add Enquiry</Button>
+                <Button onClick={handleAddEnquiry} disabled={createEnquiry.isPending || !newEnquiry.name || !newEnquiry.phone}>
+                  {createEnquiry.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Add Enquiry
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -311,7 +290,7 @@ export default function CenterEnquiries() {
                   <UserPlus className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockEnquiries.length}</p>
+                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
                   <p className="text-sm text-muted-foreground">Total</p>
                 </div>
               </div>
@@ -324,7 +303,7 @@ export default function CenterEnquiries() {
                   <Clock className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockEnquiries.filter(e => e.status === 'New').length}</p>
+                  <p className="text-2xl font-bold">{stats?.new || 0}</p>
                   <p className="text-sm text-muted-foreground">New</p>
                 </div>
               </div>
@@ -337,7 +316,7 @@ export default function CenterEnquiries() {
                   <Phone className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockEnquiries.filter(e => e.status === 'Callback').length}</p>
+                  <p className="text-2xl font-bold">{stats?.callback || 0}</p>
                   <p className="text-sm text-muted-foreground">Callback</p>
                 </div>
               </div>
@@ -350,7 +329,7 @@ export default function CenterEnquiries() {
                   <CheckCircle className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{mockEnquiries.filter(e => e.status === 'Enrolled').length}</p>
+                  <p className="text-2xl font-bold">{stats?.enrolled || 0}</p>
                   <p className="text-sm text-muted-foreground">Enrolled</p>
                 </div>
               </div>
@@ -379,183 +358,135 @@ export default function CenterEnquiries() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="New">New</SelectItem>
-                    <SelectItem value="Callback">Callback</SelectItem>
-                    <SelectItem value="Enrolled">Enrolled</SelectItem>
-                    <SelectItem value="Not Interested">Not Interested</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="callback">Callback</SelectItem>
+                    <SelectItem value="enrolled">Enrolled</SelectItem>
+                    <SelectItem value="not_interested">Not Interested</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Prospect</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEnquiries.map((enquiry) => (
-                    <TableRow key={enquiry.id} className="table-row-hover">
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{enquiry.name}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {enquiry.mobile}
-                            </span>
+            {filteredEnquiries.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {enquiries.length === 0 ? 'No enquiries yet. Add your first enquiry!' : 'No enquiries match your search.'}
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Prospect</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEnquiries.map((enquiry) => (
+                      <TableRow key={enquiry.id} className="table-row-hover">
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{enquiry.name}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {enquiry.phone}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{enquiry.course}</p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{enquiry.source}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(enquiry.date).toLocaleDateString()}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(enquiry.status)}>
-                          {getStatusIcon(enquiry.status)}
-                          <span className="ml-1">{enquiry.status}</span>
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Dialog>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DialogTrigger asChild>
-                                <DropdownMenuItem onClick={() => setSelectedEnquiry(enquiry)}>
-                                  <MessageSquare className="w-4 h-4 mr-2" />
-                                  View & Add Remark
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">{enquiry.course_name || 'Not specified'}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">{enquiry.source?.replace('-', ' ') || 'N/A'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(enquiry.created_at), 'dd/MM/yyyy')}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(enquiry.status || 'new')}>
+                            {getStatusIcon(enquiry.status || 'new')}
+                            <span className="ml-1">{getStatusLabel(enquiry.status || 'new')}</span>
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Dialog>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DialogTrigger asChild>
+                                  <DropdownMenuItem onClick={() => setSelectedEnquiry(enquiry)}>
+                                    <MessageSquare className="w-4 h-4 mr-2" />
+                                    View & Add Remark
+                                  </DropdownMenuItem>
+                                </DialogTrigger>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'callback')}>
+                                  <Phone className="w-4 h-4 mr-2" />
+                                  Mark as Callback
                                 </DropdownMenuItem>
-                              </DialogTrigger>
-                              <DropdownMenuItem>
-                                <Edit className="w-4 h-4 mr-2" />
-                                Edit Details
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <DialogContent className="sm:max-w-[600px]">
-                            <DialogHeader>
-                              <DialogTitle>Enquiry Details - {selectedEnquiry?.name}</DialogTitle>
-                              <DialogDescription>
-                                View history and add follow-up remarks
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4">
-                              <div className="mb-4 p-4 bg-muted/50 rounded-lg">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-muted-foreground">Course</p>
-                                    <p className="font-medium">{selectedEnquiry?.course}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground">Status</p>
-                                    <Badge className={getStatusColor(selectedEnquiry?.status || '')}>
-                                      {selectedEnquiry?.status}
-                                    </Badge>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground">Mobile</p>
-                                    <p className="font-medium">{selectedEnquiry?.mobile}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground">Email</p>
-                                    <p className="font-medium">{selectedEnquiry?.email}</p>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'enrolled')}>
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Mark as Enrolled
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'not_interested')}>
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Mark as Not Interested
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <DialogContent className="sm:max-w-[600px]">
+                              <DialogHeader>
+                                <DialogTitle>Enquiry Details - {selectedEnquiry?.name}</DialogTitle>
+                                <DialogDescription>
+                                  Phone: {selectedEnquiry?.phone} | Course: {selectedEnquiry?.course_name || 'Not specified'}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div>
+                                  <h4 className="text-sm font-medium mb-2">Remarks History</h4>
+                                  <div className="bg-muted/50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                                    {selectedEnquiry?.notes ? (
+                                      <pre className="text-sm whitespace-pre-wrap">{selectedEnquiry.notes}</pre>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">No remarks yet.</p>
+                                    )}
                                   </div>
                                 </div>
-                              </div>
-                              <div className="space-y-3">
-                                <h4 className="font-medium">Follow-up History</h4>
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
-                                  {selectedEnquiry?.remarks.map((remark, index) => (
-                                    <div key={index} className="p-3 bg-muted/30 rounded-lg text-sm">
-                                      <p>{remark.text}</p>
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        {remark.timestamp} by {remark.user}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="mt-4">
-                                <Label>Add Remark</Label>
-                                <div className="flex gap-2 mt-2">
+                                <div className="grid gap-2">
+                                  <Label>Add New Remark</Label>
                                   <Textarea
-                                    placeholder="Enter follow-up notes..."
+                                    placeholder="Enter your remark..."
                                     value={newRemark}
                                     onChange={(e) => setNewRemark(e.target.value)}
-                                    rows={2}
                                   />
                                 </div>
                               </div>
-                            </div>
-                            <DialogFooter>
-                              <Button onClick={handleAddRemark}>Add Remark</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {/* Mobile Card View */}
-            <div className="grid grid-cols-1 gap-4 md:hidden">
-              {filteredEnquiries.map((enquiry) => (
-                <Card key={enquiry.id} className="w-full">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold">{enquiry.name}</p>
-                        <p className="text-sm text-muted-foreground">{enquiry.id}</p>
-                      </div>
-                      <Badge className={getStatusColor(enquiry.status)}>
-                        {getStatusIcon(enquiry.status)}
-                        <span className="ml-1">{enquiry.status}</span>
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div>
-                      <p className="font-medium">{enquiry.course}</p>
-                      <p className="text-muted-foreground">Source: {enquiry.source}</p>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <p className="text-muted-foreground flex items-center gap-1.5">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(enquiry.date).toLocaleDateString()}
-                      </p>
-                      <Dialog>
-                        {/* Keep dialog logic but trigger from a simple button */}
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedEnquiry(enquiry)}>View</Button>
-                        </DialogTrigger>
-                      </Dialog>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                              <DialogFooter>
+                                <Button onClick={handleAddRemark} disabled={updateEnquiry.isPending || !newRemark.trim()}>
+                                  {updateEnquiry.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                  Add Remark
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
