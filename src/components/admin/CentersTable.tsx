@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -25,27 +26,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Pencil, Trash2, Mail, Users } from "lucide-react";
+import { MoreHorizontal, Pencil, Mail, Users, Eye, Power, PowerOff } from "lucide-react";
 import type { Center } from "@/hooks/useCenters";
+import { CenterProfileDialog } from "./CenterProfileDialog";
 
-interface CenterWithCount extends Center {
+interface CenterWithCount {
+  id: string;
+  name: string;
+  code: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  contact_person?: string | null;
+  status?: string | null;
+  created_at: string;
+  updated_at: string;
   studentCount: number;
+  coordinator_id?: string | null;
 }
 
 interface CentersTableProps {
   centers: CenterWithCount[];
-  onEdit: (center: Center) => void;
-  onDelete: (id: string) => void;
-  isDeleting?: boolean;
+  onEdit: (center: CenterWithCount) => void;
+  onToggleStatus: (id: string, newStatus: "active" | "inactive") => void;
+  isUpdating?: boolean;
 }
 
-export function CentersTable({ centers, onEdit, onDelete, isDeleting }: CentersTableProps) {
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: CentersTableProps) {
+  const [toggleStatusId, setToggleStatusId] = useState<{ id: string; currentStatus: string } | null>(null);
+  const [profileCenter, setProfileCenter] = useState<CenterWithCount | null>(null);
 
-  const handleDelete = () => {
-    if (deleteId) {
-      onDelete(deleteId);
-      setDeleteId(null);
+  const handleToggleStatus = () => {
+    if (toggleStatusId) {
+      const newStatus = toggleStatusId.currentStatus === "active" ? "inactive" : "active";
+      onToggleStatus(toggleStatusId.id, newStatus);
+      setToggleStatusId(null);
     }
   };
 
@@ -110,6 +128,10 @@ export function CentersTable({ centers, onEdit, onDelete, isDeleting }: CentersT
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setProfileCenter(center)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Profile
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEdit(center)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
@@ -121,12 +143,22 @@ export function CentersTable({ centers, onEdit, onDelete, isDeleting }: CentersT
                           <Mail className="mr-2 h-4 w-4" />
                           Send Email
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => setDeleteId(center.id)}
-                          className="text-destructive focus:text-destructive"
+                          onClick={() => setToggleStatusId({ id: center.id, currentStatus: center.status || "active" })}
+                          className={center.status === "active" ? "text-destructive focus:text-destructive" : "text-success focus:text-success"}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
+                          {center.status === "active" ? (
+                            <>
+                              <PowerOff className="mr-2 h-4 w-4" />
+                              Set Inactive
+                            </>
+                          ) : (
+                            <>
+                              <Power className="mr-2 h-4 w-4" />
+                              Set Active
+                            </>
+                          )}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -138,27 +170,40 @@ export function CentersTable({ centers, onEdit, onDelete, isDeleting }: CentersT
         </Table>
       </div>
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      {/* Toggle Status Confirmation Dialog */}
+      <AlertDialog open={!!toggleStatusId} onOpenChange={() => setToggleStatusId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Center</AlertDialogTitle>
+            <AlertDialogTitle>
+              {toggleStatusId?.currentStatus === "active" ? "Deactivate Center" : "Activate Center"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this center? This action cannot be undone and will
-              remove all associated data.
+              {toggleStatusId?.currentStatus === "active"
+                ? "Are you sure you want to set this center to inactive? The center will no longer be able to access the portal."
+                : "Are you sure you want to activate this center? The center will regain access to the portal."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleToggleStatus}
+              disabled={isUpdating}
+              className={toggleStatusId?.currentStatus === "active" 
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : "bg-success text-white hover:bg-success/90"}
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isUpdating ? "Updating..." : toggleStatusId?.currentStatus === "active" ? "Deactivate" : "Activate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Center Profile Dialog */}
+      <CenterProfileDialog
+        center={profileCenter}
+        open={!!profileCenter}
+        onOpenChange={(open) => !open && setProfileCenter(null)}
+      />
     </>
   );
 }

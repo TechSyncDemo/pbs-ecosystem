@@ -47,6 +47,7 @@ export type Database = {
       center_courses: {
         Row: {
           center_id: string
+          certificate_no: string | null
           commission_percent: number | null
           course_id: string
           created_at: string
@@ -55,11 +56,15 @@ export type Database = {
           id: string
           kit_value: number | null
           notes: string | null
+          registration_amount: number | null
           status: string
           updated_at: string
+          valid_from: string | null
+          valid_until: string | null
         }
         Insert: {
           center_id: string
+          certificate_no?: string | null
           commission_percent?: number | null
           course_id: string
           created_at?: string
@@ -68,11 +73,15 @@ export type Database = {
           id?: string
           kit_value?: number | null
           notes?: string | null
+          registration_amount?: number | null
           status?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
         }
         Update: {
           center_id?: string
+          certificate_no?: string | null
           commission_percent?: number | null
           course_id?: string
           created_at?: string
@@ -81,8 +90,11 @@ export type Database = {
           id?: string
           kit_value?: number | null
           notes?: string | null
+          registration_amount?: number | null
           status?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
         }
         Relationships: [
           {
@@ -146,6 +158,7 @@ export type Database = {
           city: string | null
           code: string
           contact_person: string | null
+          coordinator_id: string | null
           created_at: string
           email: string | null
           id: string
@@ -161,6 +174,7 @@ export type Database = {
           city?: string | null
           code: string
           contact_person?: string | null
+          coordinator_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -176,6 +190,7 @@ export type Database = {
           city?: string | null
           code?: string
           contact_person?: string | null
+          coordinator_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -186,7 +201,15 @@ export type Database = {
           status?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "centers_coordinator_id_fkey"
+            columns: ["coordinator_id"]
+            isOneToOne: false
+            referencedRelation: "coordinators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coordinators: {
         Row: {
@@ -224,12 +247,49 @@ export type Database = {
         }
         Relationships: []
       }
+      course_topics: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          id: string
+          max_marks: number | null
+          sort_order: number | null
+          topic_name: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          id?: string
+          max_marks?: number | null
+          sort_order?: number | null
+          topic_name: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          id?: string
+          max_marks?: number | null
+          sort_order?: number | null
+          topic_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_topics_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           code: string
           created_at: string
           description: string | null
           duration_months: number
+          exam_fee: number | null
+          exam_portal_id: string | null
           fee: number
           id: string
           name: string
@@ -241,6 +301,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_months?: number
+          exam_fee?: number | null
+          exam_portal_id?: string | null
           fee?: number
           id?: string
           name: string
@@ -252,6 +314,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           duration_months?: number
+          exam_fee?: number | null
+          exam_portal_id?: string | null
           fee?: number
           id?: string
           name?: string
@@ -747,6 +811,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_center_code: { Args: never; Returns: string }
       generate_enrollment_no: { Args: never; Returns: string }
       generate_order_no: { Args: never; Returns: string }
       get_user_center_id: { Args: { _user_id: string }; Returns: string }

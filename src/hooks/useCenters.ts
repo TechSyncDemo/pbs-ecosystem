@@ -58,7 +58,7 @@ export const useCenterWithStudentCount = () => {
     queryFn: async () => {
       const { data: centers, error: centersError } = await supabase
         .from("centers")
-        .select("*")
+        .select("*, coordinators(name)")
         .order("created_at", { ascending: false });
 
       if (centersError) throw centersError;
@@ -75,10 +75,39 @@ export const useCenterWithStudentCount = () => {
         return acc;
       }, {} as Record<string, number>);
 
-      return (centers || []).map((center) => ({
+      return (centers || []).map((center: any) => ({
         ...center,
         studentCount: countMap[center.id] || 0,
+        coordinatorName: center.coordinators?.name,
       }));
+    },
+  });
+};
+
+// Toggle center status (active/inactive)
+export const useToggleCenterStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
+      const { data, error } = await supabase
+        .from("centers")
+        .update({ status })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["centers"] });
+      queryClient.invalidateQueries({ queryKey: ["centers-with-students"] });
+      queryClient.invalidateQueries({ queryKey: ["center-stats"] });
+      toast.success("Center status updated successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to update center status: ${error.message}`);
     },
   });
 };

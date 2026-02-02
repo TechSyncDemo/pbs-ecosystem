@@ -5,9 +5,11 @@ import {
   Plus,
   Trash2,
   Search,
-  Edit,
   Eye,
   Loader2,
+  Download,
+  Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,6 +30,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -46,6 +49,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { format, differenceInDays, isPast, addDays } from 'date-fns';
 import { useCenters, type Center } from '@/hooks/useCenters';
 import { useCourses } from '@/hooks/useCourses';
 import {
@@ -56,6 +60,7 @@ import {
   useRemoveCenterCourse,
   type CenterCourseWithDetails,
 } from '@/hooks/useCenterCourses';
+import { AuthorizationForm } from '@/components/admin/AuthorizationForm';
 
 export default function AdminAuthorizations() {
   const { data: centers = [], isLoading: centersLoading } = useCenters();
@@ -68,6 +73,7 @@ export default function AdminAuthorizations() {
   const [selectedCenter, setSelectedCenter] = useState<Center | null>(null);
   const [isAddCoursesOpen, setIsAddCoursesOpen] = useState(false);
   const [isCourseDetailsOpen, setIsCourseDetailsOpen] = useState(false);
+  const [isCreateAuthOpen, setIsCreateAuthOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CenterCourseWithDetails | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -77,6 +83,7 @@ export default function AdminAuthorizations() {
     examValue: '',
     duration: '',
     commission: '',
+    registrationAmount: '',
   });
 
   const [editCourseData, setEditCourseData] = useState({
@@ -85,6 +92,7 @@ export default function AdminAuthorizations() {
     duration: '',
     notes: '',
     commission: '',
+    registrationAmount: '',
   });
 
   // Get center courses for selected center
@@ -97,6 +105,20 @@ export default function AdminAuthorizations() {
   // Get count of assigned courses per center
   const getCenterCourseCount = (centerId: string) => {
     return allCenterCourses.filter(cc => cc.center_id === centerId).length;
+  };
+
+  // Check validity status
+  const getValidityBadge = (validUntil: any) => {
+    if (!validUntil) return null;
+    const date = new Date(validUntil);
+    const daysLeft = differenceInDays(date, new Date());
+
+    if (isPast(date)) {
+      return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" /> Expired</Badge>;
+    } else if (daysLeft <= 30) {
+      return <Badge variant="outline" className="text-warning border-warning gap-1"><Calendar className="w-3 h-3" /> {daysLeft}d left</Badge>;
+    }
+    return <Badge variant="outline" className="text-success border-success">{format(date, 'dd MMM yyyy')}</Badge>;
   };
 
   const handleOpenAddCourses = (center: Center) => {
@@ -117,11 +139,19 @@ export default function AdminAuthorizations() {
       exam_value: Number(newCourseData.examValue) || 0,
       duration_override: newCourseData.duration ? parseInt(newCourseData.duration) : null,
       commission_percent: Number(newCourseData.commission) || 0,
+      registration_amount: Number(newCourseData.registrationAmount) || 0,
+      valid_from: format(new Date(), 'yyyy-MM-dd'),
+      valid_until: format(addDays(new Date(), 365), 'yyyy-MM-dd'),
       status: 'active',
-    });
+    } as any);
 
-    setNewCourseData({ courseId: '', kitValue: '', examValue: '', duration: '', commission: '' });
+    setNewCourseData({ courseId: '', kitValue: '', examValue: '', duration: '', commission: '', registrationAmount: '' });
     refetchCenterCourses();
+  };
+
+  const handleCreateAuthorization = async (data: any) => {
+    await assignCourse.mutateAsync(data);
+    setIsCreateAuthOpen(false);
   };
 
   const handleViewCourse = (course: any) => {
@@ -132,6 +162,7 @@ export default function AdminAuthorizations() {
       duration: String(course.duration_override || ''),
       notes: course.notes || '',
       commission: String(course.commission_percent || 0),
+      registrationAmount: String(course.registration_amount || 0),
     });
     setIsCourseDetailsOpen(true);
   };
@@ -146,7 +177,8 @@ export default function AdminAuthorizations() {
       duration_override: editCourseData.duration ? parseInt(editCourseData.duration) : null,
       notes: editCourseData.notes || null,
       commission_percent: Number(editCourseData.commission) || 0,
-    });
+      registration_amount: Number(editCourseData.registrationAmount) || 0,
+    } as any);
 
     setIsCourseDetailsOpen(false);
     refetchCenterCourses();
@@ -158,6 +190,52 @@ export default function AdminAuthorizations() {
     await removeCenterCourse.mutateAsync(selectedCourse.id);
     setIsCourseDetailsOpen(false);
     refetchCenterCourses();
+  };
+
+  const handleDownloadCertificate = (authorization: any) => {
+    // Generate certificate number if not exists
+    const certNo = authorization.certificate_no || `AUTH-${authorization.id.slice(0, 8).toUpperCase()}`;
+    const centerName = authorization.center_name || 'Unknown Center';
+    const courseName = authorization.course_name || 'Unknown Course';
+    const validFrom = authorization.valid_from ? format(new Date(authorization.valid_from), 'dd MMM yyyy') : 'N/A';
+    const validUntil = authorization.valid_until ? format(new Date(authorization.valid_until), 'dd MMM yyyy') : 'N/A';
+
+    // Create simple text certificate (in production, use PDF library)
+    const certContent = `
+AUTHORIZATION CERTIFICATE
+========================
+
+Certificate No: ${certNo}
+
+This is to certify that
+
+CENTER: ${centerName}
+
+is authorized to conduct the following course:
+
+COURSE: ${courseName}
+
+Authorization Period: ${validFrom} to ${validUntil}
+
+Commission: ${authorization.commission_percent || 0}%
+Registration Amount: ₹${authorization.registration_amount || 0}
+Kit Value: ₹${authorization.kit_value || 0}
+Exam Value: ₹${authorization.exam_value || 0}
+
+---
+Proactive Beauty School
+Authorization Engine
+    `.trim();
+
+    const blob = new Blob([certContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Authorization-${certNo}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast.success('Certificate downloaded!');
   };
 
   // Get courses not yet assigned to selected center
@@ -178,9 +256,34 @@ export default function AdminAuthorizations() {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-foreground">Authorization Engine</h1>
-          <p className="text-muted-foreground mt-1">Manage center authorizations and course assignments.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-heading font-bold text-foreground">Authorization Engine</h1>
+            <p className="text-muted-foreground mt-1">Manage center authorizations and course assignments.</p>
+          </div>
+          <Dialog open={isCreateAuthOpen} onOpenChange={setIsCreateAuthOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Authorization
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Authorization</DialogTitle>
+                <DialogDescription>
+                  Assign a course to a center with financial details and validity period.
+                </DialogDescription>
+              </DialogHeader>
+              <AuthorizationForm
+                centers={centers.map(c => ({ id: c.id, name: c.name, code: c.code }))}
+                courses={courses.map(c => ({ id: c.id, name: c.name, code: c.code, fee: c.fee }))}
+                onSubmit={handleCreateAuthorization}
+                onCancel={() => setIsCreateAuthOpen(false)}
+                isLoading={assignCourse.isPending}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card className="border-0 shadow-card">
@@ -266,7 +369,7 @@ export default function AdminAuthorizations() {
 
       {/* Add/View Courses Dialog */}
       <Dialog open={isAddCoursesOpen} onOpenChange={setIsAddCoursesOpen}>
-        <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Courses for {selectedCenter?.name}</DialogTitle>
             <DialogDescription>Assign new courses and manage existing ones for this center.</DialogDescription>
@@ -277,19 +380,19 @@ export default function AdminAuthorizations() {
                 <CardTitle className="text-lg">Add New Course</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-6 items-end gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-7 items-end gap-3">
                   <div className="grid gap-1.5 sm:col-span-2">
-                    <Label>Select a Course</Label>
+                    <Label>Course</Label>
                     <Select
                       value={newCourseData.courseId}
                       onValueChange={(value) => setNewCourseData(prev => ({ ...prev, courseId: value }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Choose a course..." />
+                        <SelectValue placeholder="Choose..." />
                       </SelectTrigger>
                       <SelectContent>
                         {availableCoursesForCenter.length === 0 ? (
-                          <SelectItem value="none" disabled>All courses assigned</SelectItem>
+                          <SelectItem value="none" disabled>All assigned</SelectItem>
                         ) : (
                           availableCoursesForCenter.map(course => (
                             <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
@@ -299,36 +402,44 @@ export default function AdminAuthorizations() {
                     </Select>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Kit Value (₹)</Label>
+                    <Label>Reg. Amt (₹)</Label>
                     <Input
                       type="number"
-                      placeholder="5000"
+                      placeholder="0"
+                      value={newCourseData.registrationAmount}
+                      onChange={(e) => setNewCourseData(prev => ({ ...prev, registrationAmount: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Kit (₹)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
                       value={newCourseData.kitValue}
                       onChange={(e) => setNewCourseData(prev => ({ ...prev, kitValue: e.target.value }))}
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Exam Value (₹)</Label>
+                    <Label>Exam (₹)</Label>
                     <Input
                       type="number"
-                      placeholder="1500"
+                      placeholder="0"
                       value={newCourseData.examValue}
                       onChange={(e) => setNewCourseData(prev => ({ ...prev, examValue: e.target.value }))}
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Commission %</Label>
+                    <Label>Comm %</Label>
                     <Input
                       type="number"
-                      placeholder="10"
+                      placeholder="0"
                       value={newCourseData.commission}
                       onChange={(e) => setNewCourseData(prev => ({ ...prev, commission: e.target.value }))}
                     />
                   </div>
-                  <div className="sm:col-span-1">
+                  <div>
                     <Button onClick={handleAddCourse} className="w-full" disabled={assignCourse.isPending}>
-                      {assignCourse.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-                      Add
+                      {assignCourse.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
@@ -347,30 +458,35 @@ export default function AdminAuthorizations() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Course Name</TableHead>
-                        <TableHead>Kit Value</TableHead>
-                        <TableHead>Exam Value</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead>Kit / Exam</TableHead>
                         <TableHead>Commission</TableHead>
+                        <TableHead>Valid Until</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="w-20"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selectedCenterCourses.map((course: any) => (
                         <TableRow key={course.id}>
                           <TableCell className="font-medium">{course.course_name}</TableCell>
-                          <TableCell>₹{Number(course.kit_value || 0).toLocaleString()}</TableCell>
-                          <TableCell>₹{Number(course.exam_value || 0).toLocaleString()}</TableCell>
+                          <TableCell>₹{Number(course.kit_value || 0).toLocaleString()} / ₹{Number(course.exam_value || 0).toLocaleString()}</TableCell>
                           <TableCell>{course.commission_percent || 0}%</TableCell>
+                          <TableCell>{getValidityBadge(course.valid_until)}</TableCell>
                           <TableCell>
                             <Badge className={course.status === 'active' ? 'bg-success' : 'bg-muted-foreground'}>
                               {course.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => handleViewCourse(course)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleViewCourse(course)}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDownloadCertificate(course)}>
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -393,6 +509,24 @@ export default function AdminAuthorizations() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
+                <Label>Registration Amount (₹)</Label>
+                <Input
+                  type="number"
+                  value={editCourseData.registrationAmount}
+                  onChange={(e) => setEditCourseData({ ...editCourseData, registrationAmount: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Commission %</Label>
+                <Input
+                  type="number"
+                  value={editCourseData.commission}
+                  onChange={(e) => setEditCourseData({ ...editCourseData, commission: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
                 <Label>Kit Value (₹)</Label>
                 <Input
                   type="number"
@@ -409,24 +543,14 @@ export default function AdminAuthorizations() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Duration Override (months)</Label>
-                <Input
-                  type="number"
-                  placeholder="Leave empty for default"
-                  value={editCourseData.duration}
-                  onChange={(e) => setEditCourseData({ ...editCourseData, duration: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Commission %</Label>
-                <Input
-                  type="number"
-                  value={editCourseData.commission}
-                  onChange={(e) => setEditCourseData({ ...editCourseData, commission: e.target.value })}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label>Duration Override (months)</Label>
+              <Input
+                type="number"
+                placeholder="Leave empty for default"
+                value={editCourseData.duration}
+                onChange={(e) => setEditCourseData({ ...editCourseData, duration: e.target.value })}
+              />
             </div>
             <div className="grid gap-2">
               <Label>Notes</Label>
@@ -445,14 +569,14 @@ export default function AdminAuthorizations() {
             >
               {removeCenterCourse.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Trash2 className="w-4 h-4 mr-2" />
-              Remove Course
+              Remove
             </Button>
             <Button variant="outline" onClick={() => setIsCourseDetailsOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleUpdateCourse} disabled={updateCenterCourse.isPending}>
               {updateCenterCourse.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Changes
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

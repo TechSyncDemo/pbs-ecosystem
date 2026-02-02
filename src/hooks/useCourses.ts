@@ -164,3 +164,31 @@ export const useDeleteCourse = () => {
     },
   });
 };
+
+// Toggle course status (active/inactive)
+export const useToggleCourseStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
+      const { data, error } = await supabase
+        .from("courses")
+        .update({ status })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      queryClient.invalidateQueries({ queryKey: ["courses-with-students"] });
+      queryClient.invalidateQueries({ queryKey: ["course-stats"] });
+      toast.success("Course status updated successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to update course status: ${error.message}`);
+    },
+  });
+};

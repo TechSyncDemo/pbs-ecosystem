@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -25,30 +26,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Clock, Users } from "lucide-react";
+import { MoreHorizontal, Edit, Clock, Users, Power, PowerOff, BookOpen } from "lucide-react";
 import type { CourseWithStudentCount } from "@/hooks/useCourses";
 
 interface CoursesTableProps {
   courses: CourseWithStudentCount[];
   onEdit: (course: CourseWithStudentCount) => void;
-  onDelete: (id: string) => void;
-  isDeleting: boolean;
+  onToggleStatus: (id: string, newStatus: "active" | "inactive") => void;
+  onManageSyllabus?: (courseId: string) => void;
+  isUpdating?: boolean;
 }
 
-export function CoursesTable({ courses, onEdit, onDelete, isDeleting }: CoursesTableProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [courseToDelete, setCourseToDelete] = useState<CourseWithStudentCount | null>(null);
+export function CoursesTable({ courses, onEdit, onToggleStatus, onManageSyllabus, isUpdating }: CoursesTableProps) {
+  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
+  const [courseToToggle, setCourseToToggle] = useState<CourseWithStudentCount | null>(null);
 
-  const handleDeleteClick = (course: CourseWithStudentCount) => {
-    setCourseToDelete(course);
-    setDeleteDialogOpen(true);
+  const handleToggleClick = (course: CourseWithStudentCount) => {
+    setCourseToToggle(course);
+    setToggleDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (courseToDelete) {
-      onDelete(courseToDelete.id);
-      setDeleteDialogOpen(false);
-      setCourseToDelete(null);
+  const handleToggleConfirm = () => {
+    if (courseToToggle) {
+      const newStatus = courseToToggle.status === "active" ? "inactive" : "active";
+      onToggleStatus(courseToToggle.id, newStatus);
+      setToggleDialogOpen(false);
+      setCourseToToggle(null);
     }
   };
 
@@ -89,7 +92,8 @@ export function CoursesTable({ courses, onEdit, onDelete, isDeleting }: CoursesT
               <TableHead>Course</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>Fee</TableHead>
+              <TableHead>Exam Fee</TableHead>
+              <TableHead>Full Fee</TableHead>
               <TableHead>Enrolled</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -116,6 +120,9 @@ export function CoursesTable({ courses, onEdit, onDelete, isDeleting }: CoursesT
                     <Clock className="w-3.5 h-3.5" />
                     {formatDuration(course.duration_months)}
                   </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatCurrency((course as any).exam_fee || 0)}
                 </TableCell>
                 <TableCell className="font-medium">
                   {formatCurrency(course.fee)}
@@ -146,13 +153,28 @@ export function CoursesTable({ courses, onEdit, onDelete, isDeleting }: CoursesT
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Course
                       </DropdownMenuItem>
+                      {onManageSyllabus && (
+                        <DropdownMenuItem onClick={() => onManageSyllabus(course.id)}>
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          Manage Syllabus
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => handleDeleteClick(course)}
-                        disabled={course.studentCount > 0}
+                        onClick={() => handleToggleClick(course)}
+                        className={course.status === "active" ? "text-destructive" : "text-success"}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
+                        {course.status === "active" ? (
+                          <>
+                            <PowerOff className="w-4 h-4 mr-2" />
+                            Set Inactive
+                          </>
+                        ) : (
+                          <>
+                            <Power className="w-4 h-4 mr-2" />
+                            Set Active
+                          </>
+                        )}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -163,27 +185,40 @@ export function CoursesTable({ courses, onEdit, onDelete, isDeleting }: CoursesT
         </Table>
       </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={toggleDialogOpen} onOpenChange={setToggleDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Course</AlertDialogTitle>
+            <AlertDialogTitle>
+              {courseToToggle?.status === "active" ? "Deactivate Course" : "Activate Course"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{courseToDelete?.name}"? This action cannot be undone.
-              {courseToDelete?.studentCount ? (
-                <p className="mt-2 text-destructive font-medium">
-                  This course has {courseToDelete.studentCount} enrolled students and cannot be deleted.
-                </p>
-              ) : null}
+              {courseToToggle?.status === "active" ? (
+                <>
+                  Are you sure you want to deactivate "{courseToToggle?.name}"?
+                  <p className="mt-2">
+                    Inactive courses won't be available for new enrollments but existing students will remain enrolled.
+                  </p>
+                </>
+              ) : (
+                <>
+                  Are you sure you want to activate "{courseToToggle?.name}"?
+                  <p className="mt-2">
+                    This course will become available for new enrollments.
+                  </p>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting || (courseToDelete?.studentCount ?? 0) > 0}
-              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleToggleConfirm}
+              disabled={isUpdating}
+              className={courseToToggle?.status === "active" 
+                ? "bg-destructive hover:bg-destructive/90" 
+                : "bg-success hover:bg-success/90"}
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isUpdating ? "Updating..." : courseToToggle?.status === "active" ? "Deactivate" : "Activate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
