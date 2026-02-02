@@ -11,6 +11,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import {
   Select,
@@ -22,6 +23,8 @@ import {
 import {
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { BookOpen } from "lucide-react";
 import type { Course, CourseInsert, CourseUpdate } from "@/hooks/useCourses";
 
 const courseFormSchema = z.object({
@@ -46,10 +49,15 @@ const courseFormSchema = z.object({
     .number()
     .min(1, "Duration must be at least 1 month")
     .max(48, "Duration must be at most 48 months"),
+  exam_fee: z.coerce
+    .number()
+    .min(0, "Exam fee must be a positive number")
+    .max(100000, "Exam fee must be less than 1,00,000"),
   fee: z.coerce
     .number()
     .min(0, "Fee must be a positive number")
     .max(1000000, "Fee must be less than 10,00,000"),
+  exam_portal_id: z.string().optional(),
   status: z.enum(["active", "inactive"]),
 });
 
@@ -60,9 +68,10 @@ interface CourseFormProps {
   onSubmit: (data: CourseInsert | CourseUpdate) => void;
   onCancel: () => void;
   isSubmitting: boolean;
+  onManageSyllabus?: (courseId: string) => void;
 }
 
-export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseFormProps) {
+export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageSyllabus }: CourseFormProps) {
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
     defaultValues: {
@@ -70,7 +79,9 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
       code: course?.code || "",
       description: course?.description || "",
       duration_months: course?.duration_months || 6,
+      exam_fee: Number((course as any)?.exam_fee) || 0,
       fee: Number(course?.fee) || 0,
+      exam_portal_id: (course as any)?.exam_portal_id || "",
       status: (course?.status as "active" | "inactive") || "active",
     },
   });
@@ -81,7 +92,9 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
       code: values.code.toUpperCase(),
       description: values.description || null,
       duration_months: values.duration_months,
+      exam_fee: values.exam_fee,
       fee: values.fee,
+      exam_portal_id: values.exam_portal_id || null,
       status: values.status,
     };
 
@@ -101,9 +114,9 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Course Name</FormLabel>
+                <FormLabel>Course Name *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Advanced Computer Applications" {...field} />
+                  <Input placeholder="e.g., Advanced Beauty Therapy" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -114,10 +127,10 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
             name="code"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Course Code</FormLabel>
+                <FormLabel>Course Code *</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="e.g., ACA-101" 
+                    placeholder="e.g., ABT-101" 
                     {...field} 
                     onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                   />
@@ -136,8 +149,8 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
                 <Textarea 
-                  placeholder="Enter course description and syllabus..."
-                  rows={3}
+                  placeholder="Enter course description..."
+                  rows={2}
                   {...field}
                 />
               </FormControl>
@@ -146,7 +159,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
           )}
         />
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="duration_months"
@@ -155,19 +168,6 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
                 <FormLabel>Duration (Months)</FormLabel>
                 <FormControl>
                   <Input type="number" min={1} max={48} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="fee"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Course Fee (₹)</FormLabel>
-                <FormControl>
-                  <Input type="number" min={0} placeholder="15000" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -195,6 +195,78 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting }: CourseF
             )}
           />
         </div>
+
+        {/* Fee Structure */}
+        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium">Fee Structure</h3>
+            <Badge variant="outline">Course Fees</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="exam_fee"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Exam Only Fee (₹)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="0" {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">For exam-only registrations</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="fee"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Fee - Exam + Kit (₹)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="15000" {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">For full course with materials</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Exam Portal Integration */}
+        <FormField
+          control={form.control}
+          name="exam_portal_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Exam Portal ID (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="Link to external exam portal" {...field} />
+              </FormControl>
+              <FormDescription className="text-xs">
+                Used for integration with the online exam system
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Syllabus Management - Only for existing courses */}
+        {course && onManageSyllabus && (
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="font-medium">Course Syllabus / Topics</p>
+                <p className="text-sm text-muted-foreground">Manage topics for marksheet printing</p>
+              </div>
+            </div>
+            <Button type="button" variant="outline" onClick={() => onManageSyllabus(course.id)}>
+              Manage Syllabus
+            </Button>
+          </div>
+        )}
 
         <DialogFooter className="pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>

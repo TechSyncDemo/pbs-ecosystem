@@ -19,7 +19,7 @@ import {
   useCoursesWithStudentCount,
   useCreateCourse,
   useUpdateCourse,
-  useDeleteCourse,
+  useToggleCourseStatus,
   type Course,
   type CourseInsert,
   type CourseUpdate,
@@ -37,7 +37,7 @@ export default function AdminCourses() {
   const { data: courses, isLoading: coursesLoading } = useCoursesWithStudentCount();
   const createCourse = useCreateCourse();
   const updateCourse = useUpdateCourse();
-  const deleteCourse = useDeleteCourse();
+  const toggleStatus = useToggleCourseStatus();
 
   const filteredCourses = useMemo(() => {
     if (!courses) return [];
@@ -71,18 +71,19 @@ export default function AdminCourses() {
     setIsEditDialogOpen(true);
   };
 
-  const handleDeleteCourse = (id: string) => {
-    deleteCourse.mutate(id);
+  const handleToggleStatus = (id: string, newStatus: "active" | "inactive") => {
+    toggleStatus.mutate({ id, status: newStatus });
   };
 
   const handleExport = () => {
     if (!courses) return;
     
-    const headers = ['Name', 'Code', 'Duration (Months)', 'Fee', 'Students', 'Status'];
+    const headers = ['Name', 'Code', 'Duration (Months)', 'Exam Fee', 'Full Fee', 'Students', 'Status'];
     const csvData = courses.map(course => [
       course.name,
       course.code,
       course.duration_months,
+      (course as any).exam_fee || 0,
       course.fee,
       course.studentCount,
       course.status,
@@ -130,7 +131,7 @@ export default function AdminCourses() {
                   Add Course
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Course</DialogTitle>
                   <DialogDescription>
@@ -246,8 +247,8 @@ export default function AdminCourses() {
               <CoursesTable
                 courses={filteredCourses}
                 onEdit={handleEditClick}
-                onDelete={handleDeleteCourse}
-                isDeleting={deleteCourse.isPending}
+                onToggleStatus={handleToggleStatus}
+                isUpdating={toggleStatus.isPending}
               />
             )}
           </CardContent>
@@ -255,7 +256,7 @@ export default function AdminCourses() {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Course</DialogTitle>
               <DialogDescription>

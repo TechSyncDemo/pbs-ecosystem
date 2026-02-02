@@ -1,0 +1,43 @@
+// Indian States and Union Territories
+export const indianStates = [
+  // States
+  { value: "Andhra Pradesh", label: "Andhra Pradesh", type: "state" },
+  { value: "Arunachal Pradesh", label: "Arunachal Pradesh", type: "state" },
+  { value: "Assam", label: "Assam", type: "state" },
+  { value: "Bihar", label: "Bihar", type: "state" },
+  { value: "Chhattisgarh", label: "Chhattisgarh", type: "state" },
+  { value: "Goa", label: "Goa", type: "state" },
+  { value: "Gujarat", label: "Gujarat", type: "state" },
+  { value: "Haryana", label: "Haryana", type: "state" },
+  { value: "Himachal Pradesh", label: "Himachal Pradesh", type: "state" },
+  { value: "Jharkhand", label: "Jharkhand", type: "state" },
+  { value: "Karnataka", label: "Karnataka", type: "state" },
+  { value: "Kerala", label: "Kerala", type: "state" },
+  { value: "Madhya Pradesh", label: "Madhya Pradesh", type: "state" },
+  { value: "Maharashtra", label: "Maharashtra", type: "state" },
+  { value: "Manipur", label: "Manipur", type: "state" },
+  { value: "Meghalaya", label: "Meghalaya", type: "state" },
+  { value: "Mizoram", label: "Mizoram", type: "state" },
+  { value: "Nagaland", label: "Nagaland", type: "state" },
+  { value: "Odisha", label: "Odisha", type: "state" },
+  { value: "Punjab", label: "Punjab", type: "state" },
+  { value: "Rajasthan", label: "Rajasthan", type: "state" },
+  { value: "Sikkim", label: "Sikkim", type: "state" },
+  { value: "Tamil Nadu", label: "Tamil Nadu", type: "state" },
+  { value: "Telangana", label: "Telangana", type: "state" },
+  { value: "Tripura", label: "Tripura", type: "state" },
+  { value: "Uttar Pradesh", label: "Uttar Pradesh", type: "state" },
+  { value: "Uttarakhand", label: "Uttarakhand", type: "state" },
+  { value: "West Bengal", label: "West Bengal", type: "state" },
+  // Union Territories
+  { value: "Andaman and Nicobar Islands", label: "Andaman and Nicobar Islands", type: "ut" },
+  { value: "Chandigarh", label: "Chandigarh", type: "ut" },
+  { value: "Dadra and Nagar Haveli and Daman and Diu", label: "Dadra and Nagar Haveli and Daman and Diu", type: "ut" },
+  { value: "Delhi", label: "Delhi", type: "ut" },
+  { value: "Jammu and Kashmir", label: "Jammu and Kashmir", type: "ut" },
+  { value: "Ladakh", label: "Ladakh", type: "ut" },
+  { value: "Lakshadweep", label: "Lakshadweep", type: "ut" },
+  { value: "Puducherry", label: "Puducherry", type: "ut" },
+] as const;
+
+export type IndianState = typeof indianStates[number]["value"];

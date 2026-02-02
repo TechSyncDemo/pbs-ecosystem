@@ -20,22 +20,42 @@ import {
   useCenterStats,
   useCreateCenter,
   useUpdateCenter,
-  useDeleteCenter,
-  type Center,
+  useToggleCenterStatus,
   type CenterInsert,
 } from "@/hooks/useCenters";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface CenterWithCount {
+  id: string;
+  name: string;
+  code: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  contact_person?: string | null;
+  status?: string | null;
+  created_at: string;
+  updated_at: string;
+  studentCount: number;
+  coordinator_id?: string | null;
+}
 
 export default function AdminCenters() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingCenter, setEditingCenter] = useState<Center | null>(null);
+  const [editingCenter, setEditingCenter] = useState<CenterWithCount | null>(null);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const { data: centers, isLoading: centersLoading } = useCenterWithStudentCount();
   const { data: stats, isLoading: statsLoading } = useCenterStats();
 
   const createCenter = useCreateCenter();
   const updateCenter = useUpdateCenter();
-  const deleteCenter = useDeleteCenter();
+  const toggleStatus = useToggleCenterStatus();
 
   const filteredCenters = useMemo(() => {
     if (!centers) return [];
@@ -43,7 +63,7 @@ export default function AdminCenters() {
 
     const query = searchQuery.toLowerCase();
     return centers.filter(
-      (center) =>
+      (center: any) =>
         center.name.toLowerCase().includes(query) ||
         center.code.toLowerCase().includes(query) ||
         center.city?.toLowerCase().includes(query) ||
@@ -51,9 +71,43 @@ export default function AdminCenters() {
     );
   }, [centers, searchQuery]);
 
-  const handleAddCenter = (data: CenterInsert) => {
+  const handleAddCenter = async (
+    data: CenterInsert,
+    userCredentials?: { email: string; password: string; fullName: string }
+  ) => {
     createCenter.mutate(data, {
-      onSuccess: () => setIsAddDialogOpen(false),
+      onSuccess: async (newCenter) => {
+        // If user credentials provided, create the center admin user
+        if (userCredentials && newCenter) {
+          setIsCreatingUser(true);
+          try {
+            const { data: session } = await supabase.auth.getSession();
+            const response = await supabase.functions.invoke("create-center-admin", {
+              body: {
+                email: userCredentials.email,
+                password: userCredentials.password,
+                fullName: userCredentials.fullName,
+                centerId: newCenter.id,
+                phone: data.phone,
+              },
+              headers: {
+                Authorization: `Bearer ${session.session?.access_token}`,
+              },
+            });
+
+            if (response.error) {
+              toast.error(`Center created, but failed to create user: ${response.error.message}`);
+            } else {
+              toast.success("Center and admin user created successfully!");
+            }
+          } catch (err: any) {
+            toast.error(`Center created, but failed to create user: ${err.message}`);
+          } finally {
+            setIsCreatingUser(false);
+          }
+        }
+        setIsAddDialogOpen(false);
+      },
     });
   };
 
@@ -67,15 +121,15 @@ export default function AdminCenters() {
     );
   };
 
-  const handleDeleteCenter = (id: string) => {
-    deleteCenter.mutate(id);
+  const handleToggleStatus = (id: string, newStatus: "active" | "inactive") => {
+    toggleStatus.mutate({ id, status: newStatus });
   };
 
   const handleExport = () => {
     if (!centers) return;
     const csv = [
       ["Name", "Code", "City", "State", "Contact", "Email", "Status", "Students"],
-      ...centers.map((c) => [
+      ...centers.map((c: any) => [
         c.name,
         c.code,
         c.city || "",
@@ -119,7 +173,7 @@ export default function AdminCenters() {
                   Add Center
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Center</DialogTitle>
                   <DialogDescription>
@@ -130,6 +184,7 @@ export default function AdminCenters() {
                   onSubmit={handleAddCenter}
                   onCancel={() => setIsAddDialogOpen(false)}
                   isLoading={createCenter.isPending}
+                  isCreatingUser={isCreatingUser}
                 />
               </DialogContent>
             </Dialog>
@@ -235,8 +290,8 @@ export default function AdminCenters() {
               <CentersTable
                 centers={filteredCenters}
                 onEdit={setEditingCenter}
-                onDelete={handleDeleteCenter}
-                isDeleting={deleteCenter.isPending}
+                onToggleStatus={handleToggleStatus}
+                isUpdating={toggleStatus.isPending}
               />
             )}
           </CardContent>
@@ -244,14 +299,14 @@ export default function AdminCenters() {
 
         {/* Edit Dialog */}
         <Dialog open={!!editingCenter} onOpenChange={() => setEditingCenter(null)}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Center</DialogTitle>
               <DialogDescription>Update the center details below.</DialogDescription>
             </DialogHeader>
             {editingCenter && (
               <CenterForm
-                center={editingCenter}
+                center={editingCenter as any}
                 onSubmit={handleUpdateCenter}
                 onCancel={() => setEditingCenter(null)}
                 isLoading={updateCenter.isPending}
