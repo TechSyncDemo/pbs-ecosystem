@@ -9,6 +9,7 @@ export interface CenterDashboardStats {
   totalStock: number;
   lowStockCount: number;
   totalRevenue: number;
+  loyaltyPoints: number;
 }
 
 export interface StockItem {
@@ -38,11 +39,14 @@ export function useCenterDashboard(centerId?: string) {
   const statsQuery = useQuery({
     queryKey: ['center-dashboard-stats', centerId],
     queryFn: async (): Promise<CenterDashboardStats> => {
-      const [studentsRes, enquiriesRes, stockRes, ordersRes] = await Promise.all([
+      const [studentsRes, enquiriesRes, stockRes, ordersRes, centerRes] = await Promise.all([
         supabase.from('students').select('id, status'),
         supabase.from('enquiries').select('id, status'),
         supabase.from('center_stock').select('id, quantity'),
         supabase.from('orders').select('id, total_amount, status'),
+        centerId
+          ? supabase.from('centers').select('loyalty_points').eq('id', centerId).single()
+          : Promise.resolve({ data: null, error: null }),
       ]);
 
       if (studentsRes.error) throw studentsRes.error;
@@ -65,6 +69,7 @@ export function useCenterDashboard(centerId?: string) {
         totalStock: stock.reduce((sum, s) => sum + (s.quantity || 0), 0),
         lowStockCount: stock.filter(s => s.quantity < 10).length,
         totalRevenue: completedOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0),
+        loyaltyPoints: (centerRes.data as any)?.loyalty_points || 0,
       };
     },
     enabled: true,

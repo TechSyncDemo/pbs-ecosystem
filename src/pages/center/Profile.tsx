@@ -7,18 +7,15 @@ import {
   Mail,
   ShieldCheck,
   Loader2,
+  ChevronDown,
+  ChevronRight,
+  Star,
+  BookOpen,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -26,11 +23,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import CenterLayout from '@/layouts/CenterLayout';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,11 +51,9 @@ export default function CenterProfile() {
   const centerId = user?.centerId;
   const queryClient = useQueryClient();
 
-  // Fetch center data
   const { data: centers = [], isLoading: centersLoading } = useCenters();
   const center = centers.find(c => c.id === centerId);
 
-  // Fetch profile data
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: async () => {
@@ -74,12 +69,58 @@ export default function CenterProfile() {
     enabled: !!user?.id,
   });
 
-  // Fetch authorized courses
   const { data: authorizations = [] } = useCenterAuthorizations(centerId);
+
+  // Group authorizations by their parent authorization category
+  const { data: groupedAuthorizations = [], isLoading: groupedLoading } = useQuery({
+    queryKey: ['center-authorizations-grouped', centerId],
+    queryFn: async () => {
+      if (!centerId) return [];
+      
+      // Fetch center_courses with course + authorization info
+      const { data, error } = await supabase
+        .from('center_courses')
+        .select(`
+          *,
+          courses(name, code, fee, duration_months, loyalty_points, authorization_id, authorizations(id, name, code))
+        `)
+        .eq('center_id', centerId);
+
+      if (error) throw error;
+
+      // Group by authorization
+      const groupMap: Record<string, { authName: string; authCode: string; courses: any[] }> = {};
+      
+      for (const cc of (data || [])) {
+        const course = cc.courses as any;
+        const auth = course?.authorizations;
+        const authId = auth?.id || 'uncategorized';
+        const authName = auth?.name || 'Other';
+        const authCode = auth?.code || '';
+
+        if (!groupMap[authId]) {
+          groupMap[authId] = { authName, authCode, courses: [] };
+        }
+        groupMap[authId].courses.push({
+          ...cc,
+          course_name: course?.name,
+          course_code: course?.code,
+          course_fee: course?.fee,
+          course_duration: course?.duration_months,
+          loyalty_points: course?.loyalty_points,
+        });
+      }
+
+      return Object.entries(groupMap).map(([id, group]) => ({
+        id,
+        ...group,
+      }));
+    },
+    enabled: !!centerId,
+  });
 
   const updateCenter = useUpdateCenter();
 
-  // Update profile mutation
   const updateProfile = useMutation({
     mutationFn: async (updates: { full_name?: string; phone?: string }) => {
       if (!user?.id) throw new Error('No user');
@@ -102,29 +143,30 @@ export default function CenterProfile() {
   });
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [expandedAuths, setExpandedAuths] = useState<Record<string, boolean>>({});
   const [editableData, setEditableData] = useState({
-    centerName: '',
     address: '',
     city: '',
     state: '',
     pincode: '',
     contactPerson: '',
     phone: '',
-    email: '',
     profileName: '',
     profilePhone: '',
   });
 
+  const toggleAuth = (authId: string) => {
+    setExpandedAuths(prev => ({ ...prev, [authId]: !prev[authId] }));
+  };
+
   const handleOpenEdit = () => {
     setEditableData({
-      centerName: center?.name || '',
       address: center?.address || '',
       city: center?.city || '',
       state: center?.state || '',
       pincode: center?.pincode || '',
       contactPerson: center?.contact_person || '',
       phone: center?.phone || '',
-      email: center?.email || '',
       profileName: profile?.full_name || '',
       profilePhone: profile?.phone || '',
     });
@@ -135,14 +177,12 @@ export default function CenterProfile() {
     if (centerId) {
       await updateCenter.mutateAsync({
         id: centerId,
-        name: editableData.centerName,
         address: editableData.address,
         city: editableData.city,
         state: editableData.state,
         pincode: editableData.pincode,
         contact_person: editableData.contactPerson,
         phone: editableData.phone,
-        email: editableData.email,
       });
     }
 
@@ -210,6 +250,9 @@ export default function CenterProfile() {
               <InfoItem icon={Phone} label="Phone" value={center.phone || ''} />
               <InfoItem icon={Mail} label="Email" value={center.email || ''} />
               <InfoItem icon={User} label="Contact Person" value={center.contact_person || ''} />
+              <InfoItem icon={Star} label="Loyalty Points" value={
+                <span className="text-amber-500 font-bold">{center.loyalty_points || 0} pts</span>
+              } />
               <div className="pt-2">
                 <Badge className={center.status === 'active' ? 'bg-success' : 'bg-muted-foreground'}>
                   {center.status || 'active'}
@@ -234,62 +277,93 @@ export default function CenterProfile() {
           </Card>
         </div>
 
-        {/* Authorized Courses */}
+        {/* Authorizations & Courses */}
         <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5" />
-              Authorized Courses
+              Authorizations & Courses
             </CardTitle>
             <CardDescription>
-              Courses you are authorized to offer at this center.
+              Your authorized specializations and their courses.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {authorizations.length === 0 ? (
+            {groupedAuthorizations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No courses authorized yet. Contact admin for authorization.
+                No authorizations assigned yet. Contact admin for authorization.
               </div>
             ) : (
-              <div className="rounded-lg border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Course</TableHead>
-                      <TableHead>Kit Value</TableHead>
-                      <TableHead>Exam Value</TableHead>
-                      <TableHead>Commission</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {authorizations.map((auth: any) => (
-                      <TableRow key={auth.id}>
-                        <TableCell className="font-medium">{auth.course_name}</TableCell>
-                        <TableCell>₹{Number(auth.kit_value || 0).toLocaleString()}</TableCell>
-                        <TableCell>₹{Number(auth.exam_value || 0).toLocaleString()}</TableCell>
-                        <TableCell>{auth.commission_percent || 0}%</TableCell>
-                        <TableCell>
-                          <Badge className={auth.status === 'active' ? 'bg-success' : 'bg-muted-foreground'}>
-                            {auth.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="space-y-3">
+                {groupedAuthorizations.map((group) => (
+                  <Collapsible
+                    key={group.id}
+                    open={expandedAuths[group.id]}
+                    onOpenChange={() => toggleAuth(group.id)}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <ShieldCheck className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">{group.authName}</p>
+                            <p className="text-sm text-muted-foreground">{group.authCode} · {group.courses.length} course{group.courses.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        {expandedAuths[group.id] ? (
+                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-4 mt-2 space-y-2">
+                        {group.courses.map((course: any) => (
+                          <div
+                            key={course.id}
+                            className="flex items-center justify-between p-3 rounded-lg bg-background border"
+                          >
+                            <div className="flex items-center gap-3">
+                              <BookOpen className="w-4 h-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">{course.course_name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {course.course_code} · {course.course_duration} months · ₹{Number(course.course_fee || 0).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {course.loyalty_points > 0 && (
+                                <Badge variant="outline" className="text-amber-500 border-amber-500/30">
+                                  <Star className="w-3 h-3 mr-1" />
+                                  {course.loyalty_points} pts
+                                </Badge>
+                              )}
+                              <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
+                                {course.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Edit Dialog */}
+        {/* Edit Dialog — name & email are read-only */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Profile</DialogTitle>
               <DialogDescription>
-                Update your center and personal profile details.
+                Update your center and personal profile details. Name and email cannot be changed.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4">
@@ -297,11 +371,18 @@ export default function CenterProfile() {
                 <h4 className="font-medium mb-4">Center Details</h4>
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label>Center Name</Label>
-                    <Input
-                      value={editableData.centerName}
-                      onChange={(e) => setEditableData({ ...editableData, centerName: e.target.value })}
-                    />
+                    <Label className="flex items-center gap-1">
+                      Center Name
+                      <Lock className="w-3 h-3 text-muted-foreground" />
+                    </Label>
+                    <Input value={center?.name || ''} disabled className="bg-muted" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="flex items-center gap-1">
+                      Email
+                      <Lock className="w-3 h-3 text-muted-foreground" />
+                    </Label>
+                    <Input value={center?.email || ''} disabled className="bg-muted" />
                   </div>
                   <div className="grid gap-2">
                     <Label>Address</Label>
@@ -348,14 +429,6 @@ export default function CenterProfile() {
                         onChange={(e) => setEditableData({ ...editableData, phone: e.target.value })}
                       />
                     </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Email</Label>
-                    <Input
-                      type="email"
-                      value={editableData.email}
-                      onChange={(e) => setEditableData({ ...editableData, email: e.target.value })}
-                    />
                   </div>
                 </div>
               </div>
