@@ -78,13 +78,14 @@ export default function AdminCourses() {
   const handleExport = () => {
     if (!courses) return;
     
-    const headers = ['Name', 'Code', 'Duration (Months)', 'Exam Fee', 'Full Fee', 'Students', 'Status'];
+    const headers = ['Name', 'Code', 'Duration (Months)', 'Exam Fee', 'Full Fee', 'Loyalty Points', 'Students', 'Status'];
     const csvData = courses.map(course => [
       course.name,
       course.code,
       course.duration_months,
       (course as any).exam_fee || 0,
       course.fee,
+      (course as any).loyalty_points || 0,
       course.studentCount,
       course.status,
     ]);

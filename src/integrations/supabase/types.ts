@@ -192,6 +192,8 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          loyalty_points: number
+          loyalty_reset_at: string | null
           name: string
           phone: string | null
           pincode: string | null
@@ -208,6 +210,8 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          loyalty_points?: number
+          loyalty_reset_at?: string | null
           name: string
           phone?: string | null
           pincode?: string | null
@@ -224,6 +228,8 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          loyalty_points?: number
+          loyalty_reset_at?: string | null
           name?: string
           phone?: string | null
           pincode?: string | null
@@ -323,6 +329,7 @@ export type Database = {
           exam_portal_id: string | null
           fee: number
           id: string
+          loyalty_points: number | null
           name: string
           status: string | null
           updated_at: string
@@ -337,6 +344,7 @@ export type Database = {
           exam_portal_id?: string | null
           fee?: number
           id?: string
+          loyalty_points?: number | null
           name: string
           status?: string | null
           updated_at?: string
@@ -351,6 +359,7 @@ export type Database = {
           exam_portal_id?: string | null
           fee?: number
           id?: string
+          loyalty_points?: number | null
           name?: string
           status?: string | null
           updated_at?: string
