@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      authorizations: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       center_courses: {
         Row: {
           center_id: string
@@ -284,6 +314,7 @@ export type Database = {
       }
       courses: {
         Row: {
+          authorization_id: string | null
           code: string
           created_at: string
           description: string | null
@@ -297,6 +328,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          authorization_id?: string | null
           code: string
           created_at?: string
           description?: string | null
@@ -310,6 +342,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          authorization_id?: string | null
           code?: string
           created_at?: string
           description?: string | null
@@ -322,7 +355,15 @@ export type Database = {
           status?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "courses_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "authorizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       enquiries: {
         Row: {

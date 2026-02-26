@@ -34,9 +34,9 @@ interface NavItem {
 
 const adminNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { label: 'Centers', href: '/admin/centers', icon: Building2 },
-  { label: 'Courses', href: '/admin/courses', icon: BookOpen },
   { label: 'Authorizations', href: '/admin/authorizations', icon: UserCheck },
+  { label: 'Courses', href: '/admin/courses', icon: BookOpen },
+  { label: 'Centers', href: '/admin/centers', icon: Building2 },
   { label: 'Coordinators', href: '/admin/coordinators', icon: BadgePercent },
   { label: 'Orders', href: '/admin/orders', icon: Package },
   { label: 'Students', href: '/admin/students', icon: Users },

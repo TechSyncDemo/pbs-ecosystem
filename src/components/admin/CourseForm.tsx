@@ -5,58 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen } from "lucide-react";
 import type { Course, CourseInsert, CourseUpdate } from "@/hooks/useCourses";
+import { useAuthorizations } from "@/hooks/useAuthorizations";
 
 const courseFormSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Course name must be at least 2 characters")
-    .max(100, "Course name must be less than 100 characters"),
-  code: z
-    .string()
-    .trim()
-    .min(2, "Course code must be at least 2 characters")
-    .max(20, "Course code must be less than 20 characters")
+  authorization_id: z.string().min(1, "Authorization is required"),
+  name: z.string().trim().min(2, "Course name must be at least 2 characters").max(100),
+  code: z.string().trim().min(2, "Course code must be at least 2 characters").max(20)
     .regex(/^[A-Z0-9-]+$/, "Code must be uppercase letters, numbers, and hyphens only"),
-  description: z
-    .string()
-    .trim()
-    .max(500, "Description must be less than 500 characters")
-    .optional()
-    .or(z.literal("")),
-  duration_months: z.coerce
-    .number()
-    .min(1, "Duration must be at least 1 month")
-    .max(48, "Duration must be at most 48 months"),
-  exam_fee: z.coerce
-    .number()
-    .min(0, "Exam fee must be a positive number")
-    .max(100000, "Exam fee must be less than 1,00,000"),
-  fee: z.coerce
-    .number()
-    .min(0, "Fee must be a positive number")
-    .max(1000000, "Fee must be less than 10,00,000"),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+  duration_months: z.coerce.number().min(1).max(48),
+  exam_fee: z.coerce.number().min(0).max(100000),
+  fee: z.coerce.number().min(0).max(1000000),
   exam_portal_id: z.string().optional(),
   status: z.enum(["active", "inactive"]),
 });
@@ -72,9 +40,13 @@ interface CourseFormProps {
 }
 
 export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageSyllabus }: CourseFormProps) {
+  const { data: authorizations = [] } = useAuthorizations();
+  const activeAuthorizations = authorizations.filter(a => a.status === 'active');
+
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
     defaultValues: {
+      authorization_id: (course as any)?.authorization_id || "",
       name: course?.name || "",
       code: course?.code || "",
       description: course?.description || "",
@@ -88,6 +60,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
 
   const handleSubmit = (values: CourseFormValues) => {
     const data = {
+      authorization_id: values.authorization_id,
       name: values.name,
       code: values.code.toUpperCase(),
       description: values.description || null,
@@ -108,83 +81,81 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Course Name *</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Advanced Beauty Therapy" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Course Code *</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="e.g., ABT-101" 
-                    {...field} 
-                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
+        {/* Authorization Selection */}
         <FormField
           control={form.control}
-          name="description"
+          name="authorization_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Enter course description..."
-                  rows={2}
-                  {...field}
-                />
-              </FormControl>
+              <FormLabel>Authorization (Specialization) *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select authorization..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {activeAuthorizations.map(auth => (
+                    <SelectItem key={auth.id} value={auth.id}>
+                      {auth.name} ({auth.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription className="text-xs">
+                Every course must belong to an authorization category
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="duration_months"
+          <FormField control={form.control} name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Duration (Months)</FormLabel>
+                <FormLabel>Course Name *</FormLabel>
+                <FormControl><Input placeholder="e.g., Advanced Beauty Therapy" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          <FormField control={form.control} name="code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Course Code *</FormLabel>
                 <FormControl>
-                  <Input type="number" min={1} max={48} {...field} />
+                  <Input placeholder="e.g., ABT-101" {...field}
+                    onChange={e => field.onChange(e.target.value.toUpperCase())} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="status"
+            )} />
+        </div>
+
+        <FormField control={form.control} name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description (Optional)</FormLabel>
+              <FormControl><Textarea placeholder="Enter course description..." rows={2} {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField control={form.control} name="duration_months"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration (Months)</FormLabel>
+                <FormControl><Input type="number" min={1} max={48} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          <FormField control={form.control} name="status"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -192,8 +163,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
                 </Select>
                 <FormMessage />
               </FormItem>
-            )}
-          />
+            )} />
         </div>
 
         {/* Fee Structure */}
@@ -203,56 +173,37 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
             <Badge variant="outline">Course Fees</Badge>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="exam_fee"
+            <FormField control={form.control} name="exam_fee"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Exam Only Fee (₹)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} placeholder="0" {...field} />
-                  </FormControl>
+                  <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
                   <FormDescription className="text-xs">For exam-only registrations</FormDescription>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="fee"
+              )} />
+            <FormField control={form.control} name="fee"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Full Fee - Exam + Kit (₹)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={0} placeholder="15000" {...field} />
-                  </FormControl>
+                  <FormControl><Input type="number" min={0} placeholder="15000" {...field} /></FormControl>
                   <FormDescription className="text-xs">For full course with materials</FormDescription>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
+              )} />
           </div>
         </div>
 
-        {/* Exam Portal Integration */}
-        <FormField
-          control={form.control}
-          name="exam_portal_id"
+        <FormField control={form.control} name="exam_portal_id"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Exam Portal ID (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="Link to external exam portal" {...field} />
-              </FormControl>
-              <FormDescription className="text-xs">
-                Used for integration with the online exam system
-              </FormDescription>
+              <FormControl><Input placeholder="Link to external exam portal" {...field} /></FormControl>
+              <FormDescription className="text-xs">Used for integration with the online exam system</FormDescription>
               <FormMessage />
             </FormItem>
-          )}
-        />
+          )} />
 
-        {/* Syllabus Management - Only for existing courses */}
         {course && onManageSyllabus && (
           <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
             <div className="flex items-center gap-3">
@@ -269,9 +220,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
         )}
 
         <DialogFooter className="pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Saving..." : course ? "Update Course" : "Create Course"}
           </Button>
