@@ -12,6 +12,7 @@ import {
   AlertCircle,
   BookOpen,
   CheckCircle,
+  Star,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,6 +70,15 @@ export default function CenterDashboard() {
       bgColor: 'bg-success/10',
     },
     {
+      label: 'Loyalty Points',
+      value: stats?.loyaltyPoints?.toString() || '0',
+      change: 'points earned',
+      trend: 'neutral',
+      icon: Star,
+      color: 'text-amber-500',
+      bgColor: 'bg-amber-500/10',
+    },
+    {
       label: 'Total Revenue',
       value: formatCurrency(stats?.totalRevenue || 0),
       change: 'completed orders',
@@ -107,7 +117,7 @@ export default function CenterDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 stagger-children">
           {dashboardStats.map((stat) => (
             <Card key={stat.label} className="card-hover border-0 shadow-card">
               <CardContent className="p-6">
