@@ -9,6 +9,7 @@ export type CourseUpdate = TablesUpdate<"courses">;
 
 export interface CourseWithStudentCount extends Course {
   studentCount: number;
+  authorization_name?: string;
 }
 
 export const useCourses = () => {
@@ -66,7 +67,7 @@ export const useCoursesWithStudentCount = () => {
     queryFn: async () => {
       const { data: courses, error: coursesError } = await supabase
         .from("courses")
-        .select("*")
+        .select("*, authorizations(name)")
         .order("created_at", { ascending: false });
 
       if (coursesError) throw coursesError;
@@ -86,6 +87,7 @@ export const useCoursesWithStudentCount = () => {
       return (courses || []).map((course) => ({
         ...course,
         studentCount: countMap[course.id] || 0,
+        authorization_name: (course as any).authorizations?.name || 'Unassigned',
       })) as CourseWithStudentCount[];
     },
   });

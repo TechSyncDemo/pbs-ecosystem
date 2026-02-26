@@ -88,7 +88,8 @@ export function CoursesTable({ courses, onEdit, onToggleStatus, onManageSyllabus
       <div className="rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50">
+           <TableRow className="bg-muted/50">
+              <TableHead>Authorization</TableHead>
               <TableHead>Course</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Duration</TableHead>
@@ -102,6 +103,11 @@ export function CoursesTable({ courses, onEdit, onToggleStatus, onManageSyllabus
           <TableBody>
             {courses.map((course) => (
               <TableRow key={course.id} className="table-row-hover">
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">
+                    {(course as any).authorization_name || 'Unassigned'}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <div>
                     <p className="font-medium">{course.name}</p>
