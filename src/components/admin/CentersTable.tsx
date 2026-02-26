@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,9 +28,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Pencil, Mail, Users, Eye, Power, PowerOff } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { MoreHorizontal, Pencil, Mail, Users, Eye, Power, PowerOff, KeyRound } from "lucide-react";
 import type { Center } from "@/hooks/useCenters";
 import { CenterProfileDialog } from "./CenterProfileDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface CenterWithCount {
   id: string;
@@ -58,7 +70,35 @@ interface CentersTableProps {
 export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: CentersTableProps) {
   const [toggleStatusId, setToggleStatusId] = useState<{ id: string; currentStatus: string } | null>(null);
   const [profileCenter, setProfileCenter] = useState<CenterWithCount | null>(null);
+  const [resetPasswordCenter, setResetPasswordCenter] = useState<CenterWithCount | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordCenter || !newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("reset-center-password", {
+        body: { centerId: resetPasswordCenter.id, newPassword },
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+      });
+      if (response.error) {
+        toast.error(response.error.message || "Failed to reset password");
+      } else {
+        toast.success("Password updated successfully");
+        setResetPasswordCenter(null);
+        setNewPassword("");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset password");
+    } finally {
+      setIsResetting(false);
+    }
+  };
   const handleToggleStatus = () => {
     if (toggleStatusId) {
       const newStatus = toggleStatusId.currentStatus === "active" ? "inactive" : "active";
@@ -143,6 +183,10 @@ export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: Ce
                           <Mail className="mr-2 h-4 w-4" />
                           Send Email
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setResetPasswordCenter(center); setNewPassword(""); }}>
+                          <KeyRound className="mr-2 h-4 w-4" />
+                          Reset Password
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => setToggleStatusId({ id: center.id, currentStatus: center.status || "active" })}
@@ -204,6 +248,39 @@ export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: Ce
         open={!!profileCenter}
         onOpenChange={(open) => !open && setProfileCenter(null)}
       />
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetPasswordCenter} onOpenChange={(open) => { if (!open) { setResetPasswordCenter(null); setNewPassword(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Center Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{resetPasswordCenter?.name}</strong> ({resetPasswordCenter?.email || "no email"})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="Enter new password (min 6 chars)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetPasswordCenter(null); setNewPassword(""); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleResetPassword} disabled={isResetting || newPassword.length < 6}>
+              {isResetting ? "Updating..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
