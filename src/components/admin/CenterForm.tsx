@@ -28,6 +28,51 @@ import { useCoordinators } from "@/hooks/useCoordinators";
 import { supabase } from "@/integrations/supabase/client";
 import type { CenterInsert, Center } from "@/hooks/useCenters";
 
+// State name to code mapping
+const stateCodeMap: Record<string, string> = {
+  "Jammu and Kashmir": "01",
+  "Himachal Pradesh": "02",
+  "Punjab": "03",
+  "Chandigarh": "04",
+  "Uttarakhand": "05",
+  "Haryana": "06",
+  "Delhi": "07",
+  "Rajasthan": "08",
+  "Uttar Pradesh": "09",
+  "Bihar": "10",
+  "Sikkim": "11",
+  "Arunachal Pradesh": "12",
+  "Nagaland": "13",
+  "Manipur": "14",
+  "Mizoram": "15",
+  "Tripura": "16",
+  "Meghalaya": "17",
+  "Assam": "18",
+  "West Bengal": "19",
+  "Jharkhand": "20",
+  "Odisha": "21",
+  "Chhattisgarh": "22",
+  "Madhya Pradesh": "23",
+  "Gujarat": "24",
+  "Maharashtra": "27",
+  "Andhra Pradesh": "37",
+  "Karnataka": "29",
+  "Goa": "30",
+  "Lakshadweep": "31",
+  "Kerala": "32",
+  "Tamil Nadu": "33",
+  "Puducherry": "34",
+  "Andaman and Nicobar Islands": "35",
+  "Telangana": "36",
+  "Dadra and Nagar Haveli and Daman and Diu": "25",
+};
+
+function getStateCode(stateName: string): string {
+  if (stateCodeMap[stateName]) return stateCodeMap[stateName];
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  return chars.charAt(Math.floor(Math.random() * chars.length)) + chars.charAt(Math.floor(Math.random() * chars.length));
+}
+
 const centerFormSchema = z.object({
   code: z.string().optional(),
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -93,19 +138,16 @@ export function CenterForm({ center, onSubmit, onCancel, isLoading, isCreatingUs
     },
   });
 
-  // Generate center code on mount for new centers
-  useEffect(() => {
-    const generateCode = async () => {
-      if (!isEditing) {
-        const { data, error } = await supabase.rpc("generate_center_code");
-        if (!error && data) {
-          setGeneratedCode(data);
-          form.setValue("code", data);
-        }
-      }
-    };
-    generateCode();
-  }, [isEditing, form]);
+  // Generate center code after state is selected (for new centers)
+  const generateCenterCode = async (stateName: string) => {
+    if (isEditing) return;
+    const sc = getStateCode(stateName);
+    const { data, error } = await supabase.rpc("generate_center_code", { state_code: sc });
+    if (!error && data) {
+      setGeneratedCode(data);
+      form.setValue("code", data);
+    }
+  };
 
   // Update available cities when state changes
   useEffect(() => {
@@ -121,6 +163,7 @@ export function CenterForm({ center, onSubmit, onCancel, isLoading, isCreatingUs
     setSelectedState(value);
     form.setValue("state", value);
     form.setValue("city", ""); // Reset city when state changes
+    generateCenterCode(value); // Generate code based on state
   };
 
   const handleSubmit = (values: CenterFormValues) => {
@@ -149,7 +192,7 @@ export function CenterForm({ center, onSubmit, onCancel, isLoading, isCreatingUs
           <div>
             <p className="text-sm font-medium">Center Code</p>
             <p className="text-lg font-bold text-primary">
-              {isEditing ? center.code : generatedCode || "Generating..."}
+              {isEditing ? center.code : generatedCode || "Select state to generate"}
             </p>
           </div>
           {!isEditing && <Badge variant="secondary" className="ml-auto">Auto-generated</Badge>}
