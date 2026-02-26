@@ -95,7 +95,7 @@ export default function AdminAuthorizations() {
     setToggleAuth(null);
   };
 
-  const AuthForm = ({ isEdit }: { isEdit: boolean }) => (
+  const renderForm = (isEdit: boolean) => (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -145,7 +145,7 @@ export default function AdminAuthorizations() {
                 <DialogTitle>Create Authorization</DialogTitle>
                 <DialogDescription>Add a new specialization category.</DialogDescription>
               </DialogHeader>
-              <AuthForm isEdit={false} />
+              {renderForm(false)}
             </DialogContent>
           </Dialog>
         </div>
@@ -281,7 +281,7 @@ export default function AdminAuthorizations() {
               <DialogTitle>Edit Authorization</DialogTitle>
               <DialogDescription>Update the authorization details.</DialogDescription>
             </DialogHeader>
-            <AuthForm isEdit />
+            {renderForm(true)}
           </DialogContent>
         </Dialog>
 
