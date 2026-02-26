@@ -25,6 +25,7 @@ const courseFormSchema = z.object({
   duration_months: z.coerce.number().min(1).max(48),
   exam_fee: z.coerce.number().min(0).max(100000),
   fee: z.coerce.number().min(0).max(1000000),
+  loyalty_points: z.coerce.number().min(0).max(10000).optional(),
   exam_portal_id: z.string().optional(),
   status: z.enum(["active", "inactive"]),
 });
@@ -53,6 +54,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
       duration_months: course?.duration_months || 6,
       exam_fee: Number((course as any)?.exam_fee) || 0,
       fee: Number(course?.fee) || 0,
+      loyalty_points: Number((course as any)?.loyalty_points) || 0,
       exam_portal_id: (course as any)?.exam_portal_id || "",
       status: (course?.status as "active" | "inactive") || "active",
     },
@@ -67,6 +69,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
       duration_months: values.duration_months,
       exam_fee: values.exam_fee,
       fee: values.fee,
+      loyalty_points: values.loyalty_points || 0,
       exam_portal_id: values.exam_portal_id || null,
       status: values.status,
     };
@@ -192,6 +195,15 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
                 </FormItem>
               )} />
           </div>
+          <FormField control={form.control} name="loyalty_points"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Loyalty Points (Optional)</FormLabel>
+                <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
+                <FormDescription className="text-xs">Points awarded to center per admission in this course</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
         </div>
 
         <FormField control={form.control} name="exam_portal_id"

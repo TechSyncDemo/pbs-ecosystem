@@ -95,6 +95,7 @@ export function CoursesTable({ courses, onEdit, onToggleStatus, onManageSyllabus
               <TableHead>Duration</TableHead>
               <TableHead>Exam Fee</TableHead>
               <TableHead>Full Fee</TableHead>
+              <TableHead>Loyalty Pts</TableHead>
               <TableHead>Enrolled</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -132,6 +133,9 @@ export function CoursesTable({ courses, onEdit, onToggleStatus, onManageSyllabus
                 </TableCell>
                 <TableCell className="font-medium">
                   {formatCurrency(course.fee)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {(course as any).loyalty_points || 0}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1.5">
