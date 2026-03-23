@@ -3,27 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { BookOpen, Search, Plus, IndianRupee, Users, Download } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { CourseForm } from '@/components/admin/CourseForm';
 import { CoursesTable } from '@/components/admin/CoursesTable';
+import { CourseSyllabusDialog } from '@/components/admin/CourseSyllabusDialog';
 import {
-  useCourseStats,
-  useCoursesWithStudentCount,
-  useCreateCourse,
-  useUpdateCourse,
-  useToggleCourseStatus,
-  type Course,
-  type CourseInsert,
-  type CourseUpdate,
-  type CourseWithStudentCount,
+  useCourseStats, useCoursesWithStudentCount, useCreateCourse, useUpdateCourse, useToggleCourseStatus,
+  type CourseInsert, type CourseUpdate, type CourseWithStudentCount,
 } from '@/hooks/useCourses';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -32,6 +21,8 @@ export default function AdminCourses() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseWithStudentCount | null>(null);
+  const [syllabusDialogOpen, setSyllabusDialogOpen] = useState(false);
+  const [syllabusCourse, setSyllabusCourse] = useState<{ id: string; name: string } | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useCourseStats();
   const { data: courses, isLoading: coursesLoading } = useCoursesWithStudentCount();
@@ -50,20 +41,11 @@ export default function AdminCourses() {
   }, [courses, searchQuery]);
 
   const handleCreateCourse = (data: CourseInsert) => {
-    createCourse.mutate(data, {
-      onSuccess: () => {
-        setIsAddDialogOpen(false);
-      },
-    });
+    createCourse.mutate(data, { onSuccess: () => setIsAddDialogOpen(false) });
   };
 
   const handleUpdateCourse = (data: CourseUpdate & { id: string }) => {
-    updateCourse.mutate(data, {
-      onSuccess: () => {
-        setIsEditDialogOpen(false);
-        setEditingCourse(null);
-      },
-    });
+    updateCourse.mutate(data, { onSuccess: () => { setIsEditDialogOpen(false); setEditingCourse(null); } });
   };
 
   const handleEditClick = (course: CourseWithStudentCount) => {
@@ -75,25 +57,23 @@ export default function AdminCourses() {
     toggleStatus.mutate({ id, status: newStatus });
   };
 
+  const handleManageSyllabus = (courseId: string) => {
+    const course = courses?.find(c => c.id === courseId);
+    if (course) {
+      setSyllabusCourse({ id: course.id, name: course.name });
+      setSyllabusDialogOpen(true);
+    }
+  };
+
   const handleExport = () => {
     if (!courses) return;
-    
     const headers = ['Name', 'Code', 'Duration (Months)', 'Exam Fee', 'Full Fee', 'Loyalty Points', 'Students', 'Status'];
     const csvData = courses.map(course => [
-      course.name,
-      course.code,
-      course.duration_months,
-      (course as any).exam_fee || 0,
-      course.fee,
-      (course as any).loyalty_points || 0,
-      course.studentCount,
-      course.status,
+      course.name, course.code, course.duration_months,
+      (course as any).exam_fee || 0, course.fee, (course as any).loyalty_points || 0,
+      course.studentCount, course.status,
     ]);
-    
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-    
+    const csvContent = [headers, ...csvData].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -103,13 +83,8 @@ export default function AdminCourses() {
     URL.revokeObjectURL(url);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount);
 
   return (
     <AdminLayout>
@@ -122,28 +97,18 @@ export default function AdminCourses() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExport} disabled={!courses?.length}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
+              <Download className="w-4 h-4 mr-2" />Export
             </Button>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Course
-                </Button>
+                <Button><Plus className="w-4 h-4 mr-2" />Add Course</Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Course</DialogTitle>
-                  <DialogDescription>
-                    Add a new course to the catalog.
-                  </DialogDescription>
+                  <DialogDescription>Add a new course to the catalog.</DialogDescription>
                 </DialogHeader>
-                <CourseForm
-                  onSubmit={handleCreateCourse}
-                  onCancel={() => setIsAddDialogOpen(false)}
-                  isSubmitting={createCourse.isPending}
-                />
+                <CourseForm onSubmit={handleCreateCourse} onCancel={() => setIsAddDialogOpen(false)} isSubmitting={createCourse.isPending} />
               </DialogContent>
             </Dialog>
           </div>
@@ -151,104 +116,32 @@ export default function AdminCourses() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  {statsLoading ? (
-                    <Skeleton className="h-8 w-12" />
-                  ) : (
-                    <p className="text-2xl font-bold">{stats?.total || 0}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">Total Courses</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  {statsLoading ? (
-                    <Skeleton className="h-8 w-12" />
-                  ) : (
-                    <p className="text-2xl font-bold">{stats?.active || 0}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">Active</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-info" />
-                </div>
-                <div>
-                  {statsLoading ? (
-                    <Skeleton className="h-8 w-12" />
-                  ) : (
-                    <p className="text-2xl font-bold">{stats?.totalEnrollments || 0}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">Enrollments</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <IndianRupee className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  {statsLoading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <p className="text-2xl font-bold">{formatCurrency(stats?.avgFee || 0)}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">Avg. Fee</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="border-0 shadow-card"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><BookOpen className="w-5 h-5 text-primary" /></div><div>{statsLoading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats?.total || 0}</p>}<p className="text-sm text-muted-foreground">Total Courses</p></div></div></CardContent></Card>
+          <Card className="border-0 shadow-card"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><BookOpen className="w-5 h-5 text-success" /></div><div>{statsLoading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats?.active || 0}</p>}<p className="text-sm text-muted-foreground">Active</p></div></div></CardContent></Card>
+          <Card className="border-0 shadow-card"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center"><Users className="w-5 h-5 text-info" /></div><div>{statsLoading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{stats?.totalEnrollments || 0}</p>}<p className="text-sm text-muted-foreground">Enrollments</p></div></div></CardContent></Card>
+          <Card className="border-0 shadow-card"><CardContent className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center"><IndianRupee className="w-5 h-5 text-warning" /></div><div>{statsLoading ? <Skeleton className="h-8 w-20" /> : <p className="text-2xl font-bold">{formatCurrency(stats?.avgFee || 0)}</p>}<p className="text-sm text-muted-foreground">Avg. Fee</p></div></div></CardContent></Card>
         </div>
 
-        {/* Search and Table */}
+        {/* Table */}
         <Card className="border-0 shadow-card">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="font-heading">All Courses</CardTitle>
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search courses..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+                <Input placeholder="Search courses..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
               </div>
             </div>
           </CardHeader>
           <CardContent>
             {coursesLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
+              <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
             ) : (
               <CoursesTable
                 courses={filteredCourses}
                 onEdit={handleEditClick}
                 onToggleStatus={handleToggleStatus}
+                onManageSyllabus={handleManageSyllabus}
                 isUpdating={toggleStatus.isPending}
               />
             )}
@@ -260,23 +153,29 @@ export default function AdminCourses() {
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Course</DialogTitle>
-              <DialogDescription>
-                Update the course details below.
-              </DialogDescription>
+              <DialogDescription>Update the course details below.</DialogDescription>
             </DialogHeader>
             {editingCourse && (
               <CourseForm
                 course={editingCourse}
                 onSubmit={(data) => handleUpdateCourse(data as CourseUpdate & { id: string })}
-                onCancel={() => {
-                  setIsEditDialogOpen(false);
-                  setEditingCourse(null);
-                }}
+                onCancel={() => { setIsEditDialogOpen(false); setEditingCourse(null); }}
                 isSubmitting={updateCourse.isPending}
+                onManageSyllabus={handleManageSyllabus}
               />
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Syllabus Dialog */}
+        {syllabusCourse && (
+          <CourseSyllabusDialog
+            open={syllabusDialogOpen}
+            onOpenChange={(v) => { setSyllabusDialogOpen(v); if (!v) setSyllabusCourse(null); }}
+            courseId={syllabusCourse.id}
+            courseName={syllabusCourse.name}
+          />
+        )}
       </div>
     </AdminLayout>
   );
