@@ -47,30 +47,39 @@ export type Database = {
       authorizations: {
         Row: {
           code: string
+          commission_rate: number
           created_at: string
           description: string | null
+          fees: number
           id: string
           name: string
           status: string
           updated_at: string
+          validity_days: number
         }
         Insert: {
           code: string
+          commission_rate?: number
           created_at?: string
           description?: string | null
+          fees?: number
           id?: string
           name: string
           status?: string
           updated_at?: string
+          validity_days?: number
         }
         Update: {
           code?: string
+          commission_rate?: number
           created_at?: string
           description?: string | null
+          fees?: number
           id?: string
           name?: string
           status?: string
           updated_at?: string
+          validity_days?: number
         }
         Relationships: []
       }
