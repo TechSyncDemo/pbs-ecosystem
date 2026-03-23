@@ -338,11 +338,25 @@ export default function CenterProfile() {
                                 <p className="text-xs text-muted-foreground">
                                   {course.course_code} · {course.course_duration} months · ₹{Number(course.course_fee || 0).toLocaleString()}
                                 </p>
+                                {course.valid_from && course.valid_until && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Clock className="w-3 h-3 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(parseISO(course.valid_from), 'dd MMM yyyy')} — {format(parseISO(course.valid_until), 'dd MMM yyyy')}
+                                    </span>
+                                    {(() => {
+                                      const daysLeft = differenceInDays(parseISO(course.valid_until), new Date());
+                                      if (daysLeft < 0) return <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Expired</Badge>;
+                                      if (daysLeft <= 30) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{daysLeft}d left</Badge>;
+                                      return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success text-success">{daysLeft}d left</Badge>;
+                                    })()}
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                               {course.loyalty_points > 0 && (
-                                <Badge variant="outline" className="text-amber-500 border-amber-500/30">
+                                <Badge variant="outline" className="border-amber-500/30 text-amber-500">
                                   <Star className="w-3 h-3 mr-1" />
                                   {course.loyalty_points} pts
                                 </Badge>
@@ -350,6 +364,26 @@ export default function CenterProfile() {
                               <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
                                 {course.status}
                               </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2"
+                                onClick={() => {
+                                  generateAuthorityCertificate({
+                                    authorizationName: group.authName,
+                                    authorizationCode: group.authCode,
+                                    centerName: center?.name || '',
+                                    centerCode: center?.code || '',
+                                    courseName: course.course_name || '',
+                                    courseCode: course.course_code || '',
+                                    validFrom: course.valid_from ? format(parseISO(course.valid_from), 'dd MMM yyyy') : 'N/A',
+                                    validUntil: course.valid_until ? format(parseISO(course.valid_until), 'dd MMM yyyy') : 'N/A',
+                                    certificateNo: course.certificate_no || course.id.slice(0, 8).toUpperCase(),
+                                  });
+                                }}
+                              >
+                                <FileDown className="w-3.5 h-3.5" />
+                              </Button>
                             </div>
                           </div>
                         ))}
