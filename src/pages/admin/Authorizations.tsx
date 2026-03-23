@@ -20,7 +20,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Search, Plus, MoreHorizontal, Edit, Power, PowerOff, UserCheck, BookOpen,
+  Search, Plus, MoreHorizontal, Edit, Power, PowerOff, UserCheck, BookOpen, Building, FileDown,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import {
@@ -29,8 +29,14 @@ import {
   useUpdateAuthorization,
   useToggleAuthorizationStatus,
   type AuthorizationWithCourseCount,
-  type AuthorizationInsert,
 } from '@/hooks/useAuthorizations';
+import { AuthorizationForm } from '@/components/admin/AuthorizationForm';
+import { useCenters } from '@/hooks/useCenters';
+import { useAssignCourseToCenter } from '@/hooks/useCenterCourses';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+import { generateAuthorityCertificate } from '@/lib/generateAuthorityCertificate';
+import { format } from 'date-fns';
 
 export default function AdminAuthorizations() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,14 +44,35 @@ export default function AdminAuthorizations() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingAuth, setEditingAuth] = useState<AuthorizationWithCourseCount | null>(null);
   const [toggleAuth, setToggleAuth] = useState<AuthorizationWithCourseCount | null>(null);
+  const [assignAuth, setAssignAuth] = useState<AuthorizationWithCourseCount | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState({ name: '', code: '', description: '' });
+  const [formData, setFormData] = useState({
+    name: '', code: '', description: '', validity_days: '365', fees: '0', commission_rate: '0',
+  });
 
   const { data: authorizations, isLoading } = useAuthorizationsWithCourseCount();
   const createAuth = useCreateAuthorization();
   const updateAuth = useUpdateAuthorization();
   const toggleStatus = useToggleAuthorizationStatus();
+  const { data: centers = [] } = useCenters();
+  const assignCourse = useAssignCourseToCenter();
+
+  // Fetch courses filtered by selected authorization
+  const { data: authCourses = [] } = useQuery({
+    queryKey: ['courses-by-auth', assignAuth?.id],
+    queryFn: async () => {
+      if (!assignAuth?.id) return [];
+      const { data, error } = await supabase
+        .from('courses')
+        .select('id, name, code, fee')
+        .eq('authorization_id', assignAuth.id)
+        .eq('status', 'active');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!assignAuth?.id,
+  });
 
   const filtered = useMemo(() => {
     if (!authorizations) return [];
@@ -64,26 +91,48 @@ export default function AdminAuthorizations() {
     };
   }, [authorizations]);
 
-  const resetForm = () => setFormData({ name: '', code: '', description: '' });
+  const resetForm = () => setFormData({ name: '', code: '', description: '', validity_days: '365', fees: '0', commission_rate: '0' });
 
   const handleCreate = () => {
     if (!formData.name || !formData.code) return;
     createAuth.mutate(
-      { name: formData.name, code: formData.code.toUpperCase(), description: formData.description || null },
+      {
+        name: formData.name,
+        code: formData.code.toUpperCase(),
+        description: formData.description || null,
+        validity_days: parseInt(formData.validity_days) || 365,
+        fees: parseFloat(formData.fees) || 0,
+        commission_rate: parseFloat(formData.commission_rate) || 0,
+      },
       { onSuccess: () => { setIsAddOpen(false); resetForm(); } }
     );
   };
 
   const handleEditClick = (auth: AuthorizationWithCourseCount) => {
     setEditingAuth(auth);
-    setFormData({ name: auth.name, code: auth.code, description: auth.description || '' });
+    setFormData({
+      name: auth.name,
+      code: auth.code,
+      description: auth.description || '',
+      validity_days: String(auth.validity_days || 365),
+      fees: String(auth.fees || 0),
+      commission_rate: String(auth.commission_rate || 0),
+    });
     setIsEditOpen(true);
   };
 
   const handleUpdate = () => {
     if (!editingAuth || !formData.name || !formData.code) return;
     updateAuth.mutate(
-      { id: editingAuth.id, name: formData.name, code: formData.code.toUpperCase(), description: formData.description || null },
+      {
+        id: editingAuth.id,
+        name: formData.name,
+        code: formData.code.toUpperCase(),
+        description: formData.description || null,
+        validity_days: parseInt(formData.validity_days) || 365,
+        fees: parseFloat(formData.fees) || 0,
+        commission_rate: parseFloat(formData.commission_rate) || 0,
+      },
       { onSuccess: () => { setIsEditOpen(false); setEditingAuth(null); resetForm(); } }
     );
   };
@@ -94,6 +143,15 @@ export default function AdminAuthorizations() {
     toggleStatus.mutate({ id: toggleAuth.id, status: newStatus as 'active' | 'inactive' });
     setToggleAuth(null);
   };
+
+  const handleAssignSubmit = (data: any) => {
+    assignCourse.mutate(data, {
+      onSuccess: () => setAssignAuth(null),
+    });
+  };
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount);
 
   const renderForm = (isEdit: boolean) => (
     <div className="space-y-4">
@@ -114,6 +172,23 @@ export default function AdminAuthorizations() {
         <Textarea placeholder="Describe this authorization category..." rows={3}
           value={formData.description}
           onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label>Validity (Days)</Label>
+          <Input type="number" placeholder="365" value={formData.validity_days}
+            onChange={e => setFormData(p => ({ ...p, validity_days: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label>Authorization Fees (₹)</Label>
+          <Input type="number" placeholder="0" value={formData.fees}
+            onChange={e => setFormData(p => ({ ...p, fees: e.target.value }))} />
+        </div>
+        <div className="space-y-2">
+          <Label>Commission Rate (%)</Label>
+          <Input type="number" placeholder="0" min={0} max={100} value={formData.commission_rate}
+            onChange={e => setFormData(p => ({ ...p, commission_rate: e.target.value }))} />
+        </div>
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={() => { isEdit ? setIsEditOpen(false) : setIsAddOpen(false); resetForm(); }}>
@@ -140,7 +215,7 @@ export default function AdminAuthorizations() {
             <DialogTrigger asChild>
               <Button><Plus className="w-4 h-4 mr-2" />Add Authorization</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle>Create Authorization</DialogTitle>
                 <DialogDescription>Add a new specialization category.</DialogDescription>
@@ -219,6 +294,9 @@ export default function AdminAuthorizations() {
                     <TableRow className="bg-muted/50">
                       <TableHead>Name</TableHead>
                       <TableHead>Code</TableHead>
+                      <TableHead>Validity</TableHead>
+                      <TableHead>Fees</TableHead>
+                      <TableHead>Commission</TableHead>
                       <TableHead>Courses</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-12"></TableHead>
@@ -234,6 +312,9 @@ export default function AdminAuthorizations() {
                           </div>
                         </TableCell>
                         <TableCell><Badge variant="outline">{auth.code}</Badge></TableCell>
+                        <TableCell className="text-muted-foreground">{auth.validity_days || 365} days</TableCell>
+                        <TableCell className="text-muted-foreground">{formatCurrency(auth.fees || 0)}</TableCell>
+                        <TableCell className="text-muted-foreground">{auth.commission_rate || 0}%</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
@@ -257,6 +338,9 @@ export default function AdminAuthorizations() {
                               <DropdownMenuItem onClick={() => handleEditClick(auth)}>
                                 <Edit className="w-4 h-4 mr-2" />Edit
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setAssignAuth(auth)}>
+                                <Building className="w-4 h-4 mr-2" />Assign to Center
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => setToggleAuth(auth)}
                                 className={auth.status === 'active' ? 'text-destructive' : 'text-success'}>
@@ -276,12 +360,33 @@ export default function AdminAuthorizations() {
 
         {/* Edit Dialog */}
         <Dialog open={isEditOpen} onOpenChange={v => { setIsEditOpen(v); if (!v) { setEditingAuth(null); resetForm(); } }}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Edit Authorization</DialogTitle>
               <DialogDescription>Update the authorization details.</DialogDescription>
             </DialogHeader>
             {renderForm(true)}
+          </DialogContent>
+        </Dialog>
+
+        {/* Assign to Center Dialog */}
+        <Dialog open={!!assignAuth} onOpenChange={v => { if (!v) setAssignAuth(null); }}>
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Assign "{assignAuth?.name}" to Center</DialogTitle>
+              <DialogDescription>
+                Assign a course under this authorization to a center with financial details.
+              </DialogDescription>
+            </DialogHeader>
+            {assignAuth && (
+              <AuthorizationForm
+                centers={centers.filter(c => c.status === 'active').map(c => ({ id: c.id, name: c.name, code: c.code }))}
+                courses={authCourses.map(c => ({ id: c.id, name: c.name, code: c.code, fee: Number(c.fee) }))}
+                onSubmit={handleAssignSubmit}
+                onCancel={() => setAssignAuth(null)}
+                isLoading={assignCourse.isPending}
+              />
+            )}
           </DialogContent>
         </Dialog>
 
