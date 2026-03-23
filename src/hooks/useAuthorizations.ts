@@ -8,6 +8,9 @@ export interface Authorization {
   code: string;
   description: string | null;
   status: string;
+  validity_days: number;
+  fees: number;
+  commission_rate: number;
   created_at: string;
   updated_at: string;
 }
@@ -17,6 +20,9 @@ export interface AuthorizationInsert {
   code: string;
   description?: string | null;
   status?: string;
+  validity_days?: number;
+  fees?: number;
+  commission_rate?: number;
 }
 
 export interface AuthorizationUpdate {
@@ -25,6 +31,9 @@ export interface AuthorizationUpdate {
   code?: string;
   description?: string | null;
   status?: string;
+  validity_days?: number;
+  fees?: number;
+  commission_rate?: number;
 }
 
 export interface AuthorizationWithCourseCount extends Authorization {
