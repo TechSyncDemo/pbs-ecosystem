@@ -38,6 +38,8 @@ import { useCenters, useUpdateCenter } from '@/hooks/useCenters';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { generateAuthorityCertificate } from '@/lib/generateAuthorityCertificate';
+import { format, differenceInDays, parseISO } from 'date-fns';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | React.ReactNode }) => (
   <div className="flex items-start gap-3">
