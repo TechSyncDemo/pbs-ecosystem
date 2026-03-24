@@ -1,10 +1,12 @@
 import jsPDF from 'jspdf';
+import certificateTemplateSrc from '@/assets/certificate-template.jpg';
 
 interface CertificateData {
   authorizationName: string;
   authorizationCode: string;
   centerName: string;
   centerCode: string;
+  centerAddress: string;
   courseName: string;
   courseCode: string;
   validFrom: string;
@@ -12,81 +14,77 @@ interface CertificateData {
   certificateNo: string;
 }
 
-export function generateAuthorityCertificate(data: CertificateData) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+async function loadImage(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject('Canvas not supported');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.95));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
-  // Border
-  doc.setDrawColor(0, 102, 153);
-  doc.setLineWidth(2);
-  doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
-  doc.setLineWidth(0.5);
-  doc.rect(14, 14, pageWidth - 28, pageHeight - 28);
+export async function generateAuthorityCertificate(data: CertificateData) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth(); // 210
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297
+  const centerX = pageWidth / 2;
 
-  // Header
-  doc.setFontSize(14);
-  doc.setTextColor(100, 100, 100);
-  doc.text('PROACTIVE BUSINESS SCHOOL', pageWidth / 2, 30, { align: 'center' });
+  // Load and add background template image
+  try {
+    const imgData = await loadImage(certificateTemplateSrc);
+    doc.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+  } catch {
+    // If image fails, draw a simple border fallback
+    doc.setDrawColor(0, 102, 153);
+    doc.setLineWidth(2);
+    doc.rect(8, 8, pageWidth - 16, pageHeight - 16);
+  }
 
-  doc.setFontSize(28);
-  doc.setTextColor(0, 80, 130);
+  // --- Overlay dynamic text on top of the template ---
+  // The template has fixed text like "Hereby confirms that", "situated at", etc.
+  // We place dynamic values in the blank spaces
+
+  // Center Name - after "Hereby confirms that" (~line at y≈108mm from top)
   doc.setFont('helvetica', 'bold');
-  doc.text('CERTIFICATE OF AUTHORIZATION', pageWidth / 2, 45, { align: 'center' });
-
-  // Decorative line
-  doc.setDrawColor(0, 102, 153);
-  doc.setLineWidth(1);
-  doc.line(60, 50, pageWidth - 60, 50);
-
-  // Body
-  doc.setFontSize(12);
-  doc.setTextColor(60, 60, 60);
-  doc.setFont('helvetica', 'normal');
-  doc.text('This is to certify that', pageWidth / 2, 65, { align: 'center' });
-
-  doc.setFontSize(20);
+  doc.setFontSize(16);
   doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'bold');
-  doc.text(data.centerName, pageWidth / 2, 78, { align: 'center' });
+  doc.text(data.centerName, centerX, 108, { align: 'center' });
 
-  doc.setFontSize(11);
-  doc.setTextColor(100, 100, 100);
+  // Center Address - after "situated at" (~y≈130mm)
   doc.setFont('helvetica', 'normal');
-  doc.text(`(Center Code: ${data.centerCode})`, pageWidth / 2, 86, { align: 'center' });
-
   doc.setFontSize(12);
-  doc.setTextColor(60, 60, 60);
-  doc.text('has been authorized under the specialization', pageWidth / 2, 98, { align: 'center' });
+  doc.setTextColor(30, 30, 30);
+  doc.text(data.centerAddress, centerX, 133, { align: 'center' });
 
-  doc.setFontSize(18);
-  doc.setTextColor(0, 80, 130);
+  // Authorization Name - after "to conduct ... certified Courses in" (~y≈178mm)
   doc.setFont('helvetica', 'bold');
-  doc.text(`${data.authorizationName} (${data.authorizationCode})`, pageWidth / 2, 110, { align: 'center' });
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.authorizationName, centerX + 30, 178, { align: 'left' });
 
-  doc.setFontSize(12);
-  doc.setTextColor(60, 60, 60);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`for the course: ${data.courseName} (${data.courseCode})`, pageWidth / 2, 122, { align: 'center' });
+  // Center Code - after "vide PLC code:" (~y≈214mm)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.centerCode, centerX + 15, 214, { align: 'left' });
 
-  // Validity
+  // Validity dates - "The validity of this authorisation is from ___ to ___" (~y≈232mm)
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.setTextColor(80, 80, 80);
-  doc.text(`Valid From: ${data.validFrom}`, pageWidth / 2 - 40, 140, { align: 'center' });
-  doc.text(`Valid Until: ${data.validUntil}`, pageWidth / 2 + 40, 140, { align: 'center' });
-
-  // Certificate number
-  doc.setFontSize(9);
-  doc.setTextColor(150, 150, 150);
-  doc.text(`Certificate No: ${data.certificateNo}`, pageWidth / 2, 155, { align: 'center' });
-
-  // Footer
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
-  doc.text('Authorized Signatory', pageWidth - 60, pageHeight - 30, { align: 'center' });
-  doc.line(pageWidth - 90, pageHeight - 33, pageWidth - 30, pageHeight - 33);
-
-  doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}`, 40, pageHeight - 30, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  // "from" date positioned after the word "from"
+  doc.text(data.validFrom, centerX + 25, 232, { align: 'center' });
+  // "to" date positioned after "to"
+  doc.text(data.validUntil, centerX + 60, 232, { align: 'center' });
 
   doc.save(`Authorization_Certificate_${data.certificateNo}.pdf`);
 }
