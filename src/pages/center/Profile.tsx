@@ -369,17 +369,18 @@ export default function CenterProfile() {
                                 variant="ghost"
                                 className="h-7 px-2"
                                 onClick={() => {
-                                  generateAuthorityCertificate({
+                                   generateAuthorityCertificate({
                                     authorizationName: group.authName,
                                     authorizationCode: group.authCode,
                                     centerName: center?.name || '',
                                     centerCode: center?.code || '',
+                                    centerAddress: [center?.address, center?.city, center?.state, center?.pincode].filter(Boolean).join(', '),
                                     courseName: course.course_name || '',
                                     courseCode: course.course_code || '',
                                     validFrom: course.valid_from ? format(parseISO(course.valid_from), 'dd MMM yyyy') : 'N/A',
                                     validUntil: course.valid_until ? format(parseISO(course.valid_until), 'dd MMM yyyy') : 'N/A',
                                     certificateNo: course.certificate_no || course.id.slice(0, 8).toUpperCase(),
-                                  });
+                                   });
                                 }}
                               >
                                 <FileDown className="w-3.5 h-3.5" />
