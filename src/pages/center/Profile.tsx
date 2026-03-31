@@ -34,7 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import CenterLayout from '@/layouts/CenterLayout';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCenters, useUpdateCenter } from '@/hooks/useCenters';
+import { useUpdateCenter } from '@/hooks/useCenters';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
