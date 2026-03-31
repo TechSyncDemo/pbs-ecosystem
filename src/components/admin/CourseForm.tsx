@@ -25,6 +25,8 @@ const courseFormSchema = z.object({
   duration_months: z.coerce.number().min(1).max(48),
   exam_fee: z.coerce.number().min(0).max(100000),
   fee: z.coerce.number().min(0).max(1000000),
+  max_marks: z.coerce.number().min(1).max(1000),
+  passing_marks: z.coerce.number().min(1).max(1000),
   loyalty_points: z.coerce.number().min(0).max(10000).optional(),
   exam_portal_id: z.string().optional(),
   status: z.enum(["active", "inactive"]),
