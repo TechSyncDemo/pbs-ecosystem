@@ -73,6 +73,8 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
       duration_months: values.duration_months,
       exam_fee: values.exam_fee,
       fee: values.fee,
+      max_marks: values.max_marks,
+      passing_marks: values.passing_marks,
       loyalty_points: values.loyalty_points || 0,
       exam_portal_id: values.exam_portal_id || null,
       status: values.status,
