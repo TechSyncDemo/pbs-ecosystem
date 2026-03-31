@@ -56,6 +56,8 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
       duration_months: course?.duration_months || 6,
       exam_fee: Number((course as any)?.exam_fee) || 0,
       fee: Number(course?.fee) || 0,
+      max_marks: Number((course as any)?.max_marks) || 100,
+      passing_marks: Number((course as any)?.passing_marks) || 40,
       loyalty_points: Number((course as any)?.loyalty_points) || 0,
       exam_portal_id: (course as any)?.exam_portal_id || "",
       status: (course?.status as "active" | "inactive") || "active",
