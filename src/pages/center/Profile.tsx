@@ -34,7 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import CenterLayout from '@/layouts/CenterLayout';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCenters, useUpdateCenter } from '@/hooks/useCenters';
+import { useUpdateCenter } from '@/hooks/useCenters';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,8 +56,20 @@ export default function CenterProfile() {
   const centerId = user?.centerId;
   const queryClient = useQueryClient();
 
-  const { data: centers = [], isLoading: centersLoading } = useCenters();
-  const center = centers.find(c => c.id === centerId);
+  const { data: allCenters = [], isLoading: centersLoading } = useQuery({
+    queryKey: ['my-center', centerId],
+    queryFn: async () => {
+      if (!centerId) return [];
+      const { data, error } = await supabase
+        .from('centers')
+        .select('*')
+        .eq('id', centerId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!centerId,
+  });
+  const center = allCenters[0];
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['user-profile', user?.id],

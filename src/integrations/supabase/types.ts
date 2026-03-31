@@ -339,7 +339,9 @@ export type Database = {
           fee: number
           id: string
           loyalty_points: number | null
+          max_marks: number
           name: string
+          passing_marks: number
           status: string | null
           updated_at: string
         }
@@ -354,7 +356,9 @@ export type Database = {
           fee?: number
           id?: string
           loyalty_points?: number | null
+          max_marks?: number
           name: string
+          passing_marks?: number
           status?: string | null
           updated_at?: string
         }
@@ -369,7 +373,9 @@ export type Database = {
           fee?: number
           id?: string
           loyalty_points?: number | null
+          max_marks?: number
           name?: string
+          passing_marks?: number
           status?: string | null
           updated_at?: string
         }

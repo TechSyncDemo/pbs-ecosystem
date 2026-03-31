@@ -25,6 +25,8 @@ const courseFormSchema = z.object({
   duration_months: z.coerce.number().min(1).max(48),
   exam_fee: z.coerce.number().min(0).max(100000),
   fee: z.coerce.number().min(0).max(1000000),
+  max_marks: z.coerce.number().min(1).max(1000),
+  passing_marks: z.coerce.number().min(1).max(1000),
   loyalty_points: z.coerce.number().min(0).max(10000).optional(),
   exam_portal_id: z.string().optional(),
   status: z.enum(["active", "inactive"]),
@@ -54,6 +56,8 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
       duration_months: course?.duration_months || 6,
       exam_fee: Number((course as any)?.exam_fee) || 0,
       fee: Number(course?.fee) || 0,
+      max_marks: Number((course as any)?.max_marks) || 100,
+      passing_marks: Number((course as any)?.passing_marks) || 40,
       loyalty_points: Number((course as any)?.loyalty_points) || 0,
       exam_portal_id: (course as any)?.exam_portal_id || "",
       status: (course?.status as "active" | "inactive") || "active",
@@ -69,6 +73,8 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
       duration_months: values.duration_months,
       exam_fee: values.exam_fee,
       fee: values.fee,
+      max_marks: values.max_marks,
+      passing_marks: values.passing_marks,
       loyalty_points: values.loyalty_points || 0,
       exam_portal_id: values.exam_portal_id || null,
       status: values.status,
@@ -204,6 +210,34 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
                 <FormMessage />
               </FormItem>
             )} />
+        </div>
+
+        {/* Marks Configuration */}
+        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium">Marks Configuration</h3>
+            <Badge variant="outline">For Marksheet</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.control} name="max_marks"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Total Marks (Out of)</FormLabel>
+                  <FormControl><Input type="number" min={1} placeholder="100" {...field} /></FormControl>
+                  <FormDescription className="text-xs">Maximum marks for this course</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            <FormField control={form.control} name="passing_marks"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Passing Marks</FormLabel>
+                  <FormControl><Input type="number" min={1} placeholder="40" {...field} /></FormControl>
+                  <FormDescription className="text-xs">Minimum marks to pass</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+          </div>
         </div>
 
         <FormField control={form.control} name="exam_portal_id"

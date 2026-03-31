@@ -166,9 +166,35 @@ export function CenterForm({ center, onSubmit, onCancel, isLoading, isCreatingUs
     generateCenterCode(value); // Generate code based on state
   };
 
-  const handleSubmit = (values: CenterFormValues) => {
+  const handleSubmit = async (values: CenterFormValues) => {
     const { login_email, login_password, confirm_password, coordinator_id, ...centerData } = values;
     
+    // Check for duplicate email/phone (only for new centers or changed values)
+    if (centerData.email) {
+      const { data: existingEmail } = await supabase
+        .from('centers')
+        .select('id')
+        .eq('email', centerData.email)
+        .neq('id', center?.id || '')
+        .maybeSingle();
+      if (existingEmail) {
+        form.setError('email', { message: 'This email is already registered with another center' });
+        return;
+      }
+    }
+    if (centerData.phone) {
+      const { data: existingPhone } = await supabase
+        .from('centers')
+        .select('id')
+        .eq('phone', centerData.phone)
+        .neq('id', center?.id || '')
+        .maybeSingle();
+      if (existingPhone) {
+        form.setError('phone', { message: 'This phone number is already registered with another center' });
+        return;
+      }
+    }
+
     // If creating a new center with user credentials
     const userCredentials = !isEditing && login_email && login_password
       ? { email: login_email, password: login_password, fullName: values.contact_person || values.name }
