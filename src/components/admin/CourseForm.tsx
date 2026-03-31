@@ -212,6 +212,34 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
             )} />
         </div>
 
+        {/* Marks Configuration */}
+        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium">Marks Configuration</h3>
+            <Badge variant="outline">For Marksheet</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.control} name="max_marks"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Total Marks (Out of)</FormLabel>
+                  <FormControl><Input type="number" min={1} placeholder="100" {...field} /></FormControl>
+                  <FormDescription className="text-xs">Maximum marks for this course</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            <FormField control={form.control} name="passing_marks"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Passing Marks</FormLabel>
+                  <FormControl><Input type="number" min={1} placeholder="40" {...field} /></FormControl>
+                  <FormDescription className="text-xs">Minimum marks to pass</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+          </div>
+        </div>
+
         <FormField control={form.control} name="exam_portal_id"
           render={({ field }) => (
             <FormItem>
