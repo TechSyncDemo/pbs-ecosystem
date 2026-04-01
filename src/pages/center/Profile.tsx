@@ -294,15 +294,15 @@ export default function CenterProfile() {
           </Card>
         </div>
 
-        {/* Authorizations & Courses */}
+        {/* Authorizations */}
         <Card className="border-0 shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5" />
-              Authorizations & Courses
+              Authorizations
             </CardTitle>
             <CardDescription>
-              Your authorized specializations and their courses.
+              Your authorized specializations, validity and earned points.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -312,98 +312,76 @@ export default function CenterProfile() {
               </div>
             ) : (
               <div className="space-y-3">
-                {groupedAuthorizations.map((group) => (
-                  <Collapsible
-                    key={group.id}
-                    open={expandedAuths[group.id]}
-                    onOpenChange={() => toggleAuth(group.id)}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <ShieldCheck className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{group.authName}</p>
-                            <p className="text-sm text-muted-foreground">{group.authCode} · {group.courses.length} course{group.courses.length !== 1 ? 's' : ''}</p>
-                          </div>
+                {groupedAuthorizations.map((group) => {
+                  // Calculate validity from first course in group
+                  const firstCourse = group.courses[0];
+                  const validFrom = firstCourse?.valid_from;
+                  const validUntil = firstCourse?.valid_until;
+                  const daysLeft = validUntil ? differenceInDays(parseISO(validUntil), new Date()) : null;
+                  const totalPoints = group.courses.reduce((sum: number, c: any) => sum + (c.loyalty_points || 0), 0);
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-4 rounded-xl bg-muted/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <ShieldCheck className="w-5 h-5 text-primary" />
                         </div>
-                        {expandedAuths[group.id] ? (
-                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                        )}
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="ml-4 mt-2 space-y-2">
-                        {group.courses.map((course: any) => (
-                          <div
-                            key={course.id}
-                            className="flex items-center justify-between p-3 rounded-lg bg-background border"
-                          >
-                            <div className="flex items-center gap-3">
-                              <BookOpen className="w-4 h-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium text-sm">{course.course_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {course.course_code} · {course.course_duration} months · ₹{Number(course.course_fee || 0).toLocaleString()}
-                                </p>
-                                {course.valid_from && course.valid_until && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Clock className="w-3 h-3 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">
-                                      {format(parseISO(course.valid_from), 'dd MMM yyyy')} — {format(parseISO(course.valid_until), 'dd MMM yyyy')}
-                                    </span>
-                                    {(() => {
-                                      const daysLeft = differenceInDays(parseISO(course.valid_until), new Date());
-                                      if (daysLeft < 0) return <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Expired</Badge>;
-                                      if (daysLeft <= 30) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{daysLeft}d left</Badge>;
-                                      return <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success text-success">{daysLeft}d left</Badge>;
-                                    })()}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {course.loyalty_points > 0 && (
-                                <Badge variant="outline" className="border-amber-500/30 text-amber-500">
-                                  <Star className="w-3 h-3 mr-1" />
-                                  {course.loyalty_points} pts
-                                </Badge>
+                        <div>
+                          <p className="font-semibold">{group.authName}</p>
+                          <p className="text-sm text-muted-foreground">{group.authCode}</p>
+                          {validFrom && validUntil && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                {format(parseISO(validFrom), 'dd MMM yyyy')} — {format(parseISO(validUntil), 'dd MMM yyyy')}
+                              </span>
+                              {daysLeft !== null && (
+                                daysLeft < 0
+                                  ? <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Expired</Badge>
+                                  : daysLeft <= 30
+                                    ? <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning"><AlertTriangle className="w-2.5 h-2.5 mr-0.5" />{daysLeft}d left</Badge>
+                                    : <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success text-success">{daysLeft}d left</Badge>
                               )}
-                              <Badge variant={course.status === 'active' ? 'default' : 'secondary'}>
-                                {course.status}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2"
-                                onClick={() => {
-                                   generateAuthorityCertificate({
-                                    authorizationName: group.authName,
-                                    authorizationCode: group.authCode,
-                                    centerName: center?.name || '',
-                                    centerCode: center?.code || '',
-                                    centerAddress: [center?.address, center?.city, center?.state, center?.pincode].filter(Boolean).join(', '),
-                                    courseName: course.course_name || '',
-                                    courseCode: course.course_code || '',
-                                    validFrom: course.valid_from ? format(parseISO(course.valid_from), 'dd MMM yyyy') : 'N/A',
-                                    validUntil: course.valid_until ? format(parseISO(course.valid_until), 'dd MMM yyyy') : 'N/A',
-                                    certificateNo: course.certificate_no || course.id.slice(0, 8).toUpperCase(),
-                                   });
-                                }}
-                              >
-                                <FileDown className="w-3.5 h-3.5" />
-                              </Button>
                             </div>
-                          </div>
-                        ))}
+                          )}
+                        </div>
                       </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))}
+                      <div className="flex items-center gap-3">
+                        {totalPoints > 0 && (
+                          <Badge variant="outline" className="border-amber-500/30 text-amber-500">
+                            <Star className="w-3 h-3 mr-1" />
+                            {totalPoints} pts
+                          </Badge>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() => {
+                            generateAuthorityCertificate({
+                              authorizationName: group.authName,
+                              authorizationCode: group.authCode,
+                              centerName: center?.name || '',
+                              centerCode: center?.code || '',
+                              centerAddress: [center?.address, center?.city, center?.state, center?.pincode].filter(Boolean).join(', '),
+                              courseName: group.authName,
+                              courseCode: group.authCode,
+                              validFrom: validFrom ? format(parseISO(validFrom), 'dd MMM yyyy') : 'N/A',
+                              validUntil: validUntil ? format(parseISO(validUntil), 'dd MMM yyyy') : 'N/A',
+                              certificateNo: firstCourse?.certificate_no || group.id.slice(0, 8).toUpperCase(),
+                            });
+                          }}
+                        >
+                          <FileDown className="w-3.5 h-3.5 mr-1" />
+                          Certificate
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

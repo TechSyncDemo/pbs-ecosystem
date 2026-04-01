@@ -89,15 +89,25 @@ export default function CenterEnquiries() {
   const handleAddEnquiry = async () => {
     if (!centerId) return;
 
-    await createEnquiry.mutateAsync({
+    const payload: any = {
       center_id: centerId,
       name: newEnquiry.name,
       phone: newEnquiry.phone,
-      email: newEnquiry.email || null,
-      course_id: newEnquiry.course_id || null,
       source: newEnquiry.source || 'walk-in',
       status: 'new',
-    });
+    };
+    
+    // Only include email if non-empty
+    if (newEnquiry.email && newEnquiry.email.trim()) {
+      payload.email = newEnquiry.email.trim().toLowerCase();
+    }
+    
+    // Only include course_id if selected
+    if (newEnquiry.course_id) {
+      payload.course_id = newEnquiry.course_id;
+    }
+
+    await createEnquiry.mutateAsync(payload);
 
     setIsAddDialogOpen(false);
     setNewEnquiry({ name: '', phone: '', email: '', course_id: '', source: '' });
