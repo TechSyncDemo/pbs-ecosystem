@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronRight,
   Star,
-  BookOpen,
   Lock,
   FileDown,
   Clock,
