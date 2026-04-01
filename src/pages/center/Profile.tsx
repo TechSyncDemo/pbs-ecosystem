@@ -159,7 +159,6 @@ export default function CenterProfile() {
   });
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [expandedAuths, setExpandedAuths] = useState<Record<string, boolean>>({});
   const [editableData, setEditableData] = useState({
     address: '',
     city: '',
@@ -170,10 +169,6 @@ export default function CenterProfile() {
     profileName: '',
     profilePhone: '',
   });
-
-  const toggleAuth = (authId: string) => {
-    setExpandedAuths(prev => ({ ...prev, [authId]: !prev[authId] }));
-  };
 
   const handleOpenEdit = () => {
     setEditableData({
