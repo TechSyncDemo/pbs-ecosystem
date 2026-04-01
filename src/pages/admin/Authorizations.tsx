@@ -17,10 +17,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Search, Plus, MoreHorizontal, Edit, Power, PowerOff, UserCheck, BookOpen, Building, FileDown,
+  Search, Plus, MoreHorizontal, Edit, Power, PowerOff, UserCheck, BookOpen, Building,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import {
@@ -30,13 +33,10 @@ import {
   useToggleAuthorizationStatus,
   type AuthorizationWithCourseCount,
 } from '@/hooks/useAuthorizations';
-import { AuthorizationForm } from '@/components/admin/AuthorizationForm';
 import { useCenters } from '@/hooks/useCenters';
-import { useAssignCourseToCenter } from '@/hooks/useCenterCourses';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
-import { generateAuthorityCertificate } from '@/lib/generateAuthorityCertificate';
-import { format } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export default function AdminAuthorizations() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,6 +45,8 @@ export default function AdminAuthorizations() {
   const [editingAuth, setEditingAuth] = useState<AuthorizationWithCourseCount | null>(null);
   const [toggleAuth, setToggleAuth] = useState<AuthorizationWithCourseCount | null>(null);
   const [assignAuth, setAssignAuth] = useState<AuthorizationWithCourseCount | null>(null);
+  const [selectedCenterId, setSelectedCenterId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -56,23 +58,7 @@ export default function AdminAuthorizations() {
   const updateAuth = useUpdateAuthorization();
   const toggleStatus = useToggleAuthorizationStatus();
   const { data: centers = [] } = useCenters();
-  const assignCourse = useAssignCourseToCenter();
-
-  // Fetch courses filtered by selected authorization
-  const { data: authCourses = [] } = useQuery({
-    queryKey: ['courses-by-auth', assignAuth?.id],
-    queryFn: async () => {
-      if (!assignAuth?.id) return [];
-      const { data, error } = await supabase
-        .from('courses')
-        .select('id, name, code, fee')
-        .eq('authorization_id', assignAuth.id)
-        .eq('status', 'active');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!assignAuth?.id,
-  });
+  const queryClient = useQueryClient();
 
   const filtered = useMemo(() => {
     if (!authorizations) return [];
@@ -144,10 +130,56 @@ export default function AdminAuthorizations() {
     setToggleAuth(null);
   };
 
-  const handleAssignSubmit = (data: any) => {
-    assignCourse.mutate(data, {
-      onSuccess: () => setAssignAuth(null),
-    });
+  // Bulk-assign all courses under an authorization to a center
+  const handleBulkAssign = async () => {
+    if (!assignAuth || !selectedCenterId) return;
+    setIsAssigning(true);
+    try {
+      // Fetch all active courses under this authorization
+      const { data: courses, error: courseErr } = await supabase
+        .from('courses')
+        .select('id')
+        .eq('authorization_id', assignAuth.id)
+        .eq('status', 'active');
+      if (courseErr) throw courseErr;
+      if (!courses || courses.length === 0) {
+        toast.error('No active courses found under this authorization.');
+        setIsAssigning(false);
+        return;
+      }
+
+      // Check which courses are already assigned
+      const { data: existing } = await supabase
+        .from('center_courses')
+        .select('course_id')
+        .eq('center_id', selectedCenterId)
+        .in('course_id', courses.map(c => c.id));
+
+      const existingIds = new Set((existing || []).map(e => e.course_id));
+      const toInsert = courses
+        .filter(c => !existingIds.has(c.id))
+        .map(c => ({
+          center_id: selectedCenterId,
+          course_id: c.id,
+          status: 'active',
+        }));
+
+      if (toInsert.length === 0) {
+        toast.info('All courses under this authorization are already assigned to this center.');
+      } else {
+        const { error: insertErr } = await supabase.from('center_courses').insert(toInsert);
+        if (insertErr) throw insertErr;
+        toast.success(`${toInsert.length} course(s) assigned successfully!`);
+        queryClient.invalidateQueries({ queryKey: ['all-center-courses'] });
+        queryClient.invalidateQueries({ queryKey: ['center-authorizations'] });
+      }
+      setAssignAuth(null);
+      setSelectedCenterId('');
+    } catch (err: any) {
+      toast.error('Failed to assign: ' + err.message);
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   const formatCurrency = (amount: number) =>
@@ -338,7 +370,7 @@ export default function AdminAuthorizations() {
                               <DropdownMenuItem onClick={() => handleEditClick(auth)}>
                                 <Edit className="w-4 h-4 mr-2" />Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setAssignAuth(auth)}>
+                              <DropdownMenuItem onClick={() => { setAssignAuth(auth); setSelectedCenterId(''); }}>
                                 <Building className="w-4 h-4 mr-2" />Assign to Center
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -369,24 +401,40 @@ export default function AdminAuthorizations() {
           </DialogContent>
         </Dialog>
 
-        {/* Assign to Center Dialog */}
-        <Dialog open={!!assignAuth} onOpenChange={v => { if (!v) setAssignAuth(null); }}>
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        {/* Assign to Center Dialog - Bulk assign all courses */}
+        <Dialog open={!!assignAuth} onOpenChange={v => { if (!v) { setAssignAuth(null); setSelectedCenterId(''); } }}>
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Assign "{assignAuth?.name}" to Center</DialogTitle>
               <DialogDescription>
-                Assign a course under this authorization to a center with financial details.
+                All active courses under this authorization ({assignAuth?.courseCount || 0} courses) will be assigned to the selected center.
               </DialogDescription>
             </DialogHeader>
-            {assignAuth && (
-              <AuthorizationForm
-                centers={centers.filter(c => c.status === 'active').map(c => ({ id: c.id, name: c.name, code: c.code }))}
-                courses={authCourses.map(c => ({ id: c.id, name: c.name, code: c.code, fee: Number(c.fee) }))}
-                onSubmit={handleAssignSubmit}
-                onCancel={() => setAssignAuth(null)}
-                isLoading={assignCourse.isPending}
-              />
-            )}
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Select Center *</Label>
+                <Select value={selectedCenterId} onValueChange={setSelectedCenterId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a center" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {centers.filter(c => c.status === 'active').map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setAssignAuth(null); setSelectedCenterId(''); }}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkAssign} disabled={!selectedCenterId || isAssigning}>
+                {isAssigning ? 'Assigning...' : 'Assign All Courses'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
