@@ -153,13 +153,17 @@ export default function CenterEnquiries() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Phone', 'Email', 'Course', 'Source', 'Status', 'Date', 'Notes'];
+    const headers = ['Name', 'Phone', 'Email', 'Course', 'Source', 'Qualification', 'Address', 'Fees', 'Remark', 'Status', 'Date', 'Notes'];
     const rows = filteredEnquiries.map((e) => [
       e.name,
       e.phone,
       e.email || '',
       e.course_name || '',
       e.source || '',
+      (e as any).qualification || '',
+      (e as any).address || '',
+      (e as any).fees != null ? String((e as any).fees) : '',
+      (e as any).remark || '',
       getStatusLabel(e.status || 'new'),
       format(new Date(e.created_at), 'dd/MM/yyyy'),
       (e.notes || '').replace(/\n/g, ' | '),
