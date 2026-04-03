@@ -41,6 +41,8 @@ import {
   XCircle,
   Clock,
   Loader2,
+  Download,
+  Eye,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -137,15 +139,41 @@ export default function CenterEnquiries() {
     });
   };
 
+  const exportToCSV = () => {
+    const headers = ['Name', 'Phone', 'Email', 'Course', 'Source', 'Status', 'Date', 'Notes'];
+    const rows = filteredEnquiries.map((e) => [
+      e.name,
+      e.phone,
+      e.email || '',
+      e.course_name || '',
+      e.source || '',
+      getStatusLabel(e.status || 'new'),
+      format(new Date(e.created_at), 'dd/MM/yyyy'),
+      (e.notes || '').replace(/\n/g, ' | '),
+    ]);
+    const csvContent = [headers, ...rows].map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `enquiries_${format(new Date(), 'yyyyMMdd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'new':
         return <Clock className="w-3 h-3" />;
-      case 'callback':
+      case 'contacted':
         return <Phone className="w-3 h-3" />;
+      case 'interested':
+        return <Eye className="w-3 h-3" />;
+      case 'converted':
       case 'enrolled':
         return <CheckCircle className="w-3 h-3" />;
       case 'not_interested':
+      case 'lost':
         return <XCircle className="w-3 h-3" />;
       default:
         return null;
@@ -156,11 +184,15 @@ export default function CenterEnquiries() {
     switch (status) {
       case 'new':
         return 'bg-info hover:bg-info/90';
-      case 'callback':
+      case 'contacted':
         return 'bg-warning hover:bg-warning/90';
+      case 'interested':
+        return 'bg-primary hover:bg-primary/90';
+      case 'converted':
       case 'enrolled':
         return 'bg-success hover:bg-success/90';
       case 'not_interested':
+      case 'lost':
         return 'bg-muted-foreground/50';
       default:
         return '';
@@ -170,9 +202,12 @@ export default function CenterEnquiries() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'new': return 'New';
-      case 'callback': return 'Callback';
+      case 'contacted': return 'Contacted';
+      case 'interested': return 'Interested';
+      case 'converted': return 'Converted';
       case 'enrolled': return 'Enrolled';
       case 'not_interested': return 'Not Interested';
+      case 'lost': return 'Lost';
       default: return status;
     }
   };
@@ -326,8 +361,8 @@ export default function CenterEnquiries() {
                   <Phone className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.callback || 0}</p>
-                  <p className="text-sm text-muted-foreground">Callback</p>
+                  <p className="text-2xl font-bold">{stats?.contacted || 0}</p>
+                  <p className="text-sm text-muted-foreground">Contacted</p>
                 </div>
               </div>
             </CardContent>
@@ -339,8 +374,8 @@ export default function CenterEnquiries() {
                   <CheckCircle className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.enrolled || 0}</p>
-                  <p className="text-sm text-muted-foreground">Enrolled</p>
+                  <p className="text-2xl font-bold">{stats?.converted || 0}</p>
+                  <p className="text-sm text-muted-foreground">Converted</p>
                 </div>
               </div>
             </CardContent>
@@ -369,11 +404,16 @@ export default function CenterEnquiries() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="callback">Callback</SelectItem>
-                    <SelectItem value="enrolled">Enrolled</SelectItem>
-                    <SelectItem value="not_interested">Not Interested</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="interested">Interested</SelectItem>
+                    <SelectItem value="converted">Converted</SelectItem>
+                    <SelectItem value="lost">Lost</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button variant="outline" size="sm" onClick={exportToCSV} disabled={filteredEnquiries.length === 0}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -441,17 +481,21 @@ export default function CenterEnquiries() {
                                     View & Add Remark
                                   </DropdownMenuItem>
                                 </DialogTrigger>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'callback')}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'contacted')}>
                                   <Phone className="w-4 h-4 mr-2" />
-                                  Mark as Callback
+                                  Mark as Contacted
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'enrolled')}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'interested')}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Mark as Interested
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'converted')}>
                                   <CheckCircle className="w-4 h-4 mr-2" />
-                                  Mark as Enrolled
+                                  Mark as Converted
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'not_interested')}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'lost')}>
                                   <XCircle className="w-4 h-4 mr-2" />
-                                  Mark as Not Interested
+                                  Mark as Lost
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

@@ -76,9 +76,10 @@ export function useEnquiryStats(centerId?: string) {
       return {
         total: data.length,
         new: data.filter(e => e.status === 'new').length,
-        callback: data.filter(e => e.status === 'callback').length,
-        enrolled: data.filter(e => e.status === 'enrolled').length,
-        notInterested: data.filter(e => e.status === 'not_interested').length,
+        contacted: data.filter(e => e.status === 'contacted').length,
+        interested: data.filter(e => e.status === 'interested').length,
+        converted: data.filter(e => e.status === 'converted' || e.status === 'enrolled').length,
+        lost: data.filter(e => e.status === 'lost' || e.status === 'not_interested').length,
       };
     },
     enabled: centerId === undefined || !!centerId,
