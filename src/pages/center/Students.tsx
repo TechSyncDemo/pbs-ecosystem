@@ -180,10 +180,9 @@ export default function CenterStudents() {
                 </DialogDescription>
               </DialogHeader>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="course">Course</TabsTrigger>
                   <TabsTrigger value="personal">Personal</TabsTrigger>
-                  <TabsTrigger value="fees">Fees</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="course" className="space-y-4 mt-4">
@@ -214,6 +213,26 @@ export default function CenterStudents() {
                 </TabsContent>
 
                 <TabsContent value="personal" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Fees Paid (₹)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={newStudent.fee_paid}
+                        onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Fees Pending (₹)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={newStudent.fee_pending}
+                        onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })}
+                      />
+                    </div>
+                  </div>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label>Full Name *</Label>
@@ -307,31 +326,6 @@ export default function CenterStudents() {
                           placeholder="400001"
                           value={newStudent.pincode}
                           onChange={(e) => setNewStudent({ ...newStudent, pincode: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="fees" className="space-y-4 mt-4">
-                  <div className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label>Fees Paid (₹)</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={newStudent.fee_paid}
-                          onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Fees Pending (₹)</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={newStudent.fee_pending}
-                          onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })}
                         />
                       </div>
                     </div>
