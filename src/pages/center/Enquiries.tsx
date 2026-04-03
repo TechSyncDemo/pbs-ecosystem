@@ -41,6 +41,8 @@ import {
   XCircle,
   Clock,
   Loader2,
+  Download,
+  Eye,
 } from 'lucide-react';
 import {
   DropdownMenu,
