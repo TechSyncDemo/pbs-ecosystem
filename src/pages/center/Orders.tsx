@@ -130,8 +130,12 @@ export default function CenterOrders() {
         center_id: centerId,
         order_no: '',
         total_amount: orderTotal,
-        status: 'pending',
-        payment_status: 'pending',
+        // When an order is placed, it is initially set to 'pending'.
+        // This 'pending' status signifies that the order is awaiting review and approval by a super admin.
+        // Once approved by the super admin, the order status will be updated (e.g., to 'approved' or 'completed'),
+        // and the corresponding items will be reflected in the stock system (backend logic).
+        status: 'pending', 
+        payment_status: 'pending', // Payment is also pending until processed and approved.
         notes: `Payment method: ${paymentMethod}`,
       },
       items: orderItems.map(item => ({
@@ -151,7 +155,7 @@ export default function CenterOrders() {
       case 'completed':
       case 'approved':
         return 'bg-success hover:bg-success/90';
-      case 'pending':
+      case 'pending': // This covers orders awaiting super admin approval
         return 'bg-warning hover:bg-warning/90';
       case 'rejected':
         return 'bg-destructive hover:bg-destructive/90';
