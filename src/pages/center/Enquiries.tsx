@@ -139,15 +139,41 @@ export default function CenterEnquiries() {
     });
   };
 
+  const exportToCSV = () => {
+    const headers = ['Name', 'Phone', 'Email', 'Course', 'Source', 'Status', 'Date', 'Notes'];
+    const rows = filteredEnquiries.map((e) => [
+      e.name,
+      e.phone,
+      e.email || '',
+      e.course_name || '',
+      e.source || '',
+      getStatusLabel(e.status || 'new'),
+      format(new Date(e.created_at), 'dd/MM/yyyy'),
+      (e.notes || '').replace(/\n/g, ' | '),
+    ]);
+    const csvContent = [headers, ...rows].map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `enquiries_${format(new Date(), 'yyyyMMdd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'new':
         return <Clock className="w-3 h-3" />;
-      case 'callback':
+      case 'contacted':
         return <Phone className="w-3 h-3" />;
+      case 'interested':
+        return <Eye className="w-3 h-3" />;
+      case 'converted':
       case 'enrolled':
         return <CheckCircle className="w-3 h-3" />;
       case 'not_interested':
+      case 'lost':
         return <XCircle className="w-3 h-3" />;
       default:
         return null;
@@ -158,11 +184,15 @@ export default function CenterEnquiries() {
     switch (status) {
       case 'new':
         return 'bg-info hover:bg-info/90';
-      case 'callback':
+      case 'contacted':
         return 'bg-warning hover:bg-warning/90';
+      case 'interested':
+        return 'bg-primary hover:bg-primary/90';
+      case 'converted':
       case 'enrolled':
         return 'bg-success hover:bg-success/90';
       case 'not_interested':
+      case 'lost':
         return 'bg-muted-foreground/50';
       default:
         return '';
@@ -172,9 +202,12 @@ export default function CenterEnquiries() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'new': return 'New';
-      case 'callback': return 'Callback';
+      case 'contacted': return 'Contacted';
+      case 'interested': return 'Interested';
+      case 'converted': return 'Converted';
       case 'enrolled': return 'Enrolled';
       case 'not_interested': return 'Not Interested';
+      case 'lost': return 'Lost';
       default: return status;
     }
   };
