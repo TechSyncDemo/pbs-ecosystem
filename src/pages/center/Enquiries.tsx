@@ -279,7 +279,7 @@ export default function CenterEnquiries() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
                     <Input
                       id="email"
                       type="email"
