@@ -270,7 +270,7 @@ export default function CenterEnquiries() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="phone">Mobile Number</Label>
+                    <Label htmlFor="phone">Mobile Number <span className="text-destructive">*</span></Label>
                     <Input
                       id="phone"
                       placeholder="+91 98765 43210"
