@@ -477,17 +477,21 @@ export default function CenterEnquiries() {
                                     View & Add Remark
                                   </DropdownMenuItem>
                                 </DialogTrigger>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'callback')}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'contacted')}>
                                   <Phone className="w-4 h-4 mr-2" />
-                                  Mark as Callback
+                                  Mark as Contacted
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'enrolled')}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'interested')}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Mark as Interested
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'converted')}>
                                   <CheckCircle className="w-4 h-4 mr-2" />
-                                  Mark as Enrolled
+                                  Mark as Converted
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'not_interested')}>
+                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'lost')}>
                                   <XCircle className="w-4 h-4 mr-2" />
-                                  Mark as Not Interested
+                                  Mark as Lost
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
