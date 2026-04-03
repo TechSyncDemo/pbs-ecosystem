@@ -94,7 +94,7 @@ export default function CenterOrders() {
     if (!course) return;
 
     const price = type === 'exam_only' ? Number(course.exam_fee || 0) : Number(course.fee || 0);
-    const itemName = `${course.name} (${type === 'exam_only' ? 'Exam Only' : 'Full Course'})`;
+    const itemName = `${course.name} (${type === 'exam_only' ? 'Exam Only' : 'Book + Exam'})`;
 
     const existingIndex = orderItems.findIndex(i => i.name === itemName);
     if (existingIndex >= 0) {
@@ -237,7 +237,7 @@ export default function CenterOrders() {
                       disabled={!selectedCourse}
                       variant="outline"
                     >
-                      Add Course Kit
+                      Book + Exam.
                     </Button>
                   </div>
                   <div className="flex-shrink-0">
@@ -246,7 +246,7 @@ export default function CenterOrders() {
                       disabled={!selectedCourse}
                       variant="outline"
                     >
-                      Add Exam Fee
+                      Only Exam.
                     </Button>
                   </div>
                 </div>
