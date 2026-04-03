@@ -361,8 +361,8 @@ export default function CenterEnquiries() {
                   <Phone className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.callback || 0}</p>
-                  <p className="text-sm text-muted-foreground">Callback</p>
+                  <p className="text-2xl font-bold">{stats?.contacted || 0}</p>
+                  <p className="text-sm text-muted-foreground">Contacted</p>
                 </div>
               </div>
             </CardContent>
@@ -374,8 +374,8 @@ export default function CenterEnquiries() {
                   <CheckCircle className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.enrolled || 0}</p>
-                  <p className="text-sm text-muted-foreground">Enrolled</p>
+                  <p className="text-2xl font-bold">{stats?.converted || 0}</p>
+                  <p className="text-sm text-muted-foreground">Converted</p>
                 </div>
               </div>
             </CardContent>
