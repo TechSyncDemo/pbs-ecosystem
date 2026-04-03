@@ -410,6 +410,10 @@ export default function CenterEnquiries() {
                     <SelectItem value="lost">Lost</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button variant="outline" size="sm" onClick={exportToCSV} disabled={filteredEnquiries.length === 0}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
               </div>
             </div>
           </CardHeader>
