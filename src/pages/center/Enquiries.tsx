@@ -537,10 +537,10 @@ export default function CenterEnquiries() {
                                     View & Add Remark
                                   </DropdownMenuItem>
                                 </DialogTrigger>
-                                <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'contacted')}>
+                                {/* <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'contacted')}>
                                   <Phone className="w-4 h-4 mr-2" />
                                   Mark as Contacted
-                                </DropdownMenuItem>
+                                </DropdownMenuItem> */}
                                 <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'interested')}>
                                   <Eye className="w-4 h-4 mr-2" />
                                   Mark as Interested
@@ -551,7 +551,7 @@ export default function CenterEnquiries() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(enquiry.id, 'lost')}>
                                   <XCircle className="w-4 h-4 mr-2" />
-                                  Mark as Lost
+                                  Mark as Not Interested
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
