@@ -103,20 +103,29 @@ export default function CenterEnquiries() {
       status: 'new',
     };
     
-    // Only include email if non-empty
     if (newEnquiry.email && newEnquiry.email.trim()) {
       payload.email = newEnquiry.email.trim().toLowerCase();
     }
-    
-    // Only include course_id if selected
     if (newEnquiry.course_id) {
       payload.course_id = newEnquiry.course_id;
+    }
+    if (newEnquiry.qualification?.trim()) {
+      payload.qualification = newEnquiry.qualification.trim();
+    }
+    if (newEnquiry.address?.trim()) {
+      payload.address = newEnquiry.address.trim();
+    }
+    if (newEnquiry.fees) {
+      payload.fees = parseFloat(newEnquiry.fees);
+    }
+    if (newEnquiry.remark?.trim()) {
+      payload.remark = newEnquiry.remark.trim();
     }
 
     await createEnquiry.mutateAsync(payload);
 
     setIsAddDialogOpen(false);
-    setNewEnquiry({ name: '', phone: '', email: '', course_id: '', source: '' });
+    setNewEnquiry({ name: '', phone: '', email: '', course_id: '', source: '', qualification: '', address: '', fees: '', remark: '' });
   };
 
   const handleAddRemark = async () => {
