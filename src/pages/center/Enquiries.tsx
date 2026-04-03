@@ -260,7 +260,7 @@ export default function CenterEnquiries() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     placeholder="Enter full name"
