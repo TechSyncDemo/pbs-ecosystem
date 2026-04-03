@@ -290,7 +290,7 @@ export default function CenterEnquiries() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="course">Interested Course</Label>
+                  <Label htmlFor="course">Interested Course <span className="text-destructive">*</span></Label>
                   <Select
                     value={newEnquiry.course_id}
                     onValueChange={(value) => setNewEnquiry({ ...newEnquiry, course_id: value })}
