@@ -77,6 +77,10 @@ export default function CenterEnquiries() {
     email: '',
     course_id: '',
     source: '',
+    qualification: '',
+    address: '',
+    fees: '',
+    remark: '',
   });
 
   const filteredEnquiries = enquiries.filter((enquiry) => {
