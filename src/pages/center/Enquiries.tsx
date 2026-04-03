@@ -325,12 +325,51 @@ export default function CenterEnquiries() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="qualification">Qualification <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Input
+                    id="qualification"
+                    placeholder="e.g. 10th, 12th, Graduate"
+                    value={newEnquiry.qualification}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, qualification: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="address">Address <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Textarea
+                    id="address"
+                    placeholder="Enter address"
+                    value={newEnquiry.address}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, address: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="fees">Fees <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Input
+                    id="fees"
+                    type="number"
+                    placeholder="Enter fees amount"
+                    value={newEnquiry.fees}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, fees: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="remark">Remark <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Textarea
+                    id="remark"
+                    placeholder="Any additional remarks"
+                    value={newEnquiry.remark}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, remark: e.target.value })}
+                    rows={2}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddEnquiry} disabled={createEnquiry.isPending || !newEnquiry.name || !newEnquiry.phone}>
+                <Button onClick={handleAddEnquiry} disabled={createEnquiry.isPending || !newEnquiry.name || !newEnquiry.phone || !newEnquiry.course_id || !newEnquiry.source}>
                   {createEnquiry.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Add Enquiry
                 </Button>
