@@ -224,7 +224,7 @@ export default function CenterEnquiries() {
       case 'converted': return 'Converted';
       case 'enrolled': return 'Enrolled';
       case 'not_interested': return 'Not Interested';
-      case 'lost': return 'Lost';
+      case 'lost': return 'Not Interested';
       default: return status;
     }
   };
