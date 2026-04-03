@@ -320,3 +320,24 @@ BEGIN
     RETURN result;
 END;
 $$;
+
+-- Function to set order number before insert
+CREATE OR REPLACE FUNCTION public.set_order_no()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF NEW.order_no IS NULL OR NEW.order_no = '' THEN
+        NEW.order_no = public.generate_order_no();
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+-- Trigger to set order number before insert
+CREATE TRIGGER set_order_no_before_insert
+BEFORE INSERT ON public.orders
+FOR EACH ROW
+EXECUTE FUNCTION public.set_order_no();
