@@ -58,7 +58,7 @@ export default function AdminOrders() {
     if (!selectedOrder) return;
 
     updateOrderStatus.mutate(
-      { id: selectedOrder.id, status: 'approved', payment_status: 'paid' },
+      { id: selectedOrder.id, status: 'approved', payment_status: 'paid', order: selectedOrder },
       {
         onSuccess: () => {
           setIsVerifyOpen(false);

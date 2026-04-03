@@ -132,11 +132,37 @@ export function useCreateOrder() {
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
   
+  const updateStock = async (order: OrderWithDetails) => {
+    if (!order.center_id || !order.items || order.items.length === 0) return;
+
+    const stockUpdates = order.items.map(item => {
+      return supabase.rpc('increment_center_stock' as any, {
+        p_center_id: order.center_id!,
+        p_stock_item_id: item.stock_item_id,
+        p_quantity: item.quantity
+      });
+    });
+
+    const results = await Promise.all(stockUpdates);
+    results.forEach(result => {
+      if (result.error) {
+        throw new Error(`Failed to update stock: ${result.error.message}`);
+      }
+    });
+  };
+
   return useMutation({
-    mutationFn: async ({ id, status, payment_status }: { id: string; status?: string; payment_status?: string }) => {
+    mutationFn: async ({ id, status, payment_status, order }: { id: string; status?: string; payment_status?: string, order?: OrderWithDetails }) => {
       const updates: OrderUpdate = {};
       if (status) updates.status = status;
       if (payment_status) updates.payment_status = payment_status;
+
+      // If approving, update stock first
+      if (status === 'approved' && order) {
+        await updateStock(order);
+      } else if (status === 'approved' && !order) {
+        console.warn('Order details not provided for stock update. This is not ideal.');
+      }
 
       const { data, error } = await supabase
         .from('orders')
@@ -152,6 +178,8 @@ export function useUpdateOrderStatus() {
       queryClient.invalidateQueries({ queryKey: ['all-orders'] });
       queryClient.invalidateQueries({ queryKey: ['center-orders'] });
       queryClient.invalidateQueries({ queryKey: ['order-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['all-center-stocks'] });
+      queryClient.invalidateQueries({ queryKey: ['center-stock'] });
       toast.success('Order updated successfully!');
     },
     onError: (error) => {
