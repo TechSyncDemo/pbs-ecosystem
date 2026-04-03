@@ -463,7 +463,7 @@ export default function CenterEnquiries() {
                     <SelectItem value="contacted">Contacted</SelectItem>
                     <SelectItem value="interested">Interested</SelectItem>
                     <SelectItem value="converted">Converted</SelectItem>
-                    <SelectItem value="lost">Lost</SelectItem>
+                    <SelectItem value="lost">Not Interested</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button variant="outline" size="sm" onClick={exportToCSV} disabled={filteredEnquiries.length === 0}>
