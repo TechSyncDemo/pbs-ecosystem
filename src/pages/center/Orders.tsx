@@ -205,48 +205,46 @@ export default function CenterOrders() {
               </DialogHeader>
               <div className="py-4 space-y-4">
                 {/* Add Course Item */}
-                <div className="grid grid-cols-12 gap-3 items-end pt-2">
-                  <div className="col-span-6">
+                <div className="flex gap-2 items-end pt-2">
+                  <div className="flex-grow">
                     <Label>Course</Label>
                     <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
-                      {approvedCourses.map((course) => (
-                        <SelectItem
-                          key={course.id}
-                          value={course.id}
-                        >
+                        {approvedCourses.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
                             {course.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-1">
+                  <div className="flex-shrink-0">
                     <Label>Qty</Label>
                     <Input
                       type="number"
                       min="1"
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
+                      className="w-20"
                     />
                   </div>
-                  <div className="col-span-3">
+                  <div className="flex-shrink-0">
                     <Button
                       onClick={() => handleAddItem('full_course')}
                       disabled={!selectedCourse}
-                      className="w-full"
+                      variant="outline"
                     >
                       Add Course Kit
                     </Button>
                   </div>
-                  <div className="col-span-3">
+                  <div className="flex-shrink-0">
                     <Button
                       onClick={() => handleAddItem('exam_only')}
                       disabled={!selectedCourse}
-                      className="w-full"
+                      variant="outline"
                     >
                       Add Exam Fee
                     </Button>
