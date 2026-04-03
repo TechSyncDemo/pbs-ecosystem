@@ -391,46 +391,58 @@ export type Database = {
       }
       enquiries: {
         Row: {
+          address: string | null
           center_id: string
           course_id: string | null
           created_at: string
           created_by: string | null
           email: string | null
+          fees: number | null
           follow_up_date: string | null
           id: string
           name: string
           notes: string | null
           phone: string
+          qualification: string | null
+          remark: string | null
           source: string | null
           status: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           center_id: string
           course_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
+          fees?: number | null
           follow_up_date?: string | null
           id?: string
           name: string
           notes?: string | null
           phone: string
+          qualification?: string | null
+          remark?: string | null
           source?: string | null
           status?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           center_id?: string
           course_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
+          fees?: number | null
           follow_up_date?: string | null
           id?: string
           name?: string
           notes?: string | null
           phone?: string
+          qualification?: string | null
+          remark?: string | null
           source?: string | null
           status?: string | null
           updated_at?: string
