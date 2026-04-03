@@ -26,9 +26,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+  SelectValue
+} from "@/components/ui/select";
 import {
   ShoppingCart,
   Search,
@@ -76,7 +75,6 @@ export default function CenterOrders() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
-  const [orderType, setOrderType] = useState<'full_course' | 'exam_only'>('full_course');
   const [orderItems, setOrderItems] = useState<Array<{
     course_id: string;
     name: string;
@@ -91,13 +89,14 @@ export default function CenterOrders() {
       order.order_no.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAddItem = () => {
+  const handleAddItem = (type: 'full_course' | 'exam_only') => {
     const course = approvedCourses.find((c) => c.id === selectedCourse);
     if (!course) return;
 
-    const price = orderType === 'exam_only' ? Number(course.exam_fee || 0) : Number(course.fee || 0);
+    const price = type === 'exam_only' ? Number(course.exam_fee || 0) : Number(course.fee || 0);
+    const itemName = `${course.name} (${type === 'exam_only' ? 'Exam Only' : 'Full Course'})`;
 
-    const existingIndex = orderItems.findIndex(i => i.course_id === selectedCourse);
+    const existingIndex = orderItems.findIndex(i => i.name === itemName);
     if (existingIndex >= 0) {
       const updated = [...orderItems];
       updated[existingIndex].qty += parseInt(quantity);
@@ -107,7 +106,7 @@ export default function CenterOrders() {
         ...orderItems,
         {
           course_id: course.id,
-          name: `${course.name} (${orderType === 'exam_only' ? 'Exam Only' : 'Full Course'})`,
+          name: itemName,
           qty: parseInt(quantity),
           unit_price: price,
         },
@@ -133,7 +132,7 @@ export default function CenterOrders() {
         total_amount: orderTotal,
         status: 'pending',
         payment_status: 'pending',
-        notes: `Payment method: ${paymentMethod} | Type: ${orderType}`,
+        notes: `Payment method: ${paymentMethod}`,
       },
       items: orderItems.map(item => ({
         stock_item_id: item.course_id, // Using course_id as reference
@@ -185,11 +184,11 @@ export default function CenterOrders() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-heading font-bold text-foreground">Order Management</h1>
-            <p className="text-muted-foreground mt-1">Purchase course kits and manage orders</p>
+            <p className="text-muted-foreground mt-1">Purchase course kits and exam fees</p>
           </div>
           <Dialog open={isOrderDialogOpen} onOpenChange={(open) => {
             setIsOrderDialogOpen(open);
-            if (!open) { setOrderItems([]); setOrderType('full_course'); }
+            if (!open) { setOrderItems([]); }
           }}>
             <DialogTrigger asChild>
               <Button>
@@ -201,58 +200,31 @@ export default function CenterOrders() {
               <DialogHeader>
                 <DialogTitle>Create New Order</DialogTitle>
                 <DialogDescription>
-                  Select order type and courses from your approved authorizations.
+                  Select courses from your approved authorizations to order kits or exam fees.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
-                {/* Order Type Selection */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Order Type</Label>
-                  <RadioGroup
-                    value={orderType}
-                    onValueChange={(v) => {
-                      setOrderType(v as 'full_course' | 'exam_only');
-                      setOrderItems([]); // Reset items when type changes
-                    }}
-                    className="flex gap-4"
-                  >
-                    <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
-                      <RadioGroupItem value="full_course" id="full_course" />
-                      <Label htmlFor="full_course" className="cursor-pointer">
-                        <span className="font-medium">Full Course</span>
-                        <span className="text-xs text-muted-foreground block">Exam + Book (Kit)</span>
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
-                      <RadioGroupItem value="exam_only" id="exam_only" />
-                      <Label htmlFor="exam_only" className="cursor-pointer">
-                        <span className="font-medium">Exam Only</span>
-                        <span className="text-xs text-muted-foreground block">Examination fee only</span>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
                 {/* Add Course Item */}
-                <div className="grid grid-cols-12 gap-3 items-end">
-                  <div className="col-span-7">
+                <div className="grid grid-cols-12 gap-3 items-end pt-2">
+                  <div className="col-span-6">
                     <Label>Course</Label>
                     <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
-                        {approvedCourses.map((course) => (
-                          <SelectItem key={course.id} value={course.id}>
-                            {course.name} — ₹{orderType === 'exam_only'
-                              ? Number(course.exam_fee || 0).toLocaleString()
-                              : Number(course.fee || 0).toLocaleString()}
+                      {approvedCourses.map((course) => (
+                        <SelectItem
+                          key={course.id}
+                          value={course.id}
+                        >
+                            {course.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <Label>Qty</Label>
                     <Input
                       type="number"
@@ -262,8 +234,21 @@ export default function CenterOrders() {
                     />
                   </div>
                   <div className="col-span-3">
-                    <Button onClick={handleAddItem} disabled={!selectedCourse} className="w-full">
-                      Add
+                    <Button
+                      onClick={() => handleAddItem('full_course')}
+                      disabled={!selectedCourse}
+                      className="w-full"
+                    >
+                      Add Course Kit
+                    </Button>
+                  </div>
+                  <div className="col-span-3">
+                    <Button
+                      onClick={() => handleAddItem('exam_only')}
+                      disabled={!selectedCourse}
+                      className="w-full"
+                    >
+                      Add Exam Fee
                     </Button>
                   </div>
                 </div>

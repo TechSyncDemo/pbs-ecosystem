@@ -215,7 +215,7 @@ export default function CenterStudents() {
                 <TabsContent value="personal" className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>COurse Fees (₹)</Label>
+                      <Label>Course Fees (₹)</Label>
                       <Input
                         type="number"
                         placeholder="0"
