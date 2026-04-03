@@ -58,7 +58,7 @@ export default function AdminOrders() {
     if (!selectedOrder) return;
 
     updateOrderStatus.mutate(
-      { id: selectedOrder.id, status: 'completed', payment_status: 'paid' },
+      { id: selectedOrder.id, status: 'approved', payment_status: 'paid' },
       {
         onSuccess: () => {
           setIsVerifyOpen(false);
@@ -71,6 +71,7 @@ export default function AdminOrders() {
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'completed':
+      case 'approved':
         return <Badge className="bg-success hover:bg-success/90"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
       case 'pending':
         return <Badge className="bg-warning hover:bg-warning/90"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
