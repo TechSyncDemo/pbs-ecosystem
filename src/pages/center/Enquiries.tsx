@@ -255,14 +255,14 @@ export default function CenterEnquiries() {
                 New Enquiry
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>Add New Enquiry</DialogTitle>
                 <DialogDescription>
                   Record a new lead or enquiry from a prospective student.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
+              <div className="grid gap-4 py-4 overflow-y-auto pr-6 -mr-6">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
                   <Input
