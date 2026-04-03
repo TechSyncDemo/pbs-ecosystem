@@ -77,6 +77,10 @@ export default function CenterEnquiries() {
     email: '',
     course_id: '',
     source: '',
+    qualification: '',
+    address: '',
+    fees: '',
+    remark: '',
   });
 
   const filteredEnquiries = enquiries.filter((enquiry) => {
@@ -99,20 +103,29 @@ export default function CenterEnquiries() {
       status: 'new',
     };
     
-    // Only include email if non-empty
     if (newEnquiry.email && newEnquiry.email.trim()) {
       payload.email = newEnquiry.email.trim().toLowerCase();
     }
-    
-    // Only include course_id if selected
     if (newEnquiry.course_id) {
       payload.course_id = newEnquiry.course_id;
+    }
+    if (newEnquiry.qualification?.trim()) {
+      payload.qualification = newEnquiry.qualification.trim();
+    }
+    if (newEnquiry.address?.trim()) {
+      payload.address = newEnquiry.address.trim();
+    }
+    if (newEnquiry.fees) {
+      payload.fees = parseFloat(newEnquiry.fees);
+    }
+    if (newEnquiry.remark?.trim()) {
+      payload.remark = newEnquiry.remark.trim();
     }
 
     await createEnquiry.mutateAsync(payload);
 
     setIsAddDialogOpen(false);
-    setNewEnquiry({ name: '', phone: '', email: '', course_id: '', source: '' });
+    setNewEnquiry({ name: '', phone: '', email: '', course_id: '', source: '', qualification: '', address: '', fees: '', remark: '' });
   };
 
   const handleAddRemark = async () => {
@@ -140,13 +153,17 @@ export default function CenterEnquiries() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Phone', 'Email', 'Course', 'Source', 'Status', 'Date', 'Notes'];
+    const headers = ['Name', 'Phone', 'Email', 'Course', 'Source', 'Qualification', 'Address', 'Fees', 'Remark', 'Status', 'Date', 'Notes'];
     const rows = filteredEnquiries.map((e) => [
       e.name,
       e.phone,
       e.email || '',
       e.course_name || '',
       e.source || '',
+      (e as any).qualification || '',
+      (e as any).address || '',
+      (e as any).fees != null ? String((e as any).fees) : '',
+      (e as any).remark || '',
       getStatusLabel(e.status || 'new'),
       format(new Date(e.created_at), 'dd/MM/yyyy'),
       (e.notes || '').replace(/\n/g, ' | '),
@@ -247,7 +264,7 @@ export default function CenterEnquiries() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     placeholder="Enter full name"
@@ -257,7 +274,7 @@ export default function CenterEnquiries() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="phone">Mobile Number</Label>
+                    <Label htmlFor="phone">Mobile Number <span className="text-destructive">*</span></Label>
                     <Input
                       id="phone"
                       placeholder="+91 98765 43210"
@@ -266,7 +283,7 @@ export default function CenterEnquiries() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email <span className="text-muted-foreground text-xs">(Optional)</span></Label>
                     <Input
                       id="email"
                       type="email"
@@ -277,7 +294,7 @@ export default function CenterEnquiries() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="course">Interested Course</Label>
+                  <Label htmlFor="course">Interested Course <span className="text-destructive">*</span></Label>
                   <Select
                     value={newEnquiry.course_id}
                     onValueChange={(value) => setNewEnquiry({ ...newEnquiry, course_id: value })}
@@ -295,7 +312,7 @@ export default function CenterEnquiries() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="source">Source</Label>
+                  <Label htmlFor="source">Source <span className="text-destructive">*</span></Label>
                   <Select
                     value={newEnquiry.source}
                     onValueChange={(value) => setNewEnquiry({ ...newEnquiry, source: value })}
@@ -312,12 +329,51 @@ export default function CenterEnquiries() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="qualification">Qualification <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Input
+                    id="qualification"
+                    placeholder="e.g. 10th, 12th, Graduate"
+                    value={newEnquiry.qualification}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, qualification: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="address">Address <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Textarea
+                    id="address"
+                    placeholder="Enter address"
+                    value={newEnquiry.address}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, address: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="fees">Fees <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Input
+                    id="fees"
+                    type="number"
+                    placeholder="Enter fees amount"
+                    value={newEnquiry.fees}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, fees: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="remark">Remark <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Textarea
+                    id="remark"
+                    placeholder="Any additional remarks"
+                    value={newEnquiry.remark}
+                    onChange={(e) => setNewEnquiry({ ...newEnquiry, remark: e.target.value })}
+                    rows={2}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddEnquiry} disabled={createEnquiry.isPending || !newEnquiry.name || !newEnquiry.phone}>
+                <Button onClick={handleAddEnquiry} disabled={createEnquiry.isPending || !newEnquiry.name || !newEnquiry.phone || !newEnquiry.course_id || !newEnquiry.source}>
                   {createEnquiry.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Add Enquiry
                 </Button>
