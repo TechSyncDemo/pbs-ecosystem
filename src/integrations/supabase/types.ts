@@ -912,6 +912,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_center_stock: {
+        Args: {
+          p_center_id: string
+          p_quantity: number
+          p_stock_item_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "super_admin" | "center_admin"
