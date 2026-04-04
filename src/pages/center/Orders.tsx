@@ -38,7 +38,6 @@ import {
   CreditCard,
   CheckCircle,
   Clock,
-  QrCode,
   Loader2,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
@@ -322,20 +321,12 @@ export default function CenterOrders() {
                   Cancel
                 </Button>
                 <Button
-                  variant="outline"
-                  onClick={() => handlePlaceOrder('QR')}
-                  disabled={orderItems.length === 0 || createOrder.isPending}
-                >
-                  <QrCode className="w-4 h-4 mr-2" />
-                  Pay with QR
-                </Button>
-                <Button
-                  onClick={() => handlePlaceOrder('Card')}
+                  onClick={() => handlePlaceOrder('pending_verification')}
                   disabled={orderItems.length === 0 || createOrder.isPending}
                 >
                   {createOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Pay with Card
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Place Order
                 </Button>
               </DialogFooter>
             </DialogContent>

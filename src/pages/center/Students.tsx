@@ -44,7 +44,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCenterStudents, useCreateStudent, type StudentWithDetails } from '@/hooks/useStudents';
 import { useCourses } from '@/hooks/useCourses';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
+import { useCenterStock } from '@/hooks/useStock';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 export default function CenterStudents() {
   const { user } = useAuth();
@@ -53,6 +55,7 @@ export default function CenterStudents() {
   const { data: students = [], isLoading } = useCenterStudents(centerId);
   const { data: courses = [] } = useCourses();
   const { data: authorizations = [] } = useCenterAuthorizations(centerId);
+  const { data: stockData = [] } = useCenterStock(centerId);
   const createStudent = useCreateStudent();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,9 +84,15 @@ export default function CenterStudents() {
       (student.course_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  // Get authorized courses for this center
+  // Get authorized courses that have stock available
   const authorizedCourseIds = authorizations.map(a => a.course_id);
-  const availableCourses = courses.filter(c => authorizedCourseIds.includes(c.id) && c.status === 'active');
+  const coursesWithStock = stockData
+    .filter(s => s.quantity > 0)
+    .map(s => s.stock_item_id);
+  const availableCourses = courses.filter(
+    c => authorizedCourseIds.includes(c.id) && c.status === 'active' && coursesWithStock.includes(c.id)
+  );
+  const allAuthorizedCourses = courses.filter(c => authorizedCourseIds.includes(c.id) && c.status === 'active');
 
   const handleAddStudent = async () => {
     if (!centerId || !newStudent.course_id) return;
@@ -189,6 +198,11 @@ export default function CenterStudents() {
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label>Select Course</Label>
+                      {availableCourses.length === 0 && allAuthorizedCourses.length > 0 && (
+                        <p className="text-sm text-destructive">
+                          No stock available for your courses. Please place an order first.
+                        </p>
+                      )}
                       <Select
                         value={newStudent.course_id}
                         onValueChange={(value) => setNewStudent({ ...newStudent, course_id: value })}
@@ -198,13 +212,16 @@ export default function CenterStudents() {
                         </SelectTrigger>
                         <SelectContent>
                           {availableCourses.length === 0 ? (
-                            <SelectItem value="none" disabled>No courses authorized for this center</SelectItem>
+                            <SelectItem value="none" disabled>No courses with stock available</SelectItem>
                           ) : (
-                            availableCourses.map((course) => (
-                              <SelectItem key={course.id} value={course.id}>
-                                {course.name}
-                              </SelectItem>
-                            ))
+                            availableCourses.map((course) => {
+                              const stock = stockData.find(s => s.stock_item_id === course.id);
+                              return (
+                                <SelectItem key={course.id} value={course.id}>
+                                  {course.name} ({stock?.quantity || 0} in stock)
+                                </SelectItem>
+                              );
+                            })
                           )}
                         </SelectContent>
                       </Select>
