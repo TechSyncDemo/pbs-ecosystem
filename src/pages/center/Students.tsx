@@ -198,6 +198,11 @@ export default function CenterStudents() {
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label>Select Course</Label>
+                      {availableCourses.length === 0 && allAuthorizedCourses.length > 0 && (
+                        <p className="text-sm text-destructive">
+                          No stock available for your courses. Please place an order first.
+                        </p>
+                      )}
                       <Select
                         value={newStudent.course_id}
                         onValueChange={(value) => setNewStudent({ ...newStudent, course_id: value })}
@@ -207,13 +212,16 @@ export default function CenterStudents() {
                         </SelectTrigger>
                         <SelectContent>
                           {availableCourses.length === 0 ? (
-                            <SelectItem value="none" disabled>No courses authorized for this center</SelectItem>
+                            <SelectItem value="none" disabled>No courses with stock available</SelectItem>
                           ) : (
-                            availableCourses.map((course) => (
-                              <SelectItem key={course.id} value={course.id}>
-                                {course.name}
-                              </SelectItem>
-                            ))
+                            availableCourses.map((course) => {
+                              const stock = stockData.find(s => s.stock_item_id === course.id);
+                              return (
+                                <SelectItem key={course.id} value={course.id}>
+                                  {course.name} ({stock?.quantity || 0} in stock)
+                                </SelectItem>
+                              );
+                            })
                           )}
                         </SelectContent>
                       </Select>
