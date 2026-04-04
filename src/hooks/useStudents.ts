@@ -91,6 +91,7 @@ export function useCreateStudent() {
   
   return useMutation({
     mutationFn: async (student: StudentInsert) => {
+      // Insert student
       const { data, error } = await supabase
         .from('students')
         .insert(student)
@@ -98,12 +99,28 @@ export function useCreateStudent() {
         .single();
 
       if (error) throw error;
+
+      // Decrement stock by 1 for this course at this center
+      const { error: stockError } = await supabase.rpc('decrement_stock', {
+        p_center_id: student.center_id,
+        p_course_id: student.course_id,
+        p_quantity: 1,
+      });
+
+      if (stockError) {
+        console.error('Stock decrement failed:', stockError.message);
+        // Don't throw — admission succeeded, just warn
+        toast.warning('Student admitted but stock could not be decremented.');
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-students'] });
       queryClient.invalidateQueries({ queryKey: ['center-students'] });
       queryClient.invalidateQueries({ queryKey: ['student-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['center-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['center-stock-stats'] });
       toast.success('Student admitted successfully!');
     },
     onError: (error) => {
