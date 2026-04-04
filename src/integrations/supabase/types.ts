@@ -604,6 +604,7 @@ export type Database = {
         Row: {
           category: string | null
           code: string
+          course_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -615,6 +616,7 @@ export type Database = {
         Insert: {
           category?: string | null
           code: string
+          course_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -626,6 +628,7 @@ export type Database = {
         Update: {
           category?: string | null
           code?: string
+          course_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -634,7 +637,15 @@ export type Database = {
           unit_price?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stock_items_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       students: {
         Row: {
