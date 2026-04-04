@@ -215,7 +215,7 @@ export default function CenterStudents() {
                             <SelectItem value="none" disabled>No courses with stock available</SelectItem>
                           ) : (
                             availableCourses.map((course) => {
-                              const stock = stockData.find(s => s.stock_item_id === course.id);
+                              const stock = stockData.find(s => s.stock_item?.course_id === course.id);
                               return (
                                 <SelectItem key={course.id} value={course.id}>
                                   {course.name} ({stock?.quantity || 0} in stock)
