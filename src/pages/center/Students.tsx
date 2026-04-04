@@ -84,9 +84,15 @@ export default function CenterStudents() {
       (student.course_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  // Get authorized courses for this center
+  // Get authorized courses that have stock available
   const authorizedCourseIds = authorizations.map(a => a.course_id);
-  const availableCourses = courses.filter(c => authorizedCourseIds.includes(c.id) && c.status === 'active');
+  const coursesWithStock = stockData
+    .filter(s => s.quantity > 0)
+    .map(s => s.stock_item_id);
+  const availableCourses = courses.filter(
+    c => authorizedCourseIds.includes(c.id) && c.status === 'active' && coursesWithStock.includes(c.id)
+  );
+  const allAuthorizedCourses = courses.filter(c => authorizedCourseIds.includes(c.id) && c.status === 'active');
 
   const handleAddStudent = async () => {
     if (!centerId || !newStudent.course_id) return;
