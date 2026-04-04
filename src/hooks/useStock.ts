@@ -104,8 +104,27 @@ export function useUpdateCenterStock() {
   });
 }
 
-// Get all center stocks (admin view)
+// Get all center stocks (admin view) with realtime
 export function useAllCenterStocks() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('center-stock-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'center_stock' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['all-center-stocks'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['all-center-stocks'],
     queryFn: async () => {
