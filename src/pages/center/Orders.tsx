@@ -124,7 +124,6 @@ export default function CenterOrders() {
   const handlePlaceOrder = async (paymentMethod: string) => {
     if (!centerId || orderItems.length === 0) return;
 
-    // Generate a unique order number on the client-side
     const generateOrderNo = () => {
       const now = new Date();
       const year = now.getFullYear().toString().slice(-2);
@@ -133,21 +132,32 @@ export default function CenterOrders() {
       return `ORD${year}${timestamp}${random}`;
     };
 
+    // Look up stock_item_ids for each course
+    const courseIdsInOrder = [...new Set(orderItems.map(i => i.course_id))];
+    const { data: stockItems, error: siError } = await supabase
+      .from('stock_items')
+      .select('id, course_id')
+      .in('course_id', courseIdsInOrder);
+
+    if (siError || !stockItems) {
+      const { toast } = await import('sonner');
+      toast.error('Failed to resolve stock items for courses');
+      return;
+    }
+
+    const courseToStockItem = new Map(stockItems.map(si => [si.course_id, si.id]));
+
     await createOrder.mutateAsync({
       order: {
         center_id: centerId,
         order_no: generateOrderNo(),
         total_amount: orderTotal,
-        // When an order is placed, it is initially set to 'pending'.
-        // This 'pending' status signifies that the order is awaiting review and approval by a super admin.
-        // Once approved by the super admin, the order status will be updated (e.g., to 'approved' or 'completed'),
-        // and the corresponding items will be reflected in the stock system (backend logic).
         status: 'pending',
-        payment_status: 'pending', // Payment is also pending until processed and approved.
+        payment_status: 'pending',
         notes: `Payment method: ${paymentMethod}`,
       },
       items: orderItems.map(item => ({
-        stock_item_id: item.course_id, // Using course_id as reference
+        stock_item_id: courseToStockItem.get(item.course_id) || item.course_id,
         quantity: item.qty,
         unit_price: item.unit_price,
         total_price: item.qty * item.unit_price,
