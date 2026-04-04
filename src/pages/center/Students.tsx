@@ -39,15 +39,29 @@ import {
   GraduationCap,
   IndianRupee,
   Loader2,
+  Pencil,
+  Eye,
+  EyeOff,
+  Lock,
+  Copy,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCenterStudents, useCreateStudent, type StudentWithDetails } from '@/hooks/useStudents';
+import { useCenterStudents, useCreateStudent, useUpdateStudent, type StudentWithDetails } from '@/hooks/useStudents';
 import { useCourses } from '@/hooks/useCourses';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { useCenterStock } from '@/hooks/useStock';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+
+function generatePassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
 export default function CenterStudents() {
   const { user } = useAuth();
@@ -58,10 +72,17 @@ export default function CenterStudents() {
   const { data: authorizations = [] } = useCenterAuthorizations(centerId);
   const { data: stockData = [] } = useCenterStock(centerId);
   const createStudent = useCreateStudent();
+  const updateStudent = useUpdateStudent();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('course');
+  const [editStudent, setEditStudent] = useState<StudentWithDetails | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', fee_paid: '', fee_pending: '', status: '' });
+  const [feeToAdd, setFeeToAdd] = useState('');
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+
   const [newStudent, setNewStudent] = useState({
     name: '',
     date_of_birth: '',
@@ -85,7 +106,6 @@ export default function CenterStudents() {
       (student.course_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  // Get authorized courses that have stock available
   const authorizedCourseIds = authorizations.map(a => a.course_id);
   const coursesWithStockIds = stockData
     .filter(s => s.quantity > 0 && s.stock_item?.course_id)
@@ -98,12 +118,13 @@ export default function CenterStudents() {
   const handleAddStudent = async () => {
     if (!centerId || !newStudent.course_id) return;
 
-    // Generate enrollment number first
     const { data: enrollmentData, error: enrollError } = await supabase.rpc('generate_enrollment_no');
     if (enrollError || !enrollmentData) {
       toast.error('Failed to generate enrollment number');
       return;
     }
+
+    const password = generatePassword();
 
     await createStudent.mutateAsync({
       center_id: centerId,
@@ -122,37 +143,72 @@ export default function CenterStudents() {
       fee_pending: Number(newStudent.fee_pending) || 0,
       status: 'active',
       enrollment_no: enrollmentData,
+      password,
     });
 
     setIsAddDialogOpen(false);
     setNewStudent({
-      name: '',
-      date_of_birth: '',
-      gender: '',
-      phone: '',
-      email: '',
-      guardian_phone: '',
-      address: '',
-      city: '',
-      state: '',
-      pincode: '',
-      course_id: '',
-      fee_paid: '',
-      fee_pending: '',
+      name: '', date_of_birth: '', gender: '', phone: '', email: '',
+      guardian_phone: '', address: '', city: '', state: '', pincode: '',
+      course_id: '', fee_paid: '', fee_pending: '',
     });
     setActiveTab('course');
   };
 
+  const openEditDialog = (student: StudentWithDetails) => {
+    setEditStudent(student);
+    setEditForm({
+      name: student.name,
+      fee_paid: String(student.fee_paid || 0),
+      fee_pending: String(student.fee_pending || 0),
+      status: student.status || 'active',
+    });
+    setFeeToAdd('');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleCollectFee = () => {
+    const amount = Number(feeToAdd);
+    if (!amount || amount <= 0) return;
+    const currentPaid = Number(editForm.fee_paid) || 0;
+    const currentPending = Number(editForm.fee_pending) || 0;
+    setEditForm({
+      ...editForm,
+      fee_paid: String(currentPaid + amount),
+      fee_pending: String(Math.max(0, currentPending - amount)),
+    });
+    setFeeToAdd('');
+    toast.success(`₹${amount} added to collected fees`);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editStudent) return;
+    await updateStudent.mutateAsync({
+      id: editStudent.id,
+      name: editForm.name,
+      fee_paid: Number(editForm.fee_paid) || 0,
+      fee_pending: Number(editForm.fee_pending) || 0,
+      status: editForm.status,
+    });
+    setIsEditDialogOpen(false);
+    setEditStudent(null);
+  };
+
+  const togglePasswordVisibility = (id: string) => {
+    setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'bg-success hover:bg-success/90';
-      case 'completed':
-        return 'bg-info hover:bg-info/90';
-      case 'certified':
-        return 'bg-warning hover:bg-warning/90';
-      default:
-        return '';
+      case 'active': return 'bg-success hover:bg-success/90';
+      case 'completed': return 'bg-info hover:bg-info/90';
+      case 'certified': return 'bg-warning hover:bg-warning/90';
+      default: return '';
     }
   };
 
@@ -192,9 +248,7 @@ export default function CenterStudents() {
             <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>New Student Admission</DialogTitle>
-                <DialogDescription>
-                  Complete the admission form for a new student.
-                </DialogDescription>
+                <DialogDescription>Complete the admission form for a new student.</DialogDescription>
               </DialogHeader>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
                 <TabsList className="grid w-full grid-cols-2">
@@ -241,50 +295,32 @@ export default function CenterStudents() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Course Fees (₹)</Label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={newStudent.fee_paid}
-                        onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })}
-                      />
+                      <Input type="number" placeholder="0" value={newStudent.fee_paid}
+                        onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })} />
                     </div>
                     <div className="grid gap-2">
                       <Label>Advance Fees (₹)</Label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={newStudent.fee_pending}
-                        onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })}
-                      />
+                      <Input type="number" placeholder="0" value={newStudent.fee_pending}
+                        onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })} />
                     </div>
                   </div>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label>Full Name *</Label>
-                      <Input
-                        placeholder="Enter full name"
-                        value={newStudent.name}
-                        onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
-                      />
+                      <Input placeholder="Enter full name" value={newStudent.name}
+                        onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-2">
                         <Label>Date of Birth</Label>
-                        <Input
-                          type="date"
-                          value={newStudent.date_of_birth}
-                          onChange={(e) => setNewStudent({ ...newStudent, date_of_birth: e.target.value })}
-                        />
+                        <Input type="date" value={newStudent.date_of_birth}
+                          onChange={(e) => setNewStudent({ ...newStudent, date_of_birth: e.target.value })} />
                       </div>
                       <div className="grid gap-2">
                         <Label>Gender</Label>
-                        <Select
-                          value={newStudent.gender}
-                          onValueChange={(value) => setNewStudent({ ...newStudent, gender: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
+                        <Select value={newStudent.gender}
+                          onValueChange={(value) => setNewStudent({ ...newStudent, gender: value })}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="male">Male</SelectItem>
                             <SelectItem value="female">Female</SelectItem>
@@ -294,77 +330,51 @@ export default function CenterStudents() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Phone *</Label>
-                        <Input
-                          placeholder="+91 98765 43210"
-                          value={newStudent.phone}
-                          onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                        />
+                        <Input placeholder="+91 98765 43210" value={newStudent.phone}
+                          onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label>Email</Label>
-                        <Input
-                          type="email"
-                          placeholder="student@email.com"
-                          value={newStudent.email}
-                          onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
-                        />
+                        <Input type="email" placeholder="student@email.com" value={newStudent.email}
+                          onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })} />
                       </div>
                       <div className="grid gap-2">
                         <Label>Guardian Phone</Label>
-                        <Input
-                          placeholder="+91 98765 43210"
-                          value={newStudent.guardian_phone}
-                          onChange={(e) => setNewStudent({ ...newStudent, guardian_phone: e.target.value })}
-                        />
+                        <Input placeholder="+91 98765 43210" value={newStudent.guardian_phone}
+                          onChange={(e) => setNewStudent({ ...newStudent, guardian_phone: e.target.value })} />
                       </div>
                     </div>
                     <div className="grid gap-2">
                       <Label>Address</Label>
-                      <Textarea
-                        placeholder="Enter complete address"
-                        value={newStudent.address}
-                        onChange={(e) => setNewStudent({ ...newStudent, address: e.target.value })}
-                      />
+                      <Textarea placeholder="Enter complete address" value={newStudent.address}
+                        onChange={(e) => setNewStudent({ ...newStudent, address: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-2">
                         <Label>City</Label>
-                        <Input
-                          placeholder="City"
-                          value={newStudent.city}
-                          onChange={(e) => setNewStudent({ ...newStudent, city: e.target.value })}
-                        />
+                        <Input placeholder="City" value={newStudent.city}
+                          onChange={(e) => setNewStudent({ ...newStudent, city: e.target.value })} />
                       </div>
                       <div className="grid gap-2">
                         <Label>State</Label>
-                        <Input
-                          placeholder="State"
-                          value={newStudent.state}
-                          onChange={(e) => setNewStudent({ ...newStudent, state: e.target.value })}
-                        />
+                        <Input placeholder="State" value={newStudent.state}
+                          onChange={(e) => setNewStudent({ ...newStudent, state: e.target.value })} />
                       </div>
                       <div className="grid gap-2">
                         <Label>Pincode</Label>
-                        <Input
-                          placeholder="400001"
-                          value={newStudent.pincode}
-                          onChange={(e) => setNewStudent({ ...newStudent, pincode: e.target.value })}
-                        />
+                        <Input placeholder="400001" value={newStudent.pincode}
+                          onChange={(e) => setNewStudent({ ...newStudent, pincode: e.target.value })} />
                       </div>
                     </div>
                   </div>
                 </TabsContent>
               </Tabs>
               <DialogFooter className="mt-6">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleAddStudent}
-                  disabled={createStudent.isPending || !newStudent.name || !newStudent.phone || !newStudent.course_id}
-                >
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddStudent}
+                  disabled={createStudent.isPending || !newStudent.name || !newStudent.phone || !newStudent.course_id}>
                   {createStudent.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Admit Student
                 </Button>
@@ -436,12 +446,8 @@ export default function CenterStudents() {
               <CardTitle className="font-heading">All Students</CardTitle>
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search students..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+                <Input placeholder="Search students..." value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
               </div>
             </div>
           </CardHeader>
@@ -458,55 +464,157 @@ export default function CenterStudents() {
                       <TableHead>Student</TableHead>
                       <TableHead>Enrollment No</TableHead>
                       <TableHead>Course</TableHead>
-                      <TableHead>Admission Date</TableHead>
-                      <TableHead>Fees</TableHead>
+                      <TableHead>Password</TableHead>
+                      <TableHead>Fees Paid</TableHead>
+                      <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudents.map((student) => (
-                      <TableRow key={student.id} className="table-row-hover">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{student.name}</p>
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {student.phone}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{student.enrollment_no}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium">{student.course_name || 'N/A'}</p>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(student.admission_date), 'dd/MM/yyyy')}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
+                    {filteredStudents.map((student) => {
+                      const pwd = (student as any).password || '------';
+                      const isVisible = visiblePasswords[student.id];
+                      return (
+                        <TableRow key={student.id} className="table-row-hover">
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{student.name}</p>
+                              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Phone className="w-3 h-3" />{student.phone}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{student.enrollment_no}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium">{student.course_name || 'N/A'}</p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <code className="text-sm font-mono bg-muted px-1.5 py-0.5 rounded">
+                                {isVisible ? pwd : '••••••'}
+                              </code>
+                              <Button variant="ghost" size="icon" className="h-6 w-6"
+                                onClick={() => togglePasswordVisibility(student.id)}>
+                                {isVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6"
+                                onClick={() => copyToClipboard(pwd)}>
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
                             <span className="text-success font-medium">₹{Number(student.fee_paid || 0).toLocaleString()}</span>
-                            {Number(student.fee_pending || 0) > 0 && (
-                              <span className="text-destructive ml-2">/ ₹{Number(student.fee_pending).toLocaleString()} pending</span>
+                          </TableCell>
+                          <TableCell>
+                            {Number(student.fee_pending || 0) > 0 ? (
+                              <span className="text-destructive font-medium">₹{Number(student.fee_pending).toLocaleString()}</span>
+                            ) : (
+                              <span className="text-muted-foreground">₹0</span>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`capitalize ${getStatusColor(student.status || 'active')}`}>
-                            {student.status || 'active'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`capitalize ${getStatusColor(student.status || 'active')}`}>
+                              {student.status || 'active'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(student)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Student Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Student</DialogTitle>
+              <DialogDescription>
+                Update student details and track fee collection.
+              </DialogDescription>
+            </DialogHeader>
+            {editStudent && (
+              <div className="space-y-4 mt-2">
+                <div className="grid gap-2">
+                  <Label>Full Name</Label>
+                  <Input value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Course</Label>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{editStudent.course_name || 'N/A'}</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Enrollment No</Label>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-mono">{editStudent.enrollment_no}</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Status</Label>
+                  <Select value={editForm.status}
+                    onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="certified">Certified</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <IndianRupee className="w-4 h-4" /> Fee Tracking
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Total Collected</Label>
+                      <p className="text-lg font-bold text-success">₹{Number(editForm.fee_paid).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Pending</Label>
+                      <p className="text-lg font-bold text-destructive">₹{Number(editForm.fee_pending).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input type="number" placeholder="Amount to collect" value={feeToAdd}
+                      onChange={(e) => setFeeToAdd(e.target.value)} />
+                    <Button variant="outline" onClick={handleCollectFee} disabled={!feeToAdd || Number(feeToAdd) <= 0}>
+                      Collect
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveEdit} disabled={updateStudent.isPending}>
+                {updateStudent.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </CenterLayout>
   );

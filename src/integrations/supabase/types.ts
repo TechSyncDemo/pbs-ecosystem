@@ -667,6 +667,7 @@ export type Database = {
           guardian_phone: string | null
           id: string
           name: string
+          password: string | null
           phone: string
           pincode: string | null
           state: string | null
@@ -692,6 +693,7 @@ export type Database = {
           guardian_phone?: string | null
           id?: string
           name: string
+          password?: string | null
           phone: string
           pincode?: string | null
           state?: string | null
@@ -717,6 +719,7 @@ export type Database = {
           guardian_phone?: string | null
           id?: string
           name?: string
+          password?: string | null
           phone?: string
           pincode?: string | null
           state?: string | null
