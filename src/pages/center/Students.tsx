@@ -86,11 +86,11 @@ export default function CenterStudents() {
 
   // Get authorized courses that have stock available
   const authorizedCourseIds = authorizations.map(a => a.course_id);
-  const coursesWithStock = stockData
-    .filter(s => s.quantity > 0)
-    .map(s => s.stock_item_id);
+  const coursesWithStockIds = stockData
+    .filter(s => s.quantity > 0 && s.stock_item?.course_id)
+    .map(s => s.stock_item!.course_id!);
   const availableCourses = courses.filter(
-    c => authorizedCourseIds.includes(c.id) && c.status === 'active' && coursesWithStock.includes(c.id)
+    c => authorizedCourseIds.includes(c.id) && c.status === 'active' && coursesWithStockIds.includes(c.id)
   );
   const allAuthorizedCourses = courses.filter(c => authorizedCourseIds.includes(c.id) && c.status === 'active');
 
