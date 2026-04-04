@@ -44,7 +44,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCenterStudents, useCreateStudent, type StudentWithDetails } from '@/hooks/useStudents';
 import { useCourses } from '@/hooks/useCourses';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
+import { useCenterStock } from '@/hooks/useStock';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 export default function CenterStudents() {
   const { user } = useAuth();
