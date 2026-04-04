@@ -55,6 +55,7 @@ export default function CenterStudents() {
   const { data: students = [], isLoading } = useCenterStudents(centerId);
   const { data: courses = [] } = useCourses();
   const { data: authorizations = [] } = useCenterAuthorizations(centerId);
+  const { data: stockData = [] } = useCenterStock(centerId);
   const createStudent = useCreateStudent();
 
   const [searchQuery, setSearchQuery] = useState('');
