@@ -38,7 +38,6 @@ import {
   CreditCard,
   CheckCircle,
   Clock,
-  QrCode,
   Loader2,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
