@@ -899,6 +899,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_stock: {
+        Args: { p_center_id: string; p_course_id: string; p_quantity: number }
+        Returns: undefined
+      }
       generate_center_code:
         | { Args: never; Returns: string }
         | { Args: { state_code?: string }; Returns: string }
