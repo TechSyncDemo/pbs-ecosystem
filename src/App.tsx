@@ -23,6 +23,7 @@ import AdminOrders from "./pages/admin/Orders";
 import AdminResults from "./pages/admin/Results";
 import AdminReports from "./pages/admin/Reports";
 import AdminSettings from "./pages/admin/Settings";
+import AdminTutorials from "./pages/admin/Tutorials";
 
 // Center Pages
 import CenterDashboard from "./pages/center/Dashboard";
