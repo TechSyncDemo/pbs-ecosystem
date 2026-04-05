@@ -44,6 +44,7 @@ import {
   EyeOff,
   Lock,
   Copy,
+  Download,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -82,6 +83,8 @@ export default function CenterStudents() {
   const [editForm, setEditForm] = useState({ name: '', fee_paid: '', fee_pending: '', status: '' });
   const [feeToAdd, setFeeToAdd] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [exportFromDate, setExportFromDate] = useState('');
+  const [exportToDate, setExportToDate] = useState('');
 
   const [newStudent, setNewStudent] = useState({
     name: '',
@@ -201,6 +204,41 @@ export default function CenterStudents() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard');
+  };
+
+  const handleExportCSV = () => {
+    let data = students;
+    if (exportFromDate) {
+      data = data.filter(s => s.admission_date >= exportFromDate);
+    }
+    if (exportToDate) {
+      data = data.filter(s => s.admission_date <= exportToDate);
+    }
+    if (data.length === 0) {
+      toast.error('No students found for the selected date range');
+      return;
+    }
+    const headers = ['Enrollment No', 'Name', 'Phone', 'Course', 'Admission Date', 'Course Fee', 'Fees Pending', 'Password', 'Status'];
+    const rows = data.map(s => [
+      s.enrollment_no,
+      s.name,
+      s.phone,
+      s.course_name || '',
+      s.admission_date,
+      String(s.fee_paid || 0),
+      String(s.fee_pending || 0),
+      (s as any).password || '',
+      s.status || 'active',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `students_${exportFromDate || 'all'}_to_${exportToDate || 'all'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${data.length} students`);
   };
 
   const getStatusColor = (status: string) => {
@@ -444,10 +482,21 @@ export default function CenterStudents() {
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="font-heading">All Students</CardTitle>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Search students..." value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input placeholder="Search students..." value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input type="date" value={exportFromDate} onChange={(e) => setExportFromDate(e.target.value)}
+                    className="w-36 text-xs" placeholder="From" />
+                  <Input type="date" value={exportToDate} onChange={(e) => setExportToDate(e.target.value)}
+                    className="w-36 text-xs" placeholder="To" />
+                  <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                    <Download className="w-4 h-4 mr-1" /> Export
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -465,7 +514,7 @@ export default function CenterStudents() {
                       <TableHead>Enrollment No</TableHead>
                       <TableHead>Course</TableHead>
                       <TableHead>Password</TableHead>
-                      <TableHead>Fees Paid</TableHead>
+                      <TableHead>Course Fee</TableHead>
                       <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
