@@ -829,6 +829,42 @@ export type Database = {
           },
         ]
       }
+      tutorial_authorizations: {
+        Row: {
+          authorization_id: string
+          created_at: string
+          id: string
+          tutorial_id: string
+        }
+        Insert: {
+          authorization_id: string
+          created_at?: string
+          id?: string
+          tutorial_id: string
+        }
+        Update: {
+          authorization_id?: string
+          created_at?: string
+          id?: string
+          tutorial_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutorial_authorizations_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "authorizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tutorial_authorizations_tutorial_id_fkey"
+            columns: ["tutorial_id"]
+            isOneToOne: false
+            referencedRelation: "tutorials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tutorials: {
         Row: {
           course_id: string | null
@@ -839,6 +875,7 @@ export type Database = {
           file_size: number | null
           file_url: string | null
           id: string
+          link: string | null
           title: string
           updated_at: string
         }
@@ -851,6 +888,7 @@ export type Database = {
           file_size?: number | null
           file_url?: string | null
           id?: string
+          link?: string | null
           title: string
           updated_at?: string
         }
@@ -863,6 +901,7 @@ export type Database = {
           file_size?: number | null
           file_url?: string | null
           id?: string
+          link?: string | null
           title?: string
           updated_at?: string
         }
