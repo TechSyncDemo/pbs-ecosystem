@@ -105,6 +105,11 @@ const App = () => (
                 <AdminSettings />
               </ProtectedRoute>
             } />
+            <Route path="/admin/tutorials" element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <AdminTutorials />
+              </ProtectedRoute>
+            } />
             
             {/* Center Admin Routes */}
             <Route path="/center" element={
