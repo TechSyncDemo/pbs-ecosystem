@@ -42,7 +42,8 @@ const adminNavItems: NavItem[] = [
   { label: 'Students', href: '/admin/students', icon: Users },
   { label: 'Results', href: '/admin/results', icon: Award }, // Assuming Award is for Results
   { label: 'Reports', href: '/admin/reports', icon: FileTextIcon }, // FileTextIcon for Reports
-  { label: 'Support', href: '/admin/support', icon: MessageSquare }, // Corrected icon for Support
+  { label: 'Tutorials', href: '/admin/tutorials', icon: BookOpen },
+  { label: 'Support', href: '/admin/support', icon: MessageSquare },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
