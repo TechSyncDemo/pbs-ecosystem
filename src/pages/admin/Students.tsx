@@ -40,6 +40,8 @@ export default function AdminStudents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [centerFilter, setCenterFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [exportFromDate, setExportFromDate] = useState('');
+  const [exportToDate, setExportToDate] = useState('');
   const navigate = useNavigate();
 
   const { data: students = [], isLoading: studentsLoading } = useAllStudents();
@@ -81,15 +83,28 @@ export default function AdminStudents() {
   };
 
   const handleExport = () => {
+    let data = filteredStudents;
+    if (exportFromDate) {
+      data = data.filter(s => s.admission_date >= exportFromDate);
+    }
+    if (exportToDate) {
+      data = data.filter(s => s.admission_date <= exportToDate);
+    }
+    if (data.length === 0) {
+      toast.error('No students found for the selected date range');
+      return;
+    }
     const csvContent = [
-      ['Enrollment No', 'Name', 'Course', 'Center', 'Phone', 'Email', 'Status', 'Admission Date'].join(','),
-      ...students.map(s => [
+      ['Enrollment No', 'Name', 'Course', 'Center', 'Phone', 'Email', 'Course Fee', 'Fees Pending', 'Status', 'Admission Date'].join(','),
+      ...data.map(s => [
         s.enrollment_no,
-        s.name,
-        s.course_name || '',
-        s.center_name || '',
+        `"${s.name}"`,
+        `"${s.course_name || ''}"`,
+        `"${s.center_name || ''}"`,
         s.phone,
         s.email || '',
+        String(s.fee_paid || 0),
+        String(s.fee_pending || 0),
         s.status || '',
         s.admission_date
       ].join(','))
@@ -99,9 +114,10 @@ export default function AdminStudents() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'students.csv';
+    a.download = `students_${exportFromDate || 'all'}_to_${exportToDate || 'all'}.csv`;
     a.click();
-    toast.success('Students exported to CSV!');
+    window.URL.revokeObjectURL(url);
+    toast.success(`Exported ${data.length} students to CSV!`);
   };
 
   return (
@@ -113,10 +129,16 @@ export default function AdminStudents() {
             <h1 className="text-3xl font-heading font-bold text-foreground">Student Records</h1>
             <p className="text-muted-foreground mt-1">View and manage all student records across centers</p>
           </div>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />
-            Export to Excel
-          </Button>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <Input type="date" value={exportFromDate} onChange={(e) => setExportFromDate(e.target.value)}
+              className="w-40 text-xs" />
+            <Input type="date" value={exportToDate} onChange={(e) => setExportToDate(e.target.value)}
+              className="w-40 text-xs" />
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Export to Excel
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
