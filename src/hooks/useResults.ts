@@ -17,16 +17,16 @@ export type ResultRow = {
     name: string;
     enrollment_no: string;
     center_id: string;
-    centers: { id: string; name: string } | null;
+    centers: { id: string; name: string; code: string } | null;
   } | null;
-  courses: { id: string; name: string; max_marks: number } | null;
+  courses: { id: string; name: string; code: string; max_marks: number; duration_months: number } | null;
 };
 
 const RESULTS_QUERY = `
   id, student_id, course_id, exam_date, marks_obtained, total_marks,
   grace_marks, status, result_date,
-  students!inner ( id, name, enrollment_no, center_id, centers ( id, name ) ),
-  courses!inner ( id, name, max_marks )
+  students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code ) ),
+  courses!inner ( id, name, code, max_marks, duration_months )
 `;
 
 export function usePendingResults() {
