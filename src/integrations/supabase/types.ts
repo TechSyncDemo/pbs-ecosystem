@@ -1026,6 +1026,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      verify_certificate: {
+        Args: { _cert_id: string }
+        Returns: {
+          center_name: string
+          certificate_id: string
+          course_name: string
+          enrollment_no: string
+          grace_marks: number
+          marks_obtained: number
+          result_date: string
+          status: string
+          student_name: string
+          total_marks: number
+        }[]
+      }
     }
     Enums: {
       app_role: "super_admin" | "center_admin"

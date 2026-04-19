@@ -50,8 +50,52 @@ import {
   useDeclareResults,
   useAddResult,
   useStudentsForResults,
+  type ResultRow,
 } from '@/hooks/useResults';
 import { useCenters } from '@/hooks/useCenters';
+import { generateMarksheetsBulk, type MarksheetData } from '@/lib/generateMarksheet';
+import { generateCertificatesBulk, type CertificateData } from '@/lib/generateCertificate';
+
+function gradeFor(percent: number) {
+  if (percent >= 75) return 'Distinction';
+  if (percent >= 60) return 'First Class';
+  if (percent >= 50) return 'Second Class';
+  if (percent >= 40) return 'Pass';
+  return 'Fail';
+}
+
+function toMarksheet(r: ResultRow): MarksheetData {
+  return {
+    studentName: r.students?.name ?? '-',
+    enrollmentNo: r.students?.enrollment_no ?? '-',
+    centerName: r.students?.centers?.name ?? '-',
+    centerCode: r.students?.centers?.code,
+    courseName: r.courses?.name ?? '-',
+    courseCode: r.courses?.code,
+    examDate: r.exam_date,
+    resultDate: r.result_date ?? new Date().toISOString(),
+    marksObtained: Number(r.marks_obtained),
+    totalMarks: Number(r.total_marks),
+    graceMarks: Number(r.grace_marks),
+    certificateId: r.id,
+  };
+}
+
+function toCertificate(r: ResultRow): CertificateData {
+  const final = Number(r.marks_obtained) + Number(r.grace_marks);
+  const pct = Number(r.total_marks) > 0 ? (final / Number(r.total_marks)) * 100 : 0;
+  return {
+    studentName: r.students?.name ?? '-',
+    enrollmentNo: r.students?.enrollment_no ?? '-',
+    centerName: r.students?.centers?.name ?? '-',
+    centerCode: r.students?.centers?.code,
+    courseName: r.courses?.name ?? '-',
+    courseDuration: r.courses?.duration_months ? `${r.courses.duration_months} months` : undefined,
+    resultDate: r.result_date ?? new Date().toISOString(),
+    grade: gradeFor(pct),
+    certificateId: r.id,
+  };
+}
 
 export default function AdminResults() {
   const { data: pendingResults = [], isLoading: pendingLoading } = usePendingResults();
@@ -92,20 +136,38 @@ export default function AdminResults() {
     declareResults.mutate([id]);
   };
 
-  const handlePrintMarksheets = () => {
+  const handlePrintMarksheets = async () => {
     if (selectedForPrinting.length === 0) {
       toast.error('Please select at least one student to print marksheets.');
       return;
     }
-    toast.info(`Generating bulk marksheet PDF for ${selectedForPrinting.length} students...`);
+    const items = filteredDeclaredResults
+      .filter((r) => selectedForPrinting.includes(r.id))
+      .map(toMarksheet);
+    toast.info(`Generating marksheet PDF for ${items.length} student(s)...`);
+    try {
+      await generateMarksheetsBulk(items);
+      toast.success('Marksheet PDF generated');
+    } catch {
+      toast.error('Failed to generate marksheet PDF');
+    }
   };
 
-  const handlePrintCertificates = () => {
+  const handlePrintCertificates = async () => {
     if (selectedForPrinting.length === 0) {
       toast.error('Please select at least one student to print certificates.');
       return;
     }
-    toast.info(`Generating bulk PDF for ${selectedForPrinting.length} certificates...`);
+    const items = filteredDeclaredResults
+      .filter((r) => selectedForPrinting.includes(r.id))
+      .map(toCertificate);
+    toast.info(`Generating certificate PDF for ${items.length} student(s)...`);
+    try {
+      await generateCertificatesBulk(items);
+      toast.success('Certificate PDF generated');
+    } catch {
+      toast.error('Failed to generate certificate PDF');
+    }
   };
 
   const togglePrintSelection = (id: string) => {
