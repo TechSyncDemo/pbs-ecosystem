@@ -136,20 +136,38 @@ export default function AdminResults() {
     declareResults.mutate([id]);
   };
 
-  const handlePrintMarksheets = () => {
+  const handlePrintMarksheets = async () => {
     if (selectedForPrinting.length === 0) {
       toast.error('Please select at least one student to print marksheets.');
       return;
     }
-    toast.info(`Generating bulk marksheet PDF for ${selectedForPrinting.length} students...`);
+    const items = filteredDeclaredResults
+      .filter((r) => selectedForPrinting.includes(r.id))
+      .map(toMarksheet);
+    toast.info(`Generating marksheet PDF for ${items.length} student(s)...`);
+    try {
+      await generateMarksheetsBulk(items);
+      toast.success('Marksheet PDF generated');
+    } catch {
+      toast.error('Failed to generate marksheet PDF');
+    }
   };
 
-  const handlePrintCertificates = () => {
+  const handlePrintCertificates = async () => {
     if (selectedForPrinting.length === 0) {
       toast.error('Please select at least one student to print certificates.');
       return;
     }
-    toast.info(`Generating bulk PDF for ${selectedForPrinting.length} certificates...`);
+    const items = filteredDeclaredResults
+      .filter((r) => selectedForPrinting.includes(r.id))
+      .map(toCertificate);
+    toast.info(`Generating certificate PDF for ${items.length} student(s)...`);
+    try {
+      await generateCertificatesBulk(items);
+      toast.success('Certificate PDF generated');
+    } catch {
+      toast.error('Failed to generate certificate PDF');
+    }
   };
 
   const togglePrintSelection = (id: string) => {
