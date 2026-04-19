@@ -21,11 +21,12 @@ export function useExamPortalExams(activeOnly = true) {
   return useQuery({
     queryKey: ["exam-portal-exams", activeOnly],
     queryFn: async () => {
+      // The proxy edge function appends ?active=true based on a custom header.
+      // We use functions.invoke and rely on the edge function reading the header.
       const { data, error } = await supabase.functions.invoke<ExamListResponse>(
-        "list-exam-portal-exams",
-        { body: null, method: "GET", ...(activeOnly ? { headers: {} } : {}) },
+        `list-exam-portal-exams${activeOnly ? "?active=true" : ""}`,
+        { method: "GET" },
       );
-      // supabase-js doesn't expose query strings cleanly; fall back to raw fetch when needed
       if (error) throw error;
       return data?.exams ?? [];
     },
