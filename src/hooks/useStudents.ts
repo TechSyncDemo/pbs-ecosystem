@@ -91,10 +91,21 @@ export function useCreateStudent() {
   
   return useMutation({
     mutationFn: async (student: StudentInsert) => {
+      // Auto-assign exam_portal_id from the course (if any)
+      let examPortalId: string | null = student.exam_portal_id ?? null;
+      if (!examPortalId && student.course_id) {
+        const { data: course } = await supabase
+          .from('courses')
+          .select('exam_portal_id')
+          .eq('id', student.course_id)
+          .maybeSingle();
+        examPortalId = course?.exam_portal_id ?? null;
+      }
+
       // Insert student
       const { data, error } = await supabase
         .from('students')
-        .insert(student)
+        .insert({ ...student, exam_portal_id: examPortalId })
         .select()
         .single();
 

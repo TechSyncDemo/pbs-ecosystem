@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpen } from "lucide-react";
 import type { Course, CourseInsert, CourseUpdate } from "@/hooks/useCourses";
 import { useAuthorizations } from "@/hooks/useAuthorizations";
+import { useExamPortalExams } from "@/hooks/useExamPortalExams";
+import { Loader2 } from "lucide-react";
 
 const courseFormSchema = z.object({
   authorization_id: z.string().min(1, "Authorization is required"),
@@ -45,6 +47,7 @@ interface CourseFormProps {
 export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageSyllabus }: CourseFormProps) {
   const { data: authorizations = [] } = useAuthorizations();
   const activeAuthorizations = authorizations.filter(a => a.status === 'active');
+  const { data: portalExams = [], isLoading: examsLoading, error: examsError } = useExamPortalExams(true);
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
@@ -243,9 +246,39 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
         <FormField control={form.control} name="exam_portal_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Exam Portal ID (Optional)</FormLabel>
-              <FormControl><Input placeholder="Link to external exam portal" {...field} /></FormControl>
-              <FormDescription className="text-xs">Used for integration with the online exam system</FormDescription>
+              <FormLabel>Exam Portal Exam (Optional)</FormLabel>
+              <Select
+                onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                value={field.value || "__none__"}
+                disabled={examsLoading}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    {examsLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading exams…
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="Select an exam from the portal" />
+                    )}
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {portalExams.map((exam) => (
+                    <SelectItem key={exam.id} value={exam.id}>
+                      {exam.title}
+                      {exam.category ? ` · ${exam.category}` : ""}
+                      {typeof exam.question_count === "number" ? ` · ${exam.question_count} Q` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription className="text-xs">
+                {examsError
+                  ? "Couldn't load exams from the portal. Check the integration."
+                  : "Students enrolled in this course will be auto-assigned to this exam."}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )} />
