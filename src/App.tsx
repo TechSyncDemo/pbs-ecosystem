@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import VerifyCertificate from "./pages/VerifyCertificate";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -48,6 +49,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/verify/:id" element={<VerifyCertificate />} />
             
             {/* Super Admin Routes */}
             <Route path="/admin" element={
