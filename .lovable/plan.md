@@ -1,118 +1,53 @@
 
+The user wants the Results & Certificate Management page (`src/pages/admin/Results.tsx`) to use live data from the database instead of the hardcoded mock arrays.
 
-# Enhancement Plan: Authorizations + Courses + Center Profile
+Looking at the current schema, there's no dedicated `exam_results` or `marks` table. The `students` table has `status` (active, completed, certified) but no marks/exam fields. The `course_topics` table holds the topic-wise max_marks structure.
 
-## Summary
+To make this fully live, I need to add a results/marks storage layer. Here's my plan:
 
-Three areas of work:
-1. **Admin Authorizations** -- add validity, fees, commission fields; PDF certificate; assign authorization to center
-2. **Admin Courses** -- add syllabus/topics management inline
-3. **Center Profile** -- show validity/renewal info; allow PDF certificate download
+## Plan: Live Result & Certificate Management
 
----
+### 1. Database additions
+Create a new migration:
+- **`student_results` table** to store exam results per student:
+  - `id`, `student_id` (FK student), `course_id`, `exam_date`, `marks_obtained`, `total_marks`, `grace_marks`, `status` (`pending` | `declared`), `result_date`, `declared_by`, `created_at`, `updated_at`
+- RLS policies:
+  - Super admins: full ALL access
+  - Center admins: SELECT/INSERT for their own center's students (via join through students table)
+- Index on `student_id` and `status` for fast filtering
 
-## 1. Admin Authorizations -- New Fields
+### 2. New hook: `src/hooks/useResults.ts`
+- `usePendingResults()` — fetches results joined with `students(name, center_id, centers(name))` and `courses(name)` where `status = 'pending'`
+- `useDeclaredResults()` — fetches `status = 'declared'` with same joins
+- `useUpdateGraceMarks()` — mutation for grace marks
+- `useDeclareResult()` — sets status to `declared`, sets `result_date`, also updates the student's status to `completed`
+- `useDeclareMultipleResults()` — bulk declare
+- All mutations invalidate relevant query keys
 
-The `authorizations` table currently only has: name, code, description, status. The feedback asks for additional fields on the authorization itself.
+### 3. Refactor `src/pages/admin/Results.tsx`
+- Remove `mockPendingResults`, `mockDeclaredResults`, `mockCenters` arrays
+- Replace `mockCenters` filter dropdown with live data from `useCenters()` (already exists)
+- Wire `pendingResults` table to `usePendingResults()` data
+- Wire `declaredResults` table to `useDeclaredResults()` data
+- Use the new mutation hooks for declare actions and grace-mark updates
+- Add loading states (Loader2) and empty states for both tabs
+- Filters (center, date range) work on real data via `useMemo`
+- Keep print buttons functional (toast for now — actual PDF generation is a separate feature)
 
-### Database Migration
-Add columns to `authorizations`:
-- `validity_days` (integer, default 365)
-- `fees` (numeric, default 0) -- authorization fees
-- `commission_rate` (numeric, default 0) -- commission percentage
+### 4. Where do results come from?
+Since there's currently no UI for entering exam marks, I'll add a **"Add Result" dialog** on the Results page so a super admin can record `marks_obtained` for an existing student before declaration. Without this, the pending list will always be empty. The dialog will:
+- Pick a student (searchable select of active students)
+- Pick the course (auto-filled from student)
+- Enter exam date, marks obtained, total marks (default from course's `max_marks`)
+- Save as `pending`
 
-### UI Changes
-- Update the authorization form (in `Authorizations.tsx` renderForm) to include:
-  - Validity (days) -- numeric input, default 365
-  - Authorization Fees (₹) -- numeric input
-  - Commission Rate (%) -- numeric input
-- Update the table to show these new columns
-- Update `useAuthorizations.ts` interfaces to include new fields
+### Files to create / edit
+- **New migration**: `student_results` table + RLS
+- **New**: `src/hooks/useResults.ts`
+- **Edit**: `src/pages/admin/Results.tsx` (full rewrite of data layer, keep UI structure)
+- `src/integrations/supabase/types.ts` will auto-regenerate
 
----
-
-## 2. Admin Authorizations -- Assign to Center
-
-Currently `center_courses` links centers to individual courses. The feedback wants to assign an **authorization** (the parent category) to a center, which implicitly grants access to all courses under it.
-
-### Approach
-- The existing `AuthorizationForm.tsx` component already handles center-course assignment with financial details and validity. This is the "Assign Authorization to Center" flow.
-- Update the Authorizations page to add an "Assign to Center" action in each row's dropdown menu
-- When clicked, open a dialog using `AuthorizationForm.tsx` but pre-filter courses to only those under the selected authorization
-- The `center_courses` table already has `valid_from`, `valid_until`, `registration_amount`, `commission_percent` etc.
-
-### Implementation
-- Add "Assign to Center" dropdown item in `Authorizations.tsx` table rows
-- Open a dialog with center selection + course multi-select (filtered by authorization_id)
-- Use existing `useAssignCourseToCenter` mutation
-
----
-
-## 3. PDF Certificate Generation
-
-Generate a downloadable PDF certificate for an authorization assignment.
-
-### Implementation
-- Install `jspdf` and `html2canvas` (or use jspdf directly with text layout)
-- Create a utility function `generateAuthorityCertificate()` that produces a PDF with:
-  - Certificate title, authorization name/code
-  - Center name, validity dates, certificate number
-  - Professional layout with borders
-- Add "Download Certificate" button in the authorization assignment details and in center profile
-- Use `jspdf` to create the PDF client-side
-
----
-
-## 4. Admin Courses -- Syllabus Management
-
-The `course_topics` table and `useCourseTopics.ts` hook already exist. The feedback wants syllabus topics to be manageable from the Courses page.
-
-### Implementation
-- The `CourseForm.tsx` already has a "Manage Syllabus" button placeholder
-- Create a `CourseSyllabusDialog.tsx` component that:
-  - Lists existing topics for a course
-  - Allows add/edit/delete/reorder of topics
-  - Each topic has: name, max_marks, sort_order
-- Wire it up in `Courses.tsx` via the `onManageSyllabus` prop
-
----
-
-## 5. Center Profile -- Validity & Certificate
-
-### Show Validity for Renewal
-- In the center profile's Authorizations section, show `valid_from` and `valid_until` dates for each authorization
-- Add expiry status badges: "Active", "Expiring Soon" (< 30 days), "Expired"
-- Show days remaining
-
-### Allow PDF Certificate Download
-- Add a "Download Certificate" button next to each authorization in the center profile
-- Reuse the same PDF generation utility from item 3
-
----
-
-## Files to Create/Modify
-
-### New Files:
-1. `src/lib/generateAuthorityCertificate.ts` -- PDF generation utility
-2. `src/components/admin/CourseSyllabusDialog.tsx` -- Topic management dialog
-
-### Modified Files:
-1. `src/hooks/useAuthorizations.ts` -- add new fields to interfaces
-2. `src/pages/admin/Authorizations.tsx` -- add form fields, assign-to-center action
-3. `src/pages/admin/Courses.tsx` -- wire up syllabus dialog
-4. `src/pages/center/Profile.tsx` -- add validity display, certificate download
-
-### Database Migration:
-- Add `validity_days`, `fees`, `commission_rate` to `authorizations` table
-
----
-
-## Implementation Order
-
-1. Database migration (add columns to authorizations)
-2. Update authorization form with new fields + table columns
-3. Add "Assign to Center" flow on Authorizations page
-4. Build PDF certificate generation
-5. Build syllabus management dialog for courses
-6. Update center profile with validity display + certificate download
+### Out of scope (mention only)
+- Actual PDF marksheet/certificate generation — buttons will keep their toast placeholders
+- QR-code verification system
 
