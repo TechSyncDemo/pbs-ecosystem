@@ -647,6 +647,66 @@ export type Database = {
           },
         ]
       }
+      student_results: {
+        Row: {
+          course_id: string
+          created_at: string
+          declared_by: string | null
+          exam_date: string
+          grace_marks: number
+          id: string
+          marks_obtained: number
+          result_date: string | null
+          status: string
+          student_id: string
+          total_marks: number
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          declared_by?: string | null
+          exam_date?: string
+          grace_marks?: number
+          id?: string
+          marks_obtained?: number
+          result_date?: string | null
+          status?: string
+          student_id: string
+          total_marks?: number
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          declared_by?: string | null
+          exam_date?: string
+          grace_marks?: number
+          id?: string
+          marks_obtained?: number
+          result_date?: string | null
+          status?: string
+          student_id?: string
+          total_marks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_results_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_results_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           address: string | null
