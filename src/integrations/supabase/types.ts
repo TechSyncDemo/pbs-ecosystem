@@ -720,6 +720,7 @@ export type Database = {
           email: string | null
           enquiry_id: string | null
           enrollment_no: string
+          exam_portal_id: string | null
           fee_paid: number | null
           fee_pending: number | null
           gender: string | null
@@ -746,6 +747,7 @@ export type Database = {
           email?: string | null
           enquiry_id?: string | null
           enrollment_no: string
+          exam_portal_id?: string | null
           fee_paid?: number | null
           fee_pending?: number | null
           gender?: string | null
@@ -772,6 +774,7 @@ export type Database = {
           email?: string | null
           enquiry_id?: string | null
           enrollment_no?: string
+          exam_portal_id?: string | null
           fee_paid?: number | null
           fee_pending?: number | null
           gender?: string | null
