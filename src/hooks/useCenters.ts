@@ -117,13 +117,45 @@ export const useCreateCenter = () => {
 
   return useMutation({
     mutationFn: async (center: CenterInsert) => {
-      const { data, error } = await supabase
-        .from("centers")
-        .insert(center)
-        .select()
-        .single();
+      // Validate code
+      const trimmedCode = (center.code || "").trim();
+      if (!trimmedCode) {
+        throw new Error("Center code is required. Please select a state to generate one.");
+      }
 
-      if (error) throw error;
+      const attemptInsert = async (codeToUse: string) => {
+        return await supabase
+          .from("centers")
+          .insert({ ...center, code: codeToUse })
+          .select()
+          .single();
+      };
+
+      let { data, error } = await attemptInsert(trimmedCode);
+
+      // Retry once on unique-violation by regenerating the code server-side
+      if (error && (error as any).code === "23505") {
+        // Derive state code from current code if possible (positions 4-5 in PBS{SS}{YYYY}{NN})
+        const stateCode = trimmedCode.length >= 5 ? trimmedCode.substring(3, 5) : "00";
+        const { data: regenerated, error: rpcError } = await supabase.rpc(
+          "generate_center_code",
+          { state_code: stateCode }
+        );
+        if (!rpcError && regenerated && regenerated !== trimmedCode) {
+          const retry = await attemptInsert(regenerated as string);
+          data = retry.data;
+          error = retry.error;
+        }
+      }
+
+      if (error) {
+        if ((error as any).code === "23505") {
+          throw new Error(
+            "A center with this code already exists. Please use a different code."
+          );
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
