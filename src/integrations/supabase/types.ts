@@ -1008,9 +1008,7 @@ export type Database = {
         Args: { p_center_id: string; p_course_id: string; p_quantity: number }
         Returns: undefined
       }
-      generate_center_code:
-        | { Args: never; Returns: string }
-        | { Args: { state_code?: string }; Returns: string }
+      generate_center_code: { Args: { state_code?: string }; Returns: string }
       generate_enrollment_no: { Args: never; Returns: string }
       generate_order_no: { Args: never; Returns: string }
       get_user_center_id: { Args: { _user_id: string }; Returns: string }
