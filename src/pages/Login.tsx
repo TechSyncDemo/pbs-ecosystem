@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Eye, EyeOff, AlertCircle, Building2, Shield, Mail, User } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Building2, Shield, Mail, User, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import pbsLogo from '@/assets/pbs-logo.png';
 
 // Validation schemas
 const loginSchema = z.object({
@@ -123,23 +124,17 @@ export default function Login() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
         
         <div className="relative z-10 flex flex-col justify-center p-12 text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
-              <GraduationCap className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-heading font-bold">PBS Ecosystem</h1>
-              <p className="text-white/70 text-sm">Proactive Business School</p>
-            </div>
+          <div className="mb-8 inline-flex items-center bg-white rounded-2xl p-4 shadow-lg w-fit">
+            <img src={pbsLogo} alt="Proactive Business School logo" className="h-16 w-auto object-contain" />
           </div>
 
           <h2 className="text-4xl font-heading font-bold leading-tight mb-6">
-            Empowering Education<br />
-            <span className="text-primary-foreground/80">Through Technology</span>
+            Crafting Successful<br />
+            <span className="text-primary-foreground/80">Skilled Professionals</span>
           </h2>
 
           <p className="text-white/70 text-lg mb-10 max-w-md">
-            A comprehensive franchise management platform connecting Head Office, Centers, and Students seamlessly.
+            Proactive Business School is dedicated to skilling, upskilling and empowering the youth to be the best at their careers.
           </p>
 
           <div className="space-y-4">
@@ -162,6 +157,21 @@ export default function Login() {
               </div>
             </div>
           </div>
+
+          {/* Contact details */}
+          <div className="mt-10 pt-6 border-t border-white/10 space-y-2 text-sm text-white/80">
+            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">Get in touch</p>
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4" />
+              <a href="tel:+918879808222" className="hover:text-white transition-colors">+91 88798 08222</a>
+              <span className="text-white/40">·</span>
+              <a href="tel:+919763711344" className="hover:text-white transition-colors">+91 97 63 711 344</a>
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              <a href="mailto:proactive.ho@gmail.com" className="hover:text-white transition-colors">proactive.ho@gmail.com</a>
+            </div>
+          </div>
         </div>
 
         {/* Decorative circles */}
@@ -173,14 +183,9 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-              <GraduationCap className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-xl font-heading font-bold">PBS Ecosystem</h1>
-              <p className="text-muted-foreground text-sm">Proactive Business School</p>
-            </div>
+          <div className="lg:hidden flex flex-col items-center gap-2 mb-8">
+            <img src={pbsLogo} alt="Proactive Business School logo" className="h-14 w-auto object-contain" />
+            <p className="text-muted-foreground text-sm italic">Crafting Successful Skilled Professionals</p>
           </div>
 
           <Card className="border-0 shadow-xl">
@@ -290,7 +295,19 @@ export default function Login() {
                 </Button>
               </form>
 
-              <div className="mt-6 pt-6 border-t">
+              <div className="mt-6 pt-6 border-t space-y-3">
+                <div className="text-center text-xs text-muted-foreground space-y-1">
+                  <p className="flex items-center justify-center gap-1.5">
+                    <Phone className="w-3 h-3" />
+                    <a href="tel:+918879808222" className="hover:text-primary">+91 88798 08222</a>
+                    <span>·</span>
+                    <a href="tel:+919763711344" className="hover:text-primary">+91 97 63 711 344</a>
+                  </p>
+                  <p className="flex items-center justify-center gap-1.5">
+                    <Mail className="w-3 h-3" />
+                    <a href="mailto:proactive.ho@gmail.com" className="hover:text-primary">proactive.ho@gmail.com</a>
+                  </p>
+                </div>
                 <p className="text-sm text-muted-foreground text-center">
                   {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
                   <button
