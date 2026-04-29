@@ -546,6 +546,7 @@ export default function CenterStudents() {
                       <TableHead>Course</TableHead>
                       <TableHead>Password</TableHead>
                       <TableHead>Course Fee</TableHead>
+                      <TableHead>Total Collection</TableHead>
                       <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Exam</TableHead>
@@ -570,6 +571,11 @@ export default function CenterStudents() {
                           : examStatus === 'in_progress'
                           ? 'In Progress'
                           : 'Not Attempted';
+                      const courseFee = Number(
+                        courses.find((c) => c.id === student.course_id)?.fee || 0
+                      );
+                      const totalCollected = Number(student.fee_paid || 0);
+                      const pending = Math.max(0, courseFee - totalCollected);
                       return (
                         <TableRow key={student.id} className="table-row-hover">
                           <TableCell>
@@ -602,11 +608,14 @@ export default function CenterStudents() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-success font-medium">₹{Number(student.fee_paid || 0).toLocaleString()}</span>
+                            <span className="font-medium">₹{courseFee.toLocaleString()}</span>
                           </TableCell>
                           <TableCell>
-                            {Number(student.fee_pending || 0) > 0 ? (
-                              <span className="text-destructive font-medium">₹{Number(student.fee_pending).toLocaleString()}</span>
+                            <span className="text-success font-medium">₹{totalCollected.toLocaleString()}</span>
+                          </TableCell>
+                          <TableCell>
+                            {pending > 0 ? (
+                              <span className="text-destructive font-medium">₹{pending.toLocaleString()}</span>
                             ) : (
                               <span className="text-muted-foreground">₹0</span>
                             )}
