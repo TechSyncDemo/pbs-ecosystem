@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Building2, Shield, Users, BookOpen, Award, ArrowRight } from 'lucide-react';
+import { GraduationCap, Building2, Shield, Users, BookOpen, Award, ArrowRight, Phone, Mail } from 'lucide-react';
+import pbsLogo from '@/assets/pbs-logo.png';
 
 export default function Index() {
   return (
@@ -11,19 +12,21 @@ export default function Index() {
         
         <div className="relative max-w-7xl mx-auto px-6 py-24 lg:py-32">
           <div className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
-                <GraduationCap className="w-9 h-9 text-white" />
+            <div className="flex items-center justify-center mb-8">
+              <div className="bg-white rounded-2xl p-5 shadow-2xl">
+                <img src={pbsLogo} alt="Proactive Business School logo" className="h-20 md:h-24 w-auto object-contain" />
               </div>
             </div>
-            
+
+            <p className="text-warning italic text-lg md:text-xl mb-4">Crafting Successful Skilled Professionals</p>
+
             <h1 className="text-4xl md:text-6xl font-heading font-bold text-white mb-6">
-              PBS Management<br />
-              <span className="text-white/80">Ecosystem</span>
+              Proactive<br />
+              <span className="text-white/80">Business School</span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10">
-              A comprehensive multi-tenant platform connecting Head Office, Franchise Centers, and Students for seamless education management.
+              Skilling, upskilling and empowering the youth to be the best at their careers — through industry-aligned programs delivered across our network of partner centers.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -102,19 +105,23 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t bg-muted/30">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <p className="font-heading font-semibold">PBS Ecosystem</p>
-                <p className="text-sm text-muted-foreground">Proactive Business School</p>
-              </div>
+              <img src={pbsLogo} alt="Proactive Business School logo" className="h-12 w-auto object-contain" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 Proactive Business School. All rights reserved.
-            </p>
+            <div className="text-sm text-muted-foreground text-center md:text-right space-y-1">
+              <p className="flex items-center justify-center md:justify-end gap-2">
+                <Phone className="w-3.5 h-3.5" />
+                <a href="tel:+918879808222" className="hover:text-primary">+91 88798 08222</a>
+                <span>·</span>
+                <a href="tel:+919763711344" className="hover:text-primary">+91 97 63 711 344</a>
+              </p>
+              <p className="flex items-center justify-center md:justify-end gap-2">
+                <Mail className="w-3.5 h-3.5" />
+                <a href="mailto:proactive.ho@gmail.com" className="hover:text-primary">proactive.ho@gmail.com</a>
+              </p>
+              <p>© {new Date().getFullYear()} Proactive Business School. All rights reserved.</p>
+            </div>
           </div>
         </div>
       </footer>
