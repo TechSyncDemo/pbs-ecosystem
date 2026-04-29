@@ -464,6 +464,47 @@ export type Database = {
           },
         ]
       }
+      exam_history: {
+        Row: {
+          completed_at: string
+          created_at: string
+          exam_id: string | null
+          exam_title: string | null
+          external_attempt_id: string
+          id: string
+          raw_payload: Json | null
+          student_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          exam_id?: string | null
+          exam_title?: string | null
+          external_attempt_id: string
+          id?: string
+          raw_payload?: Json | null
+          student_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          exam_id?: string | null
+          exam_title?: string | null
+          external_attempt_id?: string
+          id?: string
+          raw_payload?: Json | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_history_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -720,7 +761,10 @@ export type Database = {
           email: string | null
           enquiry_id: string | null
           enrollment_no: string
+          exam_completed_at: string | null
+          exam_locked: boolean
           exam_portal_id: string | null
+          exam_status: string
           fee_paid: number | null
           fee_pending: number | null
           gender: string | null
@@ -747,7 +791,10 @@ export type Database = {
           email?: string | null
           enquiry_id?: string | null
           enrollment_no: string
+          exam_completed_at?: string | null
+          exam_locked?: boolean
           exam_portal_id?: string | null
+          exam_status?: string
           fee_paid?: number | null
           fee_pending?: number | null
           gender?: string | null
@@ -774,7 +821,10 @@ export type Database = {
           email?: string | null
           enquiry_id?: string | null
           enrollment_no?: string
+          exam_completed_at?: string | null
+          exam_locked?: boolean
           exam_portal_id?: string | null
+          exam_status?: string
           fee_paid?: number | null
           fee_pending?: number | null
           gender?: string | null
