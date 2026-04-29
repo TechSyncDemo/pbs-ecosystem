@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import pbsLogo from '@/assets/pbs-logo.png';
 
 interface NavItem {
   label: string;
