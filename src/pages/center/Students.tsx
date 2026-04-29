@@ -249,18 +249,25 @@ export default function CenterStudents() {
       toast.error('No students found for the selected date range');
       return;
     }
-    const headers = ['Enrollment No', 'Name', 'Phone', 'Course', 'Admission Date', 'Course Fee', 'Fees Pending', 'Password', 'Status'];
-    const rows = data.map(s => [
-      s.enrollment_no,
-      s.name,
-      s.phone,
-      s.course_name || '',
-      s.admission_date,
-      String(s.fee_paid || 0),
-      String(s.fee_pending || 0),
-      (s as any).password || '',
-      s.status || 'active',
-    ]);
+    const headers = ['Enrollment No', 'Name', 'Phone', 'Email', 'Course', 'Admission Date', 'Course Fee', 'Total Collection', 'Fees Pending', 'Password', 'Status'];
+    const rows = data.map(s => {
+      const cFee = Number(courses.find(c => c.id === s.course_id)?.fee || 0);
+      const collected = Number(s.fee_paid || 0);
+      const pending = Math.max(0, cFee - collected);
+      return [
+        s.enrollment_no,
+        s.name,
+        s.phone,
+        s.email || '',
+        s.course_name || '',
+        s.admission_date,
+        String(cFee),
+        String(collected),
+        String(pending),
+        (s as any).password || '',
+        s.status || 'active',
+      ];
+    });
     const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
