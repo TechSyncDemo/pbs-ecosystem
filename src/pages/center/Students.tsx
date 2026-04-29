@@ -80,7 +80,18 @@ export default function CenterStudents() {
   const [activeTab, setActiveTab] = useState('course');
   const [editStudent, setEditStudent] = useState<StudentWithDetails | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', fee_paid: '', fee_pending: '', status: '' });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    guardian_phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    fee_paid: '',
+    status: '',
+  });
   const [feeToAdd, setFeeToAdd] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [exportFromDate, setExportFromDate] = useState('');
@@ -162,35 +173,55 @@ export default function CenterStudents() {
     setEditStudent(student);
     setEditForm({
       name: student.name,
+      email: student.email || '',
+      phone: student.phone || '',
+      guardian_phone: student.guardian_phone || '',
+      address: student.address || '',
+      city: student.city || '',
+      state: student.state || '',
+      pincode: student.pincode || '',
       fee_paid: String(student.fee_paid || 0),
-      fee_pending: String(student.fee_pending || 0),
       status: student.status || 'active',
     });
     setFeeToAdd('');
     setIsEditDialogOpen(true);
   };
 
+  const editCourseFee = (() => {
+    if (!editStudent) return 0;
+    const c = courses.find((c) => c.id === editStudent.course_id);
+    return Number(c?.fee || 0);
+  })();
+  const editPending = Math.max(0, editCourseFee - (Number(editForm.fee_paid) || 0));
+
   const handleCollectFee = () => {
     const amount = Number(feeToAdd);
     if (!amount || amount <= 0) return;
     const currentPaid = Number(editForm.fee_paid) || 0;
-    const currentPending = Number(editForm.fee_pending) || 0;
     setEditForm({
       ...editForm,
       fee_paid: String(currentPaid + amount),
-      fee_pending: String(Math.max(0, currentPending - amount)),
     });
     setFeeToAdd('');
-    toast.success(`₹${amount} added to collected fees`);
+    toast.success(`₹${amount} added to total collection`);
   };
 
   const handleSaveEdit = async () => {
     if (!editStudent) return;
+    const totalCollected = Number(editForm.fee_paid) || 0;
+    const pending = Math.max(0, editCourseFee - totalCollected);
     await updateStudent.mutateAsync({
       id: editStudent.id,
       name: editForm.name,
-      fee_paid: Number(editForm.fee_paid) || 0,
-      fee_pending: Number(editForm.fee_pending) || 0,
+      email: editForm.email || null,
+      phone: editForm.phone,
+      guardian_phone: editForm.guardian_phone || null,
+      address: editForm.address || null,
+      city: editForm.city || null,
+      state: editForm.state || null,
+      pincode: editForm.pincode || null,
+      fee_paid: totalCollected,
+      fee_pending: pending,
       status: editForm.status,
     });
     setIsEditDialogOpen(false);
@@ -218,18 +249,25 @@ export default function CenterStudents() {
       toast.error('No students found for the selected date range');
       return;
     }
-    const headers = ['Enrollment No', 'Name', 'Phone', 'Course', 'Admission Date', 'Course Fee', 'Fees Pending', 'Password', 'Status'];
-    const rows = data.map(s => [
-      s.enrollment_no,
-      s.name,
-      s.phone,
-      s.course_name || '',
-      s.admission_date,
-      String(s.fee_paid || 0),
-      String(s.fee_pending || 0),
-      (s as any).password || '',
-      s.status || 'active',
-    ]);
+    const headers = ['Enrollment No', 'Name', 'Phone', 'Email', 'Course', 'Admission Date', 'Course Fee', 'Total Collection', 'Fees Pending', 'Password', 'Status'];
+    const rows = data.map(s => {
+      const cFee = Number(courses.find(c => c.id === s.course_id)?.fee || 0);
+      const collected = Number(s.fee_paid || 0);
+      const pending = Math.max(0, cFee - collected);
+      return [
+        s.enrollment_no,
+        s.name,
+        s.phone,
+        s.email || '',
+        s.course_name || '',
+        s.admission_date,
+        String(cFee),
+        String(collected),
+        String(pending),
+        (s as any).password || '',
+        s.status || 'active',
+      ];
+    });
     const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -515,6 +553,7 @@ export default function CenterStudents() {
                       <TableHead>Course</TableHead>
                       <TableHead>Password</TableHead>
                       <TableHead>Course Fee</TableHead>
+                      <TableHead>Total Collection</TableHead>
                       <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Exam</TableHead>
@@ -539,6 +578,11 @@ export default function CenterStudents() {
                           : examStatus === 'in_progress'
                           ? 'In Progress'
                           : 'Not Attempted';
+                      const courseFee = Number(
+                        courses.find((c) => c.id === student.course_id)?.fee || 0
+                      );
+                      const totalCollected = Number(student.fee_paid || 0);
+                      const pending = Math.max(0, courseFee - totalCollected);
                       return (
                         <TableRow key={student.id} className="table-row-hover">
                           <TableCell>
@@ -571,11 +615,14 @@ export default function CenterStudents() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-success font-medium">₹{Number(student.fee_paid || 0).toLocaleString()}</span>
+                            <span className="font-medium">₹{courseFee.toLocaleString()}</span>
                           </TableCell>
                           <TableCell>
-                            {Number(student.fee_pending || 0) > 0 ? (
-                              <span className="text-destructive font-medium">₹{Number(student.fee_pending).toLocaleString()}</span>
+                            <span className="text-success font-medium">₹{totalCollected.toLocaleString()}</span>
+                          </TableCell>
+                          <TableCell>
+                            {pending > 0 ? (
+                              <span className="text-destructive font-medium">₹{pending.toLocaleString()}</span>
                             ) : (
                               <span className="text-muted-foreground">₹0</span>
                             )}
@@ -635,6 +682,49 @@ export default function CenterStudents() {
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Email</Label>
+                    <Input type="email" value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Phone</Label>
+                    <Input value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Guardian Phone</Label>
+                  <Input value={editForm.guardian_phone}
+                    onChange={(e) => setEditForm({ ...editForm, guardian_phone: e.target.value })} />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Address</Label>
+                  <Textarea value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label>City</Label>
+                    <Input value={editForm.city}
+                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>State</Label>
+                    <Input value={editForm.state}
+                      onChange={(e) => setEditForm({ ...editForm, state: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Pincode</Label>
+                    <Input value={editForm.pincode}
+                      onChange={(e) => setEditForm({ ...editForm, pincode: e.target.value })} />
+                  </div>
+                </div>
+
                 <div className="grid gap-2">
                   <Label>Course</Label>
                   <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
@@ -668,14 +758,18 @@ export default function CenterStudents() {
                   <h4 className="font-medium flex items-center gap-2">
                     <IndianRupee className="w-4 h-4" /> Fee Tracking
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Total Collected</Label>
+                      <Label className="text-xs text-muted-foreground">Course Fee</Label>
+                      <p className="text-lg font-bold">₹{editCourseFee.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Total Collection</Label>
                       <p className="text-lg font-bold text-success">₹{Number(editForm.fee_paid).toLocaleString()}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Pending</Label>
-                      <p className="text-lg font-bold text-destructive">₹{Number(editForm.fee_pending).toLocaleString()}</p>
+                      <p className="text-lg font-bold text-destructive">₹{editPending.toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
