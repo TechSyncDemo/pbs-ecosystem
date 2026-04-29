@@ -1,1 +1,7 @@
 project_id = "ybcoxldchjdiqjyexqdy"
+
+[functions.verify-student]
+verify_jwt = false
+
+[functions.exam-completion-webhook]
+verify_jwt = false

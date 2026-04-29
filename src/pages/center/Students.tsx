@@ -517,6 +517,7 @@ export default function CenterStudents() {
                       <TableHead>Course Fee</TableHead>
                       <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Exam</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -524,6 +525,20 @@ export default function CenterStudents() {
                     {filteredStudents.map((student) => {
                       const pwd = (student as any).password || '------';
                       const isVisible = visiblePasswords[student.id];
+                      const examStatus = (student as any).exam_status || 'not_attempted';
+                      const examLocked = (student as any).exam_locked === true;
+                      const examBadgeClass =
+                        examStatus === 'completed'
+                          ? 'bg-success hover:bg-success/90'
+                          : examStatus === 'in_progress'
+                          ? 'bg-warning hover:bg-warning/90'
+                          : 'bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/20';
+                      const examLabel =
+                        examStatus === 'completed'
+                          ? 'Completed'
+                          : examStatus === 'in_progress'
+                          ? 'In Progress'
+                          : 'Not Attempted';
                       return (
                         <TableRow key={student.id} className="table-row-hover">
                           <TableCell>
@@ -571,8 +586,20 @@ export default function CenterStudents() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(student)}>
-                              <Pencil className="w-4 h-4" />
+                            <Badge className={examBadgeClass}>
+                              {examLocked && <Lock className="w-3 h-3 mr-1" />}
+                              {examLabel}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={examLocked}
+                              title={examLocked ? 'Exam completed. Record locked.' : 'Edit student'}
+                              onClick={() => openEditDialog(student)}
+                            >
+                              {examLocked ? <Lock className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -596,6 +623,12 @@ export default function CenterStudents() {
             </DialogHeader>
             {editStudent && (
               <div className="space-y-4 mt-2">
+                {(editStudent as any).exam_locked && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                    <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>Exam completed. Student record is locked. Contact admin for changes.</span>
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <Label>Full Name</Label>
                   <Input value={editForm.name}
