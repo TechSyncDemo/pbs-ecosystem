@@ -623,6 +623,12 @@ export default function CenterStudents() {
             </DialogHeader>
             {editStudent && (
               <div className="space-y-4 mt-2">
+                {(editStudent as any).exam_locked && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                    <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>Exam completed. Student record is locked. Contact admin for changes.</span>
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <Label>Full Name</Label>
                   <Input value={editForm.name}
