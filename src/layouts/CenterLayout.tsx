@@ -61,8 +61,8 @@ export default function CenterLayout({ children }: { children: React.ReactNode }
         {/* Logo */}
         <div className="p-6 border-b border-sidebar-border">
           <Link to="/center" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-sidebar-primary-foreground" />
+            <div className="rounded-xl bg-white/95 p-1.5 flex items-center justify-center shrink-0">
+              <img src={pbsLogo} alt="Proactive Business School" className="h-9 w-auto object-contain" />
             </div>
             <div>
               <h1 className="font-heading font-bold text-lg text-sidebar-foreground">PBS Partner</h1>
