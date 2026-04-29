@@ -80,7 +80,18 @@ export default function CenterStudents() {
   const [activeTab, setActiveTab] = useState('course');
   const [editStudent, setEditStudent] = useState<StudentWithDetails | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', fee_paid: '', fee_pending: '', status: '' });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    guardian_phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    fee_paid: '',
+    status: '',
+  });
   const [feeToAdd, setFeeToAdd] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [exportFromDate, setExportFromDate] = useState('');
@@ -162,35 +173,55 @@ export default function CenterStudents() {
     setEditStudent(student);
     setEditForm({
       name: student.name,
+      email: student.email || '',
+      phone: student.phone || '',
+      guardian_phone: student.guardian_phone || '',
+      address: student.address || '',
+      city: student.city || '',
+      state: student.state || '',
+      pincode: student.pincode || '',
       fee_paid: String(student.fee_paid || 0),
-      fee_pending: String(student.fee_pending || 0),
       status: student.status || 'active',
     });
     setFeeToAdd('');
     setIsEditDialogOpen(true);
   };
 
+  const editCourseFee = (() => {
+    if (!editStudent) return 0;
+    const c = courses.find((c) => c.id === editStudent.course_id);
+    return Number(c?.fee || 0);
+  })();
+  const editPending = Math.max(0, editCourseFee - (Number(editForm.fee_paid) || 0));
+
   const handleCollectFee = () => {
     const amount = Number(feeToAdd);
     if (!amount || amount <= 0) return;
     const currentPaid = Number(editForm.fee_paid) || 0;
-    const currentPending = Number(editForm.fee_pending) || 0;
     setEditForm({
       ...editForm,
       fee_paid: String(currentPaid + amount),
-      fee_pending: String(Math.max(0, currentPending - amount)),
     });
     setFeeToAdd('');
-    toast.success(`₹${amount} added to collected fees`);
+    toast.success(`₹${amount} added to total collection`);
   };
 
   const handleSaveEdit = async () => {
     if (!editStudent) return;
+    const totalCollected = Number(editForm.fee_paid) || 0;
+    const pending = Math.max(0, editCourseFee - totalCollected);
     await updateStudent.mutateAsync({
       id: editStudent.id,
       name: editForm.name,
-      fee_paid: Number(editForm.fee_paid) || 0,
-      fee_pending: Number(editForm.fee_pending) || 0,
+      email: editForm.email || null,
+      phone: editForm.phone,
+      guardian_phone: editForm.guardian_phone || null,
+      address: editForm.address || null,
+      city: editForm.city || null,
+      state: editForm.state || null,
+      pincode: editForm.pincode || null,
+      fee_paid: totalCollected,
+      fee_pending: pending,
       status: editForm.status,
     });
     setIsEditDialogOpen(false);
