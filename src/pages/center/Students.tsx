@@ -675,6 +675,49 @@ export default function CenterStudents() {
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Email</Label>
+                    <Input type="email" value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Phone</Label>
+                    <Input value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Guardian Phone</Label>
+                  <Input value={editForm.guardian_phone}
+                    onChange={(e) => setEditForm({ ...editForm, guardian_phone: e.target.value })} />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Address</Label>
+                  <Textarea value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label>City</Label>
+                    <Input value={editForm.city}
+                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>State</Label>
+                    <Input value={editForm.state}
+                      onChange={(e) => setEditForm({ ...editForm, state: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Pincode</Label>
+                    <Input value={editForm.pincode}
+                      onChange={(e) => setEditForm({ ...editForm, pincode: e.target.value })} />
+                  </div>
+                </div>
+
                 <div className="grid gap-2">
                   <Label>Course</Label>
                   <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
@@ -708,14 +751,18 @@ export default function CenterStudents() {
                   <h4 className="font-medium flex items-center gap-2">
                     <IndianRupee className="w-4 h-4" /> Fee Tracking
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Total Collected</Label>
+                      <Label className="text-xs text-muted-foreground">Course Fee</Label>
+                      <p className="text-lg font-bold">₹{editCourseFee.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Total Collection</Label>
                       <p className="text-lg font-bold text-success">₹{Number(editForm.fee_paid).toLocaleString()}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Pending</Label>
-                      <p className="text-lg font-bold text-destructive">₹{Number(editForm.fee_pending).toLocaleString()}</p>
+                      <p className="text-lg font-bold text-destructive">₹{editPending.toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
