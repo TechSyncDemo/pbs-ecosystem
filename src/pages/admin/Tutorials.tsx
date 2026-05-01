@@ -27,6 +27,7 @@ export default function AdminTutorials() {
   const [editing, setEditing] = useState<TutorialWithDetails | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
   const [link, setLink] = useState('');
   const [selectedAuthIds, setSelectedAuthIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -39,6 +40,7 @@ export default function AdminTutorials() {
     setEditing(null);
     setTitle('');
     setDescription('');
+    setCategory('');
     setLink('');
     setSelectedAuthIds([]);
     setFileUrl('');
@@ -51,6 +53,7 @@ export default function AdminTutorials() {
     setEditing(t);
     setTitle(t.title);
     setDescription(t.description || '');
+    setCategory(t.category || '');
     setLink(t.link || '');
     setSelectedAuthIds(t.authorization_ids || []);
     setFileUrl(t.file_url || '');
@@ -93,6 +96,7 @@ export default function AdminTutorials() {
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
+      category: category.trim() || null,
       link: link.trim() || null,
       file_url: fileUrl || null,
       file_name: fileName || null,
@@ -137,6 +141,7 @@ export default function AdminTutorials() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Authorizations</TableHead>
                     <TableHead>Link</TableHead>
                     <TableHead>File</TableHead>
@@ -152,6 +157,9 @@ export default function AdminTutorials() {
                           <p className="font-medium">{t.title}</p>
                           {t.description && <p className="text-xs text-muted-foreground line-clamp-1">{t.description}</p>}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {t.category ? <Badge variant="outline" className="text-xs">{t.category}</Badge> : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -210,6 +218,11 @@ export default function AdminTutorials() {
             <div>
               <Label>Description</Label>
               <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description..." rows={3} />
+            </div>
+            <div>
+              <Label>Category</Label>
+              <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Beginner Guide, Exam Prep, Marketing" />
+              <p className="text-xs text-muted-foreground mt-1">Helps centers identify what this tutorial is for.</p>
             </div>
             <div>
               <Label>Authorizations *</Label>
