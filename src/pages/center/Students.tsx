@@ -132,6 +132,30 @@ export default function CenterStudents() {
   const handleAddStudent = async () => {
     if (!centerId || !newStudent.course_id) return;
 
+    // Required field validation
+    if (!newStudent.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+    const phone = newStudent.phone.trim();
+    const email = newStudent.email.trim();
+    if (!phone) {
+      toast.error('Phone number is required');
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      toast.error('Enter a valid 10-digit Indian mobile number');
+      return;
+    }
+    if (!email) {
+      toast.error('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Enter a valid email address');
+      return;
+    }
+
     const { data: enrollmentData, error: enrollError } = await supabase.rpc('generate_enrollment_no');
     if (enrollError || !enrollmentData) {
       toast.error('Failed to generate enrollment number');
@@ -144,8 +168,8 @@ export default function CenterStudents() {
       center_id: centerId,
       course_id: newStudent.course_id,
       name: newStudent.name,
-      phone: newStudent.phone,
-      email: newStudent.email || null,
+      phone,
+      email,
       date_of_birth: newStudent.date_of_birth || null,
       gender: newStudent.gender || null,
       guardian_phone: newStudent.guardian_phone || null,
