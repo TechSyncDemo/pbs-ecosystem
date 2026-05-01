@@ -109,8 +109,7 @@ export default function CenterStudents() {
     state: '',
     pincode: '',
     course_id: '',
-    fee_paid: '',
-    fee_pending: '',
+    advance_fee: '',
   });
 
   const filteredStudents = students.filter(
@@ -164,6 +163,11 @@ export default function CenterStudents() {
 
     const password = generatePassword();
 
+    const selectedCourse = courses.find((c) => c.id === newStudent.course_id);
+    const courseFee = Number(selectedCourse?.fee || 0);
+    const advance = Number(newStudent.advance_fee) || 0;
+    const pending = Math.max(0, courseFee - advance);
+
     await createStudent.mutateAsync({
       center_id: centerId,
       course_id: newStudent.course_id,
@@ -177,8 +181,8 @@ export default function CenterStudents() {
       city: newStudent.city || null,
       state: newStudent.state || null,
       pincode: newStudent.pincode || null,
-      fee_paid: Number(newStudent.fee_paid) || 0,
-      fee_pending: Number(newStudent.fee_pending) || 0,
+      fee_paid: advance,
+      fee_pending: pending,
       status: 'active',
       enrollment_no: enrollmentData,
       password,
@@ -188,7 +192,7 @@ export default function CenterStudents() {
     setNewStudent({
       name: '', date_of_birth: '', gender: '', phone: '', email: '',
       guardian_phone: '', address: '', city: '', state: '', pincode: '',
-      course_id: '', fee_paid: '', fee_pending: '',
+      course_id: '', advance_fee: '',
     });
     setActiveTab('course');
   };
