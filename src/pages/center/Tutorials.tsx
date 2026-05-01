@@ -1,9 +1,11 @@
-import { FileText, Download, ExternalLink, BookText } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { FileText, Download, ExternalLink, BookText, Folder } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCenterTutorials } from '@/hooks/useTutorials';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export default function CenterTutorials() {
   const { user } = useAuth();
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Get center's authorization IDs from center_courses
   const { data: centerAuthIds = [] } = useQuery({
@@ -34,12 +37,48 @@ export default function CenterTutorials() {
 
   const { data: tutorials = [], isLoading } = useCenterTutorials(centerAuthIds);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    tutorials.forEach(t => { if (t.category) set.add(t.category); });
+    return Array.from(set).sort();
+  }, [tutorials]);
+
+  const filtered = categoryFilter === 'all'
+    ? tutorials
+    : categoryFilter === 'uncategorized'
+      ? tutorials.filter(t => !t.category)
+      : tutorials.filter(t => t.category === categoryFilter);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    filtered.forEach(t => {
+      const key = t.category || 'Uncategorized';
+      if (!map.has(key)) map.set(key, [] as any);
+      (map.get(key) as any).push(t);
+    });
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+
   return (
     <CenterLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-foreground">Tutorials & Resources</h1>
-          <p className="text-muted-foreground mt-1">Download course materials and official guides.</p>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-heading font-bold text-foreground">Tutorials & Resources</h1>
+            <p className="text-muted-foreground mt-1">Download course materials and official guides.</p>
+          </div>
+          {categories.length > 0 && (
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full md:w-64">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <SelectItem value="uncategorized">Uncategorized</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {isLoading ? (
@@ -52,16 +91,24 @@ export default function CenterTutorials() {
               </Card>
             ))}
           </div>
-        ) : tutorials.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <Card className="border-0 shadow-card">
             <CardContent className="py-12 text-center text-muted-foreground">
               No tutorials available for your authorizations yet.
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tutorials.map(tutorial => (
-              <Card key={tutorial.id} className="flex flex-col border-0 shadow-card">
+          <div className="space-y-10">
+            {grouped.map(([cat, items]) => (
+              <section key={cat} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Folder className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-heading font-semibold text-foreground">{cat}</h2>
+                  <Badge variant="secondary" className="ml-1">{items.length}</Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {items.map(tutorial => (
+                    <Card key={tutorial.id} className="flex flex-col border-0 shadow-card">
                 <CardHeader>
                   <CardTitle className="flex items-start gap-3">
                     <FileText className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
@@ -71,6 +118,7 @@ export default function CenterTutorials() {
                 </CardHeader>
                 <CardContent className="flex-grow">
                   <div className="flex flex-wrap gap-1">
+                    {tutorial.category && <Badge variant="outline">{tutorial.category}</Badge>}
                     {(tutorial.authorization_names || []).map((name, i) => (
                       <Badge key={i} variant="secondary">{name}</Badge>
                     ))}
@@ -97,7 +145,10 @@ export default function CenterTutorials() {
                     )}
                   </div>
                 </CardFooter>
-              </Card>
+                    </Card>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
