@@ -109,8 +109,7 @@ export default function CenterStudents() {
     state: '',
     pincode: '',
     course_id: '',
-    fee_paid: '',
-    fee_pending: '',
+    advance_fee: '',
   });
 
   const filteredStudents = students.filter(
@@ -164,6 +163,11 @@ export default function CenterStudents() {
 
     const password = generatePassword();
 
+    const selectedCourse = courses.find((c) => c.id === newStudent.course_id);
+    const courseFee = Number(selectedCourse?.fee || 0);
+    const advance = Number(newStudent.advance_fee) || 0;
+    const pending = Math.max(0, courseFee - advance);
+
     await createStudent.mutateAsync({
       center_id: centerId,
       course_id: newStudent.course_id,
@@ -177,8 +181,8 @@ export default function CenterStudents() {
       city: newStudent.city || null,
       state: newStudent.state || null,
       pincode: newStudent.pincode || null,
-      fee_paid: Number(newStudent.fee_paid) || 0,
-      fee_pending: Number(newStudent.fee_pending) || 0,
+      fee_paid: advance,
+      fee_pending: pending,
       status: 'active',
       enrollment_no: enrollmentData,
       password,
@@ -188,7 +192,7 @@ export default function CenterStudents() {
     setNewStudent({
       name: '', date_of_birth: '', gender: '', phone: '', email: '',
       guardian_phone: '', address: '', city: '', state: '', pincode: '',
-      course_id: '', fee_paid: '', fee_pending: '',
+      course_id: '', advance_fee: '',
     });
     setActiveTab('course');
   };
@@ -395,13 +399,18 @@ export default function CenterStudents() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Course Fees (₹)</Label>
-                      <Input type="number" placeholder="0" value={newStudent.fee_paid}
-                        onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })} />
+                      <Input
+                        type="number"
+                        readOnly
+                        value={Number(courses.find((c) => c.id === newStudent.course_id)?.fee || 0)}
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">Auto-filled from selected course</p>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Advance Fees (₹)</Label>
-                      <Input type="number" placeholder="0" value={newStudent.fee_pending}
-                        onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })} />
+                      <Label>Advance Fees Paid (₹)</Label>
+                      <Input type="number" placeholder="0" value={newStudent.advance_fee}
+                        onChange={(e) => setNewStudent({ ...newStudent, advance_fee: e.target.value })} />
                     </div>
                   </div>
                   <div className="grid gap-4">
@@ -685,7 +694,7 @@ export default function CenterStudents() {
 
         {/* Edit Student Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Student</DialogTitle>
               <DialogDescription>
