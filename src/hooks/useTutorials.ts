@@ -6,6 +6,7 @@ export interface TutorialWithDetails {
   id: string;
   title: string;
   description: string | null;
+  category: string | null;
   link: string | null;
   file_url: string | null;
   file_name: string | null;
@@ -100,6 +101,7 @@ export function useCreateTutorial() {
     mutationFn: async ({ authorization_ids, ...tutorial }: {
       title: string;
       description?: string | null;
+      category?: string | null;
       link?: string | null;
       file_url?: string | null;
       file_name?: string | null;
@@ -108,7 +110,7 @@ export function useCreateTutorial() {
     }) => {
       const { data, error } = await supabase
         .from('tutorials')
-        .insert({ title: tutorial.title, description: tutorial.description, link: tutorial.link, file_url: tutorial.file_url, file_name: tutorial.file_name, file_size: tutorial.file_size })
+        .insert({ title: tutorial.title, description: tutorial.description, category: tutorial.category, link: tutorial.link, file_url: tutorial.file_url, file_name: tutorial.file_name, file_size: tutorial.file_size })
         .select()
         .single();
       if (error) throw error;
@@ -138,6 +140,7 @@ export function useUpdateTutorial() {
       id: string;
       title?: string;
       description?: string | null;
+      category?: string | null;
       link?: string | null;
       file_url?: string | null;
       file_name?: string | null;
@@ -146,7 +149,7 @@ export function useUpdateTutorial() {
     }) => {
       const { data, error } = await supabase
         .from('tutorials')
-        .update({ title: updates.title, description: updates.description, link: updates.link, file_url: updates.file_url, file_name: updates.file_name, file_size: updates.file_size })
+        .update({ title: updates.title, description: updates.description, category: updates.category, link: updates.link, file_url: updates.file_url, file_name: updates.file_name, file_size: updates.file_size })
         .eq('id', id)
         .select()
         .single();
