@@ -399,13 +399,18 @@ export default function CenterStudents() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Course Fees (₹)</Label>
-                      <Input type="number" placeholder="0" value={newStudent.fee_paid}
-                        onChange={(e) => setNewStudent({ ...newStudent, fee_paid: e.target.value })} />
+                      <Input
+                        type="number"
+                        readOnly
+                        value={Number(courses.find((c) => c.id === newStudent.course_id)?.fee || 0)}
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">Auto-filled from selected course</p>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Advance Fees (₹)</Label>
-                      <Input type="number" placeholder="0" value={newStudent.fee_pending}
-                        onChange={(e) => setNewStudent({ ...newStudent, fee_pending: e.target.value })} />
+                      <Label>Advance Fees Paid (₹)</Label>
+                      <Input type="number" placeholder="0" value={newStudent.advance_fee}
+                        onChange={(e) => setNewStudent({ ...newStudent, advance_fee: e.target.value })} />
                     </div>
                   </div>
                   <div className="grid gap-4">
