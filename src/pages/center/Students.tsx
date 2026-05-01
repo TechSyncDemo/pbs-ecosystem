@@ -222,16 +222,18 @@ export default function CenterStudents() {
   })();
   const editPending = Math.max(0, editCourseFee - (Number(editForm.fee_paid) || 0));
 
-  const handleCollectFee = () => {
+  const handleCollectFee = async () => {
     const amount = Number(feeToAdd);
-    if (!amount || amount <= 0) return;
-    const currentPaid = Number(editForm.fee_paid) || 0;
-    setEditForm({
-      ...editForm,
-      fee_paid: String(currentPaid + amount),
+    if (!amount || amount <= 0 || !editStudent) return;
+    const newTotal = (Number(editForm.fee_paid) || 0) + amount;
+    const newPending = Math.max(0, editCourseFee - newTotal);
+    await updateStudent.mutateAsync({
+      id: editStudent.id,
+      fee_paid: newTotal,
+      fee_pending: newPending,
     });
+    setEditForm((prev) => ({ ...prev, fee_paid: String(newTotal) }));
     setFeeToAdd('');
-    toast.success(`₹${amount} added to total collection`);
   };
 
   const handleSaveEdit = async () => {
