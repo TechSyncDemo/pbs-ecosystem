@@ -436,7 +436,7 @@ export default function CenterStudents() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
-                        <Label>Email</Label>
+                        <Label>Email *</Label>
                         <Input type="email" placeholder="student@email.com" value={newStudent.email}
                           onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })} />
                       </div>
@@ -474,7 +474,7 @@ export default function CenterStudents() {
               <DialogFooter className="mt-6">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleAddStudent}
-                  disabled={createStudent.isPending || !newStudent.name || !newStudent.phone || !newStudent.course_id}>
+                  disabled={createStudent.isPending || !newStudent.name || !newStudent.phone || !newStudent.email || !newStudent.course_id}>
                   {createStudent.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Admit Student
                 </Button>
