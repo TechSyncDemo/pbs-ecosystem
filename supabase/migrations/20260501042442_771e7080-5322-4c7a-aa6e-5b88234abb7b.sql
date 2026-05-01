@@ -1,0 +1,1 @@
+ALTER TABLE public.tutorials ADD COLUMN IF NOT EXISTS category TEXT;
