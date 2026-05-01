@@ -980,6 +980,7 @@ export type Database = {
       }
       tutorials: {
         Row: {
+          category: string | null
           course_id: string | null
           created_at: string
           created_by: string | null
@@ -993,6 +994,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string | null
           course_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -1006,6 +1008,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string | null
           course_id?: string | null
           created_at?: string
           created_by?: string | null
