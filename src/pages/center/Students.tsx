@@ -219,6 +219,8 @@ export default function CenterStudents() {
 
   const editCourseFee = (() => {
     if (!editStudent) return 0;
+    const stored = Number((editStudent as any).course_fee || 0);
+    if (stored > 0) return stored;
     const c = courses.find((c) => c.id === editStudent.course_id);
     return Number(c?.fee || 0);
   })();
@@ -283,7 +285,7 @@ export default function CenterStudents() {
     }
     const headers = ['Enrollment No', 'Name', 'Phone', 'Email', 'Course', 'Admission Date', 'Course Fee', 'Total Collection', 'Fees Pending', 'Password', 'Status'];
     const rows = data.map(s => {
-      const cFee = Number(courses.find(c => c.id === s.course_id)?.fee || 0);
+      const cFee = Number((s as any).course_fee || courses.find(c => c.id === s.course_id)?.fee || 0);
       const collected = Number(s.fee_paid || 0);
       const pending = Math.max(0, cFee - collected);
       return [
@@ -618,7 +620,7 @@ export default function CenterStudents() {
                           ? 'In Progress'
                           : 'Not Attempted';
                       const courseFee = Number(
-                        courses.find((c) => c.id === student.course_id)?.fee || 0
+                        (student as any).course_fee || courses.find((c) => c.id === student.course_id)?.fee || 0
                       );
                       const totalCollected = Number(student.fee_paid || 0);
                       const pending = Math.max(0, courseFee - totalCollected);
