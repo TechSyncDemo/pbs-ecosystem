@@ -754,6 +754,7 @@ export type Database = {
           admission_date: string
           center_id: string
           city: string | null
+          course_fee: number
           course_id: string
           created_at: string
           created_by: string | null
@@ -784,6 +785,7 @@ export type Database = {
           admission_date?: string
           center_id: string
           city?: string | null
+          course_fee?: number
           course_id: string
           created_at?: string
           created_by?: string | null
@@ -814,6 +816,7 @@ export type Database = {
           admission_date?: string
           center_id?: string
           city?: string | null
+          course_fee?: number
           course_id?: string
           created_at?: string
           created_by?: string | null
