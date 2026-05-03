@@ -375,7 +375,10 @@ export default function CenterStudents() {
                       )}
                       <Select
                         value={newStudent.course_id}
-                        onValueChange={(value) => setNewStudent({ ...newStudent, course_id: value })}
+                        onValueChange={(value) => {
+                          const c = courses.find((cc) => cc.id === value);
+                          setNewStudent({ ...newStudent, course_id: value, course_fee: String(Number(c?.fee || 0)) });
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Choose a course" />
@@ -405,11 +408,10 @@ export default function CenterStudents() {
                       <Label>Course Fees (₹)</Label>
                       <Input
                         type="number"
-                        readOnly
-                        value={Number(courses.find((c) => c.id === newStudent.course_id)?.fee || 0)}
-                        className="bg-muted"
+                        value={newStudent.course_fee}
+                        onChange={(e) => setNewStudent({ ...newStudent, course_fee: e.target.value })}
                       />
-                      <p className="text-xs text-muted-foreground">Auto-filled from selected course</p>
+                      <p className="text-xs text-muted-foreground">Total fees to collect from this student (editable)</p>
                     </div>
                     <div className="grid gap-2">
                       <Label>Advance Fees Paid (₹)</Label>
