@@ -1,0 +1,2 @@
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS course_fee numeric NOT NULL DEFAULT 0;
+UPDATE public.students s SET course_fee = COALESCE((SELECT c.fee FROM public.courses c WHERE c.id = s.course_id), 0) WHERE course_fee = 0;
