@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   const { data: student, error } = await supabase
     .from("students")
     .select(
-      "id, name, email, phone, password, status, exam_status, exam_locked, center_id, course_id, centers(name), courses(name)"
+      "id, name, email, phone, password, status, exam_status, exam_locked, center_id, course_id, exam_portal_id, centers(name), courses(name, exam_portal_id)"
     )
     .eq("enrollment_no", enrollment_id)
     .maybeSingle();
@@ -91,6 +91,18 @@ Deno.serve(async (req) => {
   const centerName = student.centers?.name ?? null;
   // @ts-ignore
   const courseName = student.courses?.name ?? null;
+  // @ts-ignore — prefer student-assigned exam_portal_id, fall back to course's
+  const examPortalId = student.exam_portal_id ?? student.courses?.exam_portal_id ?? null;
+
+  // Backfill student.exam_portal_id from course if missing, so exam portal
+  // can consistently allot the assigned exam on subsequent logins.
+  // @ts-ignore
+  if (!student.exam_portal_id && student.courses?.exam_portal_id) {
+    await supabase
+      .from("students")
+      .update({ exam_portal_id: examPortalId })
+      .eq("id", student.id);
+  }
 
   return json(200, {
     ok: true,
@@ -103,6 +115,8 @@ Deno.serve(async (req) => {
       center_name: centerName,
       course_id: student.course_id,
       course_name: courseName,
+      exam_portal_id: examPortalId,
+      exam_id: examPortalId,
     },
   });
 });
