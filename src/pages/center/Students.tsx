@@ -110,6 +110,7 @@ export default function CenterStudents() {
     pincode: '',
     course_id: '',
     advance_fee: '',
+    course_fee: '',
   });
 
   const filteredStudents = students.filter(
@@ -164,7 +165,7 @@ export default function CenterStudents() {
     const password = generatePassword();
 
     const selectedCourse = courses.find((c) => c.id === newStudent.course_id);
-    const courseFee = Number(selectedCourse?.fee || 0);
+    const courseFee = Number(newStudent.course_fee !== '' ? newStudent.course_fee : (selectedCourse?.fee || 0));
     const advance = Number(newStudent.advance_fee) || 0;
     const pending = Math.max(0, courseFee - advance);
 
@@ -183,6 +184,7 @@ export default function CenterStudents() {
       pincode: newStudent.pincode || null,
       fee_paid: advance,
       fee_pending: pending,
+      course_fee: courseFee,
       status: 'active',
       enrollment_no: enrollmentData,
       password,
@@ -192,7 +194,7 @@ export default function CenterStudents() {
     setNewStudent({
       name: '', date_of_birth: '', gender: '', phone: '', email: '',
       guardian_phone: '', address: '', city: '', state: '', pincode: '',
-      course_id: '', advance_fee: '',
+      course_id: '', advance_fee: '', course_fee: '',
     });
     setActiveTab('course');
   };
