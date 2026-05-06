@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import certificateTemplateSrc from '@/assets/certificate-template.jpg';
+import certificateTemplateSrc from '@/assets/authorization-certificate-template.jpg';
 
 interface CertificateData {
   authorizationName: string;
@@ -43,48 +43,45 @@ export async function generateAuthorityCertificate(data: CertificateData) {
     const imgData = await loadImage(certificateTemplateSrc);
     doc.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
   } catch {
-    // If image fails, draw a simple border fallback
     doc.setDrawColor(0, 102, 153);
     doc.setLineWidth(2);
     doc.rect(8, 8, pageWidth - 16, pageHeight - 16);
   }
 
   // --- Overlay dynamic text on top of the template ---
-  // The template has fixed text like "Hereby confirms that", "situated at", etc.
-  // We place dynamic values in the blank spaces
+  // Template (A4 portrait 210x297mm). Coordinates calibrated against the
+  // sample certificate so each dynamic value sits in the blank space provided.
 
-  // Center Name - after "Hereby confirms that" (~line at y≈108mm from top)
+  // 1) Center Name — large red, centered, between "Hereby confirms that" and "situated at"
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.centerName, centerX, 108, { align: 'center' });
+  doc.setFontSize(26);
+  doc.setTextColor(200, 30, 30);
+  doc.text(data.centerName, centerX, 100, { align: 'center' });
 
-  // Center Address - after "situated at" (~y≈130mm)
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.setTextColor(30, 30, 30);
-  doc.text(data.centerAddress, centerX, 133, { align: 'center' });
-
-  // Authorization Name - after "to conduct ... certified Courses in" (~y≈178mm)
+  // 2) Center Address — same line as the printed "situated at" label
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
-  doc.text(data.authorizationName, centerX + 30, 178, { align: 'left' });
+  doc.text(data.centerAddress, 100, 119, { align: 'left' });
 
-  // Center Code - after "vide PLC code:" (~y≈214mm)
+  // 3) Authorization Name — same line as "to conduct CBITVT certified Courses in"
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
-  doc.text(data.centerCode, centerX + 15, 214, { align: 'left' });
+  doc.text(data.authorizationName, 138, 156, { align: 'left' });
 
-  // Validity dates - "The validity of this authorisation is from ___ to ___" (~y≈232mm)
+  // 4) Center / PLC Code — same line as "vide PLC code:"
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(15);
   doc.setTextColor(0, 0, 0);
-  // "from" date positioned after the word "from"
-  doc.text(data.validFrom, centerX + 25, 232, { align: 'center' });
-  // "to" date positioned after "to"
-  doc.text(data.validUntil, centerX + 60, 232, { align: 'center' });
+  doc.text(data.centerCode, 107, 188, { align: 'left' });
+
+  // 5) Validity dates — same line as "The validity of this authorisation is from ___ to ___"
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.validFrom, 130, 204, { align: 'left' });
+  doc.text(data.validUntil, 173, 204, { align: 'left' });
 
   doc.save(`Authorization_Certificate_${data.certificateNo}.pdf`);
 }
