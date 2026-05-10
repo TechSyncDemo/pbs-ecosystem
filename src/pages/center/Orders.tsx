@@ -56,16 +56,38 @@ export default function CenterOrders() {
   const { data: centerCourses = [] } = useCenterAuthorizations(centerId);
   const createOrder = useCreateOrder();
 
-  // Fetch full course details for center's approved courses
+  // Fetch ALL courses belonging to the authorizations the center is approved for
   const courseIds = centerCourses.map((cc: any) => cc.course_id);
   const { data: approvedCourses = [] } = useQuery({
-    queryKey: ['center-approved-courses', centerId],
+    queryKey: ['center-approved-courses', centerId, courseIds.join(',')],
     queryFn: async () => {
       if (courseIds.length === 0) return [];
+      // Step 1: resolve authorization_ids from the center's assigned courses
+      const { data: assigned, error: assignedErr } = await supabase
+        .from('courses')
+        .select('authorization_id')
+        .in('id', courseIds);
+      if (assignedErr) throw assignedErr;
+      const authIds = Array.from(
+        new Set((assigned || []).map(c => c.authorization_id).filter(Boolean))
+      ) as string[];
+      if (authIds.length === 0) {
+        // Fallback: just return the directly assigned courses
+        const { data, error } = await supabase
+          .from('courses')
+          .select('id, name, code, fee, exam_fee')
+          .in('id', courseIds)
+          .eq('status', 'active');
+        if (error) throw error;
+        return data || [];
+      }
+      // Step 2: fetch all active courses under those authorizations
       const { data, error } = await supabase
         .from('courses')
         .select('id, name, code, fee, exam_fee')
-        .in('id', courseIds);
+        .in('authorization_id', authIds)
+        .eq('status', 'active')
+        .order('name', { ascending: true });
       if (error) throw error;
       return data || [];
     },
