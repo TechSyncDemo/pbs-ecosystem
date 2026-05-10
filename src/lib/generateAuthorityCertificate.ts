@@ -62,13 +62,7 @@ export async function generateAuthorityCertificate(data: CertificateData) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
-  doc.text(data.centerAddress, 100, 119, { align: 'left' });
-
-  // 3) Authorization Name — same line as "to conduct CBITVT certified Courses in"
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.authorizationName, 138, 156, { align: 'left' });
+  doc.text(data.centerAddress, 20, 119, { align: 'left', maxWidth: 170 });
 
   // 4) Center / PLC Code — same line as "vide PLC code:"
   doc.setFont('helvetica', 'bold');
@@ -80,8 +74,8 @@ export async function generateAuthorityCertificate(data: CertificateData) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(0, 0, 0);
-  doc.text(data.validFrom, 130, 204, { align: 'left' });
-  doc.text(data.validUntil, 173, 204, { align: 'left' });
+  doc.text(data.validFrom, 118, 204, { align: 'left' });
+  doc.text(data.validUntil, 163, 204, { align: 'left' });
 
   doc.save(`Authorization_Certificate_${data.certificateNo}.pdf`);
 }
