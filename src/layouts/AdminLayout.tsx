@@ -20,6 +20,11 @@ import {
   MessageSquare,
   FileText as FileTextIcon, // Import FileText icon for Reports and alias it
   Menu,
+  FileCheck,
+  ShieldCheck,
+  RotateCcw,
+  XCircle,
+  Phone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -46,6 +51,11 @@ const adminNavItems: NavItem[] = [
   { label: 'Tutorials', href: '/admin/tutorials', icon: BookOpen },
   { label: 'Support', href: '/admin/support', icon: MessageSquare },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'Terms & Conditions', href: '/terms', icon: FileCheck },
+  { label: 'Privacy Policy', href: '/privacy', icon: ShieldCheck },
+  { label: 'Refund Policy', href: '/refund-policy', icon: RotateCcw },
+  { label: 'Cancellation Policy', href: '/cancellation-policy', icon: XCircle },
+  { label: 'Contact Us', href: '/contact', icon: Phone },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
