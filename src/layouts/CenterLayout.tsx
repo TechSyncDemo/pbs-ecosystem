@@ -15,6 +15,12 @@ import {
   GraduationCap,
   BookOpen,
   Building,
+  Settings,
+  FileCheck,
+  ShieldCheck,
+  RotateCcw,
+  XCircle,
+  Phone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -35,6 +41,11 @@ const centerNavItems: NavItem[] = [
   { label: 'Students', href: '/center/students', icon: Users },
   { label: 'Tutorials', href: '/center/tutorials', icon: BookOpen },
   { label: 'Support', href: '/center/support', icon: HelpCircle },
+  { label: 'Terms & Conditions', href: '/terms', icon: FileCheck },
+  { label: 'Privacy Policy', href: '/privacy', icon: ShieldCheck },
+  { label: 'Refund Policy', href: '/refund-policy', icon: RotateCcw },
+  { label: 'Cancellation Policy', href: '/cancellation-policy', icon: XCircle },
+  { label: 'Contact Us', href: '/contact', icon: Phone },
 ];
 
 export default function CenterLayout({ children }: { children: React.ReactNode }) {
