@@ -11,6 +11,11 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import VerifyCertificate from "./pages/VerifyCertificate";
+import Terms from "./pages/legal/Terms";
+import Privacy from "./pages/legal/Privacy";
+import RefundPolicy from "./pages/legal/RefundPolicy";
+import CancellationPolicy from "./pages/legal/CancellationPolicy";
+import Contact from "./pages/legal/Contact";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -50,7 +55,12 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/verify/:id" element={<VerifyCertificate />} />
-            
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            <Route path="/contact" element={<Contact />} />
+
             {/* Super Admin Routes */}
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={['super_admin']}>

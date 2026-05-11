@@ -123,6 +123,17 @@ export default function Index() {
               <p>© {new Date().getFullYear()} Proactive Business School. All rights reserved.</p>
             </div>
           </div>
+          <div className="mt-6 pt-6 border-t flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+            <Link to="/terms" className="hover:text-primary">Terms &amp; Conditions</Link>
+            <span>·</span>
+            <Link to="/privacy" className="hover:text-primary">Privacy Policy</Link>
+            <span>·</span>
+            <Link to="/refund-policy" className="hover:text-primary">Refund &amp; Returns Policy</Link>
+            <span>·</span>
+            <Link to="/cancellation-policy" className="hover:text-primary">Cancellation Policy</Link>
+            <span>·</span>
+            <Link to="/contact" className="hover:text-primary">Contact Us</Link>
+          </div>
         </div>
       </footer>
     </div>
