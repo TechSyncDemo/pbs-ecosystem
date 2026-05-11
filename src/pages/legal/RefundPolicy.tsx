@@ -1,1 +1,0 @@
-import LegalLayout from './RefundLayoutImport';
