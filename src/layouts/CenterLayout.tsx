@@ -15,7 +15,6 @@ import {
   GraduationCap,
   BookOpen,
   Building,
-  Settings,
   FileCheck,
   ShieldCheck,
   RotateCcw,
