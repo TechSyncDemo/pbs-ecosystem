@@ -260,6 +260,10 @@ export default function AdminSettings() {
           </TabsContent>
 
           {/* Notification Settings */}
+          <TabsContent value="coupons" className="mt-6">
+            <CouponsManager />
+          </TabsContent>
+
           <TabsContent value="notifications" className="mt-6">
             <Card className="border-0 shadow-card">
               <CardHeader>
