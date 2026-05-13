@@ -6,6 +6,7 @@ import {
   Save,
   IndianRupeeIcon,
   Loader2,
+  Ticket,
 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import CouponsManager from '@/components/admin/CouponsManager';
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -170,9 +172,10 @@ export default function AdminSettings() {
         </div>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general"><Building className="w-4 h-4 mr-2" />General</TabsTrigger>
             <TabsTrigger value="financial"><IndianRupeeIcon className="w-4 h-4 mr-2" />Financial</TabsTrigger>
+            <TabsTrigger value="coupons"><Ticket className="w-4 h-4 mr-2" />Coupons</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="w-4 h-4 mr-2" />Notifications</TabsTrigger>
             <TabsTrigger value="profile"><User className="w-4 h-4 mr-2" />Profile</TabsTrigger>
           </TabsList>
