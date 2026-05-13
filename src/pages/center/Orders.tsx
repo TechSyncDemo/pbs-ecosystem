@@ -44,6 +44,7 @@ import CenterLayout from '@/layouts/CenterLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCenterOrders, useCreateOrder } from '@/hooks/useOrders';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
+import { validateCoupon, applyCouponToOrder, type ValidatedCoupon } from '@/hooks/useCoupons';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -104,6 +105,10 @@ export default function CenterOrders() {
   }>>([]);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidatedCoupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const filteredOrders = orders.filter(
     (order) =>
@@ -142,6 +147,28 @@ export default function CenterOrders() {
   };
 
   const orderTotal = orderItems.reduce((acc, item) => acc + item.qty * item.unit_price, 0);
+  const discount = appliedCoupon?.valid ? Number(appliedCoupon.discount_amount || 0) : 0;
+  const finalTotal = Math.max(0, orderTotal - discount);
+
+  const handleApplyCoupon = async () => {
+    if (!centerId || !couponInput.trim() || orderTotal <= 0) return;
+    setValidatingCoupon(true);
+    setCouponError(null);
+    const res = await validateCoupon(couponInput, centerId, orderTotal);
+    setValidatingCoupon(false);
+    if (!res.valid) {
+      setCouponError(res.error || 'Invalid coupon');
+      setAppliedCoupon(null);
+    } else {
+      setAppliedCoupon(res);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError(null);
+  };
 
   const handlePlaceOrder = async (paymentMethod: string) => {
     if (!centerId || orderItems.length === 0) return;
@@ -169,11 +196,11 @@ export default function CenterOrders() {
 
     const courseToStockItem = new Map(stockItems.map(si => [si.course_id, si.id]));
 
-    await createOrder.mutateAsync({
+    const created = await createOrder.mutateAsync({
       order: {
         center_id: centerId,
         order_no: generateOrderNo(),
-        total_amount: orderTotal,
+        total_amount: finalTotal,
         status: 'pending',
         payment_status: 'pending',
         notes: `Payment method: ${paymentMethod}`,
@@ -186,8 +213,13 @@ export default function CenterOrders() {
       })),
     });
 
+    if (appliedCoupon?.valid && created?.id) {
+      await applyCouponToOrder(appliedCoupon.code!, centerId, created.id, orderTotal);
+    }
+
     setIsOrderDialogOpen(false);
     setOrderItems([]);
+    handleRemoveCoupon();
   };
 
   const getStatusColor = (status: string) => {
@@ -342,9 +374,50 @@ export default function CenterOrders() {
 
                 {/* Order Total */}
                 {orderItems.length > 0 && (
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <span className="text-lg font-medium">Order Total</span>
-                    <span className="text-2xl font-bold">₹{orderTotal.toLocaleString()}</span>
+                  <div className="space-y-3">
+                    {/* Coupon */}
+                    <div className="space-y-2">
+                      <Label>Coupon Code (optional)</Label>
+                      {appliedCoupon?.valid ? (
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-success/40 bg-success/10">
+                          <div className="text-sm">
+                            <span className="font-mono font-semibold">{appliedCoupon.code}</span>
+                            <span className="text-muted-foreground"> applied — you save ₹{discount.toLocaleString()}</span>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>Remove</Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter coupon code"
+                            value={couponInput}
+                            onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
+                          />
+                          <Button variant="outline" onClick={handleApplyCoupon} disabled={!couponInput.trim() || validatingCoupon}>
+                            {validatingCoupon && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Apply
+                          </Button>
+                        </div>
+                      )}
+                      {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+                    </div>
+
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>₹{orderTotal.toLocaleString()}</span>
+                      </div>
+                      {discount > 0 && (
+                        <div className="flex items-center justify-between text-sm text-success">
+                          <span>Discount ({appliedCoupon?.code})</span>
+                          <span>− ₹{discount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <span className="text-lg font-medium">Order Total</span>
+                        <span className="text-2xl font-bold">₹{finalTotal.toLocaleString()}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
