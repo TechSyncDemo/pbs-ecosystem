@@ -292,6 +292,90 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_redemptions: {
+        Row: {
+          center_id: string
+          coupon_id: string
+          discount_amount: number
+          id: string
+          order_id: string | null
+          redeemed_at: string
+        }
+        Insert: {
+          center_id: string
+          coupon_id: string
+          discount_amount?: number
+          id?: string
+          order_id?: string | null
+          redeemed_at?: string
+        }
+        Update: {
+          center_id?: string
+          coupon_id?: string
+          discount_amount?: number
+          id?: string
+          order_id?: string | null
+          redeemed_at?: string
+        }
+        Relationships: []
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          max_discount: number | null
+          min_order_amount: number
+          per_center_limit: number | null
+          status: string
+          updated_at: string
+          usage_count: number
+          usage_limit: number | null
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          max_discount?: number | null
+          min_order_amount?: number
+          per_center_limit?: number | null
+          status?: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit?: number | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_discount?: number | null
+          min_order_amount?: number
+          per_center_limit?: number | null
+          status?: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit?: number | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       course_topics: {
         Row: {
           course_id: string
@@ -554,8 +638,11 @@ export type Database = {
         Row: {
           approved_by: string | null
           center_id: string
+          coupon_code: string | null
+          coupon_id: string | null
           created_at: string
           created_by: string | null
+          discount_amount: number
           id: string
           notes: string | null
           order_no: string
@@ -568,8 +655,11 @@ export type Database = {
         Insert: {
           approved_by?: string | null
           center_id: string
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           created_by?: string | null
+          discount_amount?: number
           id?: string
           notes?: string | null
           order_no: string
@@ -582,8 +672,11 @@ export type Database = {
         Update: {
           approved_by?: string | null
           center_id?: string
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           created_by?: string | null
+          discount_amount?: number
           id?: string
           notes?: string | null
           order_no?: string
@@ -1060,6 +1153,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_coupon_to_order: {
+        Args: {
+          _center_id: string
+          _code: string
+          _order_amount: number
+          _order_id: string
+        }
+        Returns: Json
+      }
       decrement_stock: {
         Args: { p_center_id: string; p_course_id: string; p_quantity: number }
         Returns: undefined
@@ -1082,6 +1184,10 @@ export type Database = {
           p_stock_item_id: string
         }
         Returns: undefined
+      }
+      validate_coupon: {
+        Args: { _center_id: string; _code: string; _order_amount: number }
+        Returns: Json
       }
       verify_certificate: {
         Args: { _cert_id: string }

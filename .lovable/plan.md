@@ -1,53 +1,64 @@
+## Coupon Code System
 
-The user wants the Results & Certificate Management page (`src/pages/admin/Results.tsx`) to use live data from the database instead of the hardcoded mock arrays.
+Add admin-managed coupon codes that centers can apply at checkout to reduce order totals.
 
-Looking at the current schema, there's no dedicated `exam_results` or `marks` table. The `students` table has `status` (active, completed, certified) but no marks/exam fields. The `course_topics` table holds the topic-wise max_marks structure.
+### 1. Database (new table `coupons`)
 
-To make this fully live, I need to add a results/marks storage layer. Here's my plan:
+Fields:
+- `code` (text, unique, uppercase)
+- `discount_type` ('percentage' | 'fixed')
+- `discount_value` (numeric) — % (0–100) or flat ₹ amount
+- `max_discount` (numeric, nullable) — cap for percentage coupons
+- `min_order_amount` (numeric, default 0) — minimum cart subtotal required
+- `usage_limit` (integer, nullable) — total redemptions allowed (null = unlimited)
+- `usage_count` (integer, default 0)
+- `per_center_limit` (integer, nullable) — redemptions per center
+- `valid_from`, `valid_until` (timestamptz)
+- `status` ('active' | 'inactive')
+- `description` (text, nullable)
 
-## Plan: Live Result & Certificate Management
+Add `coupon_id`, `coupon_code`, `discount_amount` columns to `orders` table.
 
-### 1. Database additions
-Create a new migration:
-- **`student_results` table** to store exam results per student:
-  - `id`, `student_id` (FK student), `course_id`, `exam_date`, `marks_obtained`, `total_marks`, `grace_marks`, `status` (`pending` | `declared`), `result_date`, `declared_by`, `created_at`, `updated_at`
-- RLS policies:
-  - Super admins: full ALL access
-  - Center admins: SELECT/INSERT for their own center's students (via join through students table)
-- Index on `student_id` and `status` for fast filtering
+New table `coupon_redemptions` (coupon_id, center_id, order_id, redeemed_at) to track usage and enforce per-center limits.
 
-### 2. New hook: `src/hooks/useResults.ts`
-- `usePendingResults()` — fetches results joined with `students(name, center_id, centers(name))` and `courses(name)` where `status = 'pending'`
-- `useDeclaredResults()` — fetches `status = 'declared'` with same joins
-- `useUpdateGraceMarks()` — mutation for grace marks
-- `useDeclareResult()` — sets status to `declared`, sets `result_date`, also updates the student's status to `completed`
-- `useDeclareMultipleResults()` — bulk declare
-- All mutations invalidate relevant query keys
+RLS:
+- Super admins: full manage on `coupons` and `coupon_redemptions`.
+- Authenticated centers: SELECT active coupons (to validate); INSERT into redemptions tied to their own center.
 
-### 3. Refactor `src/pages/admin/Results.tsx`
-- Remove `mockPendingResults`, `mockDeclaredResults`, `mockCenters` arrays
-- Replace `mockCenters` filter dropdown with live data from `useCenters()` (already exists)
-- Wire `pendingResults` table to `usePendingResults()` data
-- Wire `declaredResults` table to `useDeclaredResults()` data
-- Use the new mutation hooks for declare actions and grace-mark updates
-- Add loading states (Loader2) and empty states for both tabs
-- Filters (center, date range) work on real data via `useMemo`
-- Keep print buttons functional (toast for now — actual PDF generation is a separate feature)
+Validation function `validate_coupon(code, center_id, order_amount)` (SECURITY DEFINER) returns discount amount + status, used by both client preview and final apply (atomic increment of `usage_count` on order placement).
 
-### 4. Where do results come from?
-Since there's currently no UI for entering exam marks, I'll add a **"Add Result" dialog** on the Results page so a super admin can record `marks_obtained` for an existing student before declaration. Without this, the pending list will always be empty. The dialog will:
-- Pick a student (searchable select of active students)
-- Pick the course (auto-filled from student)
-- Enter exam date, marks obtained, total marks (default from course's `max_marks`)
-- Save as `pending`
+### 2. Admin UI — Settings page (new "Coupons" tab)
 
-### Files to create / edit
-- **New migration**: `student_results` table + RLS
-- **New**: `src/hooks/useResults.ts`
-- **Edit**: `src/pages/admin/Results.tsx` (full rewrite of data layer, keep UI structure)
-- `src/integrations/supabase/types.ts` will auto-regenerate
+Add a fifth tab to `src/pages/admin/Settings.tsx` alongside General/Financial/Notifications/Profile:
 
-### Out of scope (mention only)
-- Actual PDF marksheet/certificate generation — buttons will keep their toast placeholders
-- QR-code verification system
+- Table list of coupons: code, type, value, validity, usage (used/limit), status, actions
+- "Create Coupon" dialog with all fields above
+- Edit / toggle active / delete actions
+- Quick stats: total coupons, active, total discount given
 
+New files:
+- `src/hooks/useCoupons.ts` — list/create/update/delete/toggle hooks
+- `src/components/admin/CouponForm.tsx` — create/edit dialog
+- `src/components/admin/CouponsTable.tsx` — list table
+
+### 3. Center Order flow — `src/pages/center/Orders.tsx`
+
+In the "Create Order" dialog, below the cart subtotal:
+- "Apply coupon" input + Apply button
+- On apply: call validate function → show discount line + new total, or inline error
+- Remove coupon (X) button when applied
+- On submit: send `coupon_id`, `coupon_code`, `discount_amount`, and adjusted `total_amount` with the order; insert into `coupon_redemptions`
+
+Show applied coupon + discount on order detail / list views (admin Orders too).
+
+### 4. Edge cases
+- Reject expired, inactive, exceeded-limit, below-min-order coupons
+- Discount cannot exceed subtotal (clamp)
+- Percentage coupons honor `max_discount` cap
+- Codes stored uppercase; comparison case-insensitive
+
+### Build order
+1. Migration (table + columns + RLS + validate function)
+2. `useCoupons` hook + admin Coupons tab/components
+3. Center order dialog: apply/remove coupon + persist on submit
+4. Display discount on admin & center order views
