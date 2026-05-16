@@ -11,6 +11,7 @@ export interface CertificateData {
   resultDate: string;
   grade: string;
   certificateId: string;
+  provisional?: boolean;
 }
 
 const PRIMARY = '#0f4c81';
@@ -132,12 +133,33 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData) {
   doc.setFontSize(8);
   doc.setTextColor('#666666');
   doc.text('PBS Computer Education', w - 50, h - 25, { align: 'center' });
+
+  if (data.provisional) {
+    // @ts-expect-error - GState exists in jsPDF runtime
+    if (typeof doc.GState === 'function' && doc.setGState) {
+      // @ts-expect-error - dynamic GState
+      doc.setGState(new doc.GState({ opacity: 0.18 }));
+    }
+    doc.setTextColor('#b00020');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(90);
+    doc.text('PROVISIONAL', cx, h / 2, { align: 'center', angle: 20 });
+    // @ts-expect-error - reset opacity
+    if (typeof doc.GState === 'function' && doc.setGState) {
+      // @ts-expect-error - reset opacity
+      doc.setGState(new doc.GState({ opacity: 1 }));
+    }
+    doc.setTextColor('#666666');
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.text('Provisional certificate — final certificate will be issued in due course.', cx, h - 14, { align: 'center' });
+  }
 }
 
 export async function generateCertificate(data: CertificateData) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   await renderCertOnDoc(doc, data);
-  doc.save(`Certificate_${data.enrollmentNo}.pdf`);
+  doc.save(`${data.provisional ? 'Provisional_' : ''}Certificate_${data.enrollmentNo}.pdf`);
 }
 
 export async function generateCertificatesBulk(items: CertificateData[]) {
@@ -149,5 +171,5 @@ export async function generateCertificatesBulk(items: CertificateData[]) {
     if (i > 0) doc.addPage();
     await renderCertOnDoc(doc, items[i]);
   }
-  doc.save(`Certificates_Bulk_${Date.now()}.pdf`);
+  doc.save(`${items[0].provisional ? 'Provisional_' : ''}Certificates_Bulk_${Date.now()}.pdf`);
 }
