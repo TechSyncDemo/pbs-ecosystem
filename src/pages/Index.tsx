@@ -36,6 +36,12 @@ export default function Index() {
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
               </Button>
+              <Button size="lg" variant="outline" className="h-12 px-8 text-base bg-white/10 text-white border-white/30 hover:bg-white/20 hover:text-white" asChild>
+                <Link to="/verify">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Verify a Certificate
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
