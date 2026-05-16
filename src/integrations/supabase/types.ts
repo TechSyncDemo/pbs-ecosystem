@@ -1215,6 +1215,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      submit_practical_marks: {
+        Args: {
+          _practical_marks: number
+          _practical_total: number
+          _result_id: string
+        }
+        Returns: undefined
+      }
       validate_coupon: {
         Args: { _center_id: string; _code: string; _order_amount: number }
         Returns: Json
