@@ -135,20 +135,13 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData) {
   doc.text('PBS Computer Education', w - 50, h - 25, { align: 'center' });
 
   if (data.provisional) {
-    // @ts-expect-error - GState exists in jsPDF runtime
-    if (typeof doc.GState === 'function' && doc.setGState) {
-      // @ts-expect-error - dynamic GState
-      doc.setGState(new doc.GState({ opacity: 0.18 }));
-    }
+    const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
+    if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 0.18 }));
     doc.setTextColor('#b00020');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(90);
     doc.text('PROVISIONAL', cx, h / 2, { align: 'center', angle: 20 });
-    // @ts-expect-error - reset opacity
-    if (typeof doc.GState === 'function' && doc.setGState) {
-      // @ts-expect-error - reset opacity
-      doc.setGState(new doc.GState({ opacity: 1 }));
-    }
+    if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 1 }));
     doc.setTextColor('#666666');
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);

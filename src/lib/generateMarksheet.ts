@@ -36,20 +36,13 @@ async function qrDataUrl(text: string) {
 function drawProvisionalWatermark(doc: jsPDF) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
-  // @ts-expect-error - GState exists in jsPDF runtime
-  if (typeof doc.GState === 'function' && doc.setGState) {
-    // @ts-expect-error - dynamic GState
-    doc.setGState(new doc.GState({ opacity: 0.18 }));
-  }
+  const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
+  if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 0.18 }));
   doc.setTextColor('#b00020');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(80);
   doc.text('PROVISIONAL', w / 2, h / 2, { align: 'center', angle: 30 });
-  // @ts-expect-error - reset
-  if (typeof doc.GState === 'function' && doc.setGState) {
-    // @ts-expect-error - reset opacity
-    doc.setGState(new doc.GState({ opacity: 1 }));
-  }
+  if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 1 }));
   doc.setTextColor('#000000');
 }
 
