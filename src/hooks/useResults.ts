@@ -17,6 +17,7 @@ export type ResultRow = {
   result_date: string | null;
   practical_submitted_at: string | null;
   certificate_printed_at: string | null;
+  certificate_no: string | null;
   students: {
     id: string;
     name: string;
@@ -31,7 +32,7 @@ const RESULTS_QUERY = `
   id, student_id, course_id, exam_date,
   theory_marks, theory_total, practical_marks, practical_total,
   theory_grace, practical_grace,
-  status, result_date, practical_submitted_at, certificate_printed_at,
+  status, result_date, practical_submitted_at, certificate_printed_at, certificate_no,
   students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code ) ),
   courses!inner ( id, name, code, duration_months, theory_max_marks, practical_max_marks )
 `;
@@ -88,7 +89,7 @@ export function useDeclareResults() {
       const { data: userData } = await supabase.auth.getUser();
       const { data: results, error: fetchErr } = await supabase
         .from('student_results')
-        .select('id, student_id, theory_marks, theory_grace, practical_marks, practical_grace, theory_total, practical_total')
+        .select('id, student_id, theory_marks, theory_grace, practical_marks, practical_grace, theory_total, practical_total, certificate_no')
         .in('id', ids);
       if (fetchErr) throw fetchErr;
 
@@ -96,6 +97,11 @@ export function useDeclareResults() {
       for (const r of results ?? []) {
         const final = Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace);
         const total = Number(r.theory_total) + Number(r.practical_total);
+        let certNo: string | null = r.certificate_no ?? null;
+        if (!certNo) {
+          const { data: gen } = await supabase.rpc('generate_certificate_no');
+          certNo = (gen as unknown as string) ?? null;
+        }
         await supabase.from('student_results').update({
           marks_obtained: Number(r.theory_marks) + Number(r.practical_marks),
           total_marks: total,
@@ -103,6 +109,7 @@ export function useDeclareResults() {
           status: 'declared',
           result_date: new Date().toISOString(),
           declared_by: userData.user?.id ?? null,
+          certificate_no: certNo,
         }).eq('id', r.id);
         void final;
       }

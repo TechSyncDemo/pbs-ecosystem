@@ -19,6 +19,7 @@ export interface MarksheetData {
   finalMarks: number;
   totalMarks: number;
   certificateId: string;
+  certificateNo?: string | null;
   provisional?: boolean;
 }
 
@@ -109,11 +110,12 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData) {
   doc.text(`Grade: ${grade}`, 20, y); y += 7;
   doc.text(`Result: ${percent >= 40 ? 'PASS' : 'FAIL'}`, 20, y); y += 10;
 
-  try { const qr = await qrDataUrl(verificationUrl(data.certificateId)); doc.addImage(qr, 'PNG', 20, y, 30, 30); } catch { /* */ }
+  const verifyKey = data.certificateNo || data.certificateId;
+  try { const qr = await qrDataUrl(verificationUrl(verifyKey)); doc.addImage(qr, 'PNG', 20, y, 30, 30); } catch { /* */ }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor('#444444');
   doc.text('Scan QR to verify authenticity', 55, y + 8);
-  doc.text(`Certificate ID: ${data.certificateId}`, 55, y + 14);
-  doc.text(`Verify at: ${verificationUrl(data.certificateId)}`, 55, y + 20);
+  doc.text(`Certificate No: ${verifyKey}`, 55, y + 14);
+  doc.text(`Verify at: ${verificationUrl(verifyKey)}`, 55, y + 20);
 
   doc.setDrawColor('#000000'); doc.setLineWidth(0.3);
   doc.line(w - 70, h - 35, w - 20, h - 35);

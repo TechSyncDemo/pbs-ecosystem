@@ -789,6 +789,7 @@ export type Database = {
       }
       student_results: {
         Row: {
+          certificate_no: string | null
           certificate_printed_at: string | null
           course_id: string
           created_at: string
@@ -811,6 +812,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          certificate_no?: string | null
           certificate_printed_at?: string | null
           course_id: string
           created_at?: string
@@ -833,6 +835,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          certificate_no?: string | null
           certificate_printed_at?: string | null
           course_id?: string
           created_at?: string
@@ -1197,6 +1200,7 @@ export type Database = {
         Returns: undefined
       }
       generate_center_code: { Args: { state_code?: string }; Returns: string }
+      generate_certificate_no: { Args: never; Returns: string }
       generate_enrollment_no: { Args: never; Returns: string }
       generate_order_no: { Args: never; Returns: string }
       get_user_center_id: { Args: { _user_id: string }; Returns: string }
@@ -1232,6 +1236,21 @@ export type Database = {
         Returns: {
           center_name: string
           certificate_id: string
+          course_name: string
+          enrollment_no: string
+          grace_marks: number
+          marks_obtained: number
+          result_date: string
+          status: string
+          student_name: string
+          total_marks: number
+        }[]
+      }
+      verify_certificate_by_no: {
+        Args: { _cert_no: string }
+        Returns: {
+          center_name: string
+          certificate_no: string
           course_name: string
           enrollment_no: string
           grace_marks: number

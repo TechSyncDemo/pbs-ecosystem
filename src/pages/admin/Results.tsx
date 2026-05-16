@@ -63,6 +63,7 @@ function toMarksheet(r: ResultRow): MarksheetData {
     finalMarks: t.final,
     totalMarks: t.total,
     certificateId: r.id,
+    certificateNo: r.certificate_no,
   };
 }
 
@@ -78,6 +79,7 @@ function toCertificate(r: ResultRow): CertificateData {
     resultDate: r.result_date ?? new Date().toISOString(),
     grade: gradeFor(t.percent),
     certificateId: r.id,
+    certificateNo: r.certificate_no,
   };
 }
 
