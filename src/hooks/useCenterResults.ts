@@ -30,25 +30,13 @@ export function useSubmitPractical() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, practical_marks, practical_total }: { id: string; practical_marks: number; practical_total: number }) => {
-      const { error } = await supabase
-        .from('student_results')
-        .update({
-          practical_marks,
-          practical_total,
-          practical_submitted_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).rpc('submit_practical_marks', {
+        _result_id: id,
+        _practical_marks: practical_marks,
+        _practical_total: practical_total,
+      });
       if (error) throw error;
-
-      // Flip to pending in a separate step (allowed because we just submitted)
-      // Note: RLS limits center updates to awaiting_practical; status change
-      // happens via the SECURITY DEFINER edge or via super admin path normally.
-      // We rely on the awaiting_practical -> pending transition done by admin
-      // when they pick up the row. To be safe, also try transitioning here:
-      await supabase
-        .from('student_results')
-        .update({ status: 'pending' })
-        .eq('id', id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['center_results'] });
