@@ -1,55 +1,25 @@
 import { useMemo, useState } from 'react';
-import {
-  Award,
-  FileText,
-  Printer,
-  QrCode,
-  Check,
-  Mail,
-  Building,
-  Calendar,
-  Plus,
-  Loader2,
-} from 'lucide-react';
+import { Award, FileText, Printer, QrCode, Mail, Building, Calendar, Plus, Loader2 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   usePendingResults,
   useDeclaredResults,
-  useUpdateGraceMarks,
+  useUpdateGrace,
   useDeclareResults,
   useAddResult,
   useStudentsForResults,
+  useMarkPrinted,
   type ResultRow,
 } from '@/hooks/useResults';
 import { useCenters } from '@/hooks/useCenters';
@@ -64,7 +34,17 @@ function gradeFor(percent: number) {
   return 'Fail';
 }
 
+function totals(r: ResultRow) {
+  const theoryFinal = Number(r.theory_marks) + Number(r.theory_grace);
+  const practicalFinal = Number(r.practical_marks) + Number(r.practical_grace);
+  const final = theoryFinal + practicalFinal;
+  const total = Number(r.theory_total) + Number(r.practical_total);
+  const percent = total > 0 ? (final / total) * 100 : 0;
+  return { theoryFinal, practicalFinal, final, total, percent };
+}
+
 function toMarksheet(r: ResultRow): MarksheetData {
+  const t = totals(r);
   return {
     studentName: r.students?.name ?? '-',
     enrollmentNo: r.students?.enrollment_no ?? '-',
@@ -74,16 +54,20 @@ function toMarksheet(r: ResultRow): MarksheetData {
     courseCode: r.courses?.code,
     examDate: r.exam_date,
     resultDate: r.result_date ?? new Date().toISOString(),
-    marksObtained: Number(r.marks_obtained),
-    totalMarks: Number(r.total_marks),
-    graceMarks: Number(r.grace_marks),
+    theoryMarks: Number(r.theory_marks),
+    theoryTotal: Number(r.theory_total),
+    theoryGrace: Number(r.theory_grace),
+    practicalMarks: Number(r.practical_marks),
+    practicalTotal: Number(r.practical_total),
+    practicalGrace: Number(r.practical_grace),
+    finalMarks: t.final,
+    totalMarks: t.total,
     certificateId: r.id,
   };
 }
 
 function toCertificate(r: ResultRow): CertificateData {
-  const final = Number(r.marks_obtained) + Number(r.grace_marks);
-  const pct = Number(r.total_marks) > 0 ? (final / Number(r.total_marks)) * 100 : 0;
+  const t = totals(r);
   return {
     studentName: r.students?.name ?? '-',
     enrollmentNo: r.students?.enrollment_no ?? '-',
@@ -92,7 +76,7 @@ function toCertificate(r: ResultRow): CertificateData {
     courseName: r.courses?.name ?? '-',
     courseDuration: r.courses?.duration_months ? `${r.courses.duration_months} months` : undefined,
     resultDate: r.result_date ?? new Date().toISOString(),
-    grade: gradeFor(pct),
+    grade: gradeFor(t.percent),
     certificateId: r.id,
   };
 }
@@ -101,52 +85,41 @@ export default function AdminResults() {
   const { data: pendingResults = [], isLoading: pendingLoading } = usePendingResults();
   const { data: declaredResults = [], isLoading: declaredLoading } = useDeclaredResults();
   const { data: centers = [] } = useCenters();
-  const updateGrace = useUpdateGraceMarks();
+  const updateGrace = useUpdateGrace();
   const declareResults = useDeclareResults();
   const addResult = useAddResult();
+  const markPrinted = useMarkPrinted();
 
   const [selectedForDeclaration, setSelectedForDeclaration] = useState<string[]>([]);
   const [selectedForPrinting, setSelectedForPrinting] = useState<string[]>([]);
   const [declarationFilters, setDeclarationFilters] = useState({ center: 'all', startDate: '', endDate: '' });
   const [printingFilters, setPrintingFilters] = useState({ center: 'all', startDate: '', endDate: '' });
-  const [graceDraft, setGraceDraft] = useState<Record<string, number>>({});
+  const [graceDraft, setGraceDraft] = useState<Record<string, { theory?: number; practical?: number }>>({});
   const [addOpen, setAddOpen] = useState(false);
 
-  const handleGraceMarksChange = (id: string, marks: number) => {
-    setGraceDraft((prev) => ({ ...prev, [id]: marks }));
-  };
+  const setGrace = (id: string, field: 'theory' | 'practical', value: number) =>
+    setGraceDraft((p) => ({ ...p, [id]: { ...p[id], [field]: value } }));
 
-  const commitGrace = (id: string, original: number) => {
-    const next = graceDraft[id];
-    if (next === undefined || next === original) return;
-    updateGrace.mutate({ id, grace_marks: next });
+  const commitGrace = (id: string, field: 'theory' | 'practical', original: number) => {
+    const v = graceDraft[id]?.[field];
+    if (v === undefined || v === original) return;
+    updateGrace.mutate({ id, field: field === 'theory' ? 'theory_grace' : 'practical_grace', value: v });
   };
 
   const handleDeclareSelected = () => {
-    if (selectedForDeclaration.length === 0) {
-      toast.error('No students selected for declaration.');
-      return;
-    }
-    declareResults.mutate(selectedForDeclaration, {
-      onSuccess: () => setSelectedForDeclaration([]),
-    });
+    if (selectedForDeclaration.length === 0) return toast.error('No students selected for declaration.');
+    declareResults.mutate(selectedForDeclaration, { onSuccess: () => setSelectedForDeclaration([]) });
   };
 
-  const handleDeclareOne = (id: string) => {
-    declareResults.mutate([id]);
-  };
+  const handleDeclareOne = (id: string) => declareResults.mutate([id]);
 
   const handlePrintMarksheets = async () => {
-    if (selectedForPrinting.length === 0) {
-      toast.error('Please select at least one student to print marksheets.');
-      return;
-    }
-    const items = filteredDeclaredResults
-      .filter((r) => selectedForPrinting.includes(r.id))
-      .map(toMarksheet);
+    if (selectedForPrinting.length === 0) return toast.error('Please select at least one student.');
+    const items = filteredDeclaredResults.filter((r) => selectedForPrinting.includes(r.id)).map(toMarksheet);
     toast.info(`Generating marksheet PDF for ${items.length} student(s)...`);
     try {
       await generateMarksheetsBulk(items);
+      await markPrinted.mutateAsync(selectedForPrinting);
       toast.success('Marksheet PDF generated');
     } catch {
       toast.error('Failed to generate marksheet PDF');
@@ -154,55 +127,38 @@ export default function AdminResults() {
   };
 
   const handlePrintCertificates = async () => {
-    if (selectedForPrinting.length === 0) {
-      toast.error('Please select at least one student to print certificates.');
-      return;
-    }
-    const items = filteredDeclaredResults
-      .filter((r) => selectedForPrinting.includes(r.id))
-      .map(toCertificate);
+    if (selectedForPrinting.length === 0) return toast.error('Please select at least one student.');
+    const items = filteredDeclaredResults.filter((r) => selectedForPrinting.includes(r.id)).map(toCertificate);
     toast.info(`Generating certificate PDF for ${items.length} student(s)...`);
     try {
       await generateCertificatesBulk(items);
+      await markPrinted.mutateAsync(selectedForPrinting);
       toast.success('Certificate PDF generated');
     } catch {
       toast.error('Failed to generate certificate PDF');
     }
   };
 
-  const togglePrintSelection = (id: string) => {
-    setSelectedForPrinting((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleDeclareSelection = (id: string) => {
-    setSelectedForDeclaration((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
+  const togglePrintSelection = (id: string) =>
+    setSelectedForPrinting((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleDeclareSelection = (id: string) =>
+    setSelectedForDeclaration((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const filteredPendingResults = useMemo(() => {
     return pendingResults.filter((r) => {
-      const centerMatch =
-        declarationFilters.center === 'all' || r.students?.center_id === declarationFilters.center;
-      const startMatch =
-        !declarationFilters.startDate || new Date(r.exam_date) >= new Date(declarationFilters.startDate);
-      const endMatch =
-        !declarationFilters.endDate || new Date(r.exam_date) <= new Date(declarationFilters.endDate);
+      const centerMatch = declarationFilters.center === 'all' || r.students?.center_id === declarationFilters.center;
+      const startMatch = !declarationFilters.startDate || new Date(r.exam_date) >= new Date(declarationFilters.startDate);
+      const endMatch = !declarationFilters.endDate || new Date(r.exam_date) <= new Date(declarationFilters.endDate);
       return centerMatch && startMatch && endMatch;
     });
   }, [pendingResults, declarationFilters]);
 
   const filteredDeclaredResults = useMemo(() => {
     return declaredResults.filter((r) => {
-      const centerMatch =
-        printingFilters.center === 'all' || r.students?.center_id === printingFilters.center;
+      const centerMatch = printingFilters.center === 'all' || r.students?.center_id === printingFilters.center;
       const date = r.result_date ? new Date(r.result_date) : null;
-      const startMatch =
-        !printingFilters.startDate || (date && date >= new Date(printingFilters.startDate));
-      const endMatch =
-        !printingFilters.endDate || (date && date <= new Date(printingFilters.endDate));
+      const startMatch = !printingFilters.startDate || (date && date >= new Date(printingFilters.startDate));
+      const endMatch = !printingFilters.endDate || (date && date <= new Date(printingFilters.endDate));
       return centerMatch && startMatch && endMatch;
     });
   }, [declaredResults, printingFilters]);
@@ -212,10 +168,10 @@ export default function AdminResults() {
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-heading font-bold text-foreground">Result & Certificate Management</h1>
-            <p className="text-muted-foreground mt-1">Declare results and manage the certificate printing queue.</p>
+            <h1 className="text-3xl font-heading font-bold text-foreground">Result &amp; Certificate Management</h1>
+            <p className="text-muted-foreground mt-1">Review center-submitted practical marks, adjust grace, declare results and print documents.</p>
           </div>
-          <AddResultDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={(payload) => addResult.mutate(payload, { onSuccess: () => setAddOpen(false) })} submitting={addResult.isPending} />
+          <AddResultDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={(p) => addResult.mutate(p, { onSuccess: () => setAddOpen(false) })} submitting={addResult.isPending} />
         </div>
 
         <Tabs defaultValue="declaration">
@@ -224,14 +180,13 @@ export default function AdminResults() {
             <TabsTrigger value="printing"><Printer className="w-4 h-4 mr-2" />Certificate Printing Queue</TabsTrigger>
           </TabsList>
 
-          {/* Result Declaration Tab */}
           <TabsContent value="declaration" className="mt-6">
             <Card className="border-0 shadow-card">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <CardTitle>Pending Results</CardTitle>
-                    <CardDescription>Review marks, add grace marks if necessary, and declare results.</CardDescription>
+                    <CardDescription>Only students whose centers have submitted practical marks appear here. Adjust grace (±) on theory and practical, then declare.</CardDescription>
                   </div>
                   <Button onClick={handleDeclareSelected} disabled={selectedForDeclaration.length === 0 || declareResults.isPending}>
                     {declareResults.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
@@ -245,9 +200,7 @@ export default function AdminResults() {
                       <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Centers</SelectItem>
-                        {centers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
+                        {centers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -269,50 +222,51 @@ export default function AdminResults() {
                         <TableHead className="w-12">
                           <Checkbox
                             checked={selectedForDeclaration.length > 0 && selectedForDeclaration.length === filteredPendingResults.length}
-                            onCheckedChange={(checked) => {
-                              setSelectedForDeclaration(checked ? filteredPendingResults.map((r) => r.id) : []);
-                            }}
+                            onCheckedChange={(c) => setSelectedForDeclaration(c ? filteredPendingResults.map((r) => r.id) : [])}
                           />
                         </TableHead>
                         <TableHead>Student</TableHead>
                         <TableHead>Course</TableHead>
-                        <TableHead>Marks</TableHead>
-                        <TableHead>Grace Marks</TableHead>
-                        <TableHead>Final Marks</TableHead>
+                        <TableHead>Theory</TableHead>
+                        <TableHead>Theory ±</TableHead>
+                        <TableHead>Practical</TableHead>
+                        <TableHead>Practical ±</TableHead>
+                        <TableHead>Final</TableHead>
                         <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pendingLoading ? (
-                        <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
                       ) : filteredPendingResults.length === 0 ? (
-                        <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No pending results. Use "Add Result" to record exam marks.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No pending results. Centers must submit practical marks first.</TableCell></TableRow>
                       ) : filteredPendingResults.map((r) => {
-                        const grace = graceDraft[r.id] ?? r.grace_marks;
+                        const tg = graceDraft[r.id]?.theory ?? Number(r.theory_grace);
+                        const pg = graceDraft[r.id]?.practical ?? Number(r.practical_grace);
+                        const final = Number(r.theory_marks) + tg + Number(r.practical_marks) + pg;
                         return (
                           <TableRow key={r.id}>
                             <TableCell>
-                              <Checkbox
-                                checked={selectedForDeclaration.includes(r.id)}
-                                onCheckedChange={() => toggleDeclareSelection(r.id)}
-                              />
+                              <Checkbox checked={selectedForDeclaration.includes(r.id)} onCheckedChange={() => toggleDeclareSelection(r.id)} />
                             </TableCell>
                             <TableCell>
                               <p className="font-medium">{r.students?.name}</p>
                               <p className="text-sm text-muted-foreground">{r.students?.centers?.name}</p>
                             </TableCell>
                             <TableCell>{r.courses?.name}</TableCell>
-                            <TableCell>{r.marks_obtained} / {r.total_marks}</TableCell>
+                            <TableCell>{Number(r.theory_marks)} / {Number(r.theory_total)}</TableCell>
                             <TableCell>
-                              <Input
-                                type="number"
-                                className="w-20 h-8"
-                                value={grace}
-                                onChange={(e) => handleGraceMarksChange(r.id, parseInt(e.target.value) || 0)}
-                                onBlur={() => commitGrace(r.id, r.grace_marks)}
-                              />
+                              <Input type="number" className="w-20 h-8" value={tg}
+                                onChange={(e) => setGrace(r.id, 'theory', parseFloat(e.target.value) || 0)}
+                                onBlur={() => commitGrace(r.id, 'theory', Number(r.theory_grace))} />
                             </TableCell>
-                            <TableCell className="font-bold">{Number(r.marks_obtained) + Number(grace)}</TableCell>
+                            <TableCell>{Number(r.practical_marks)} / {Number(r.practical_total)}</TableCell>
+                            <TableCell>
+                              <Input type="number" className="w-20 h-8" value={pg}
+                                onChange={(e) => setGrace(r.id, 'practical', parseFloat(e.target.value) || 0)}
+                                onBlur={() => commitGrace(r.id, 'practical', Number(r.practical_grace))} />
+                            </TableCell>
+                            <TableCell className="font-bold">{final} / {Number(r.theory_total) + Number(r.practical_total)}</TableCell>
                             <TableCell>
                               <Button size="sm" onClick={() => handleDeclareOne(r.id)} disabled={declareResults.isPending}>
                                 <Mail className="w-4 h-4 mr-2" />Declare
@@ -328,14 +282,13 @@ export default function AdminResults() {
             </Card>
           </TabsContent>
 
-          {/* Certificate Printing Queue Tab */}
           <TabsContent value="printing" className="mt-6">
             <Card className="border-0 shadow-card">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <CardTitle>Certificate Printing Queue</CardTitle>
-                    <CardDescription>Generate bulk PDFs for students with declared results.</CardDescription>
+                    <CardDescription>Generate bulk PDFs for declared results. Printing also releases provisional documents to the center.</CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex items-center gap-2">
@@ -344,9 +297,7 @@ export default function AdminResults() {
                         <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Centers</SelectItem>
-                          {centers.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
+                          {centers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -362,12 +313,10 @@ export default function AdminResults() {
               <CardContent>
                 <div className="flex justify-end gap-2 mb-4">
                   <Button variant="outline" onClick={handlePrintMarksheets} disabled={selectedForPrinting.length === 0}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Print Marksheet ({selectedForPrinting.length})
+                    <FileText className="w-4 h-4 mr-2" />Print Marksheet ({selectedForPrinting.length})
                   </Button>
                   <Button onClick={handlePrintCertificates} disabled={selectedForPrinting.length === 0}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Print Certificate ({selectedForPrinting.length})
+                    <Printer className="w-4 h-4 mr-2" />Print Certificate ({selectedForPrinting.length})
                   </Button>
                 </div>
                 <div className="rounded-lg border overflow-x-auto">
@@ -377,29 +326,25 @@ export default function AdminResults() {
                         <TableHead className="w-12">
                           <Checkbox
                             checked={selectedForPrinting.length > 0 && selectedForPrinting.length === filteredDeclaredResults.length}
-                            onCheckedChange={(checked) => {
-                              setSelectedForPrinting(checked ? filteredDeclaredResults.map((r) => r.id) : []);
-                            }}
+                            onCheckedChange={(c) => setSelectedForPrinting(c ? filteredDeclaredResults.map((r) => r.id) : [])}
                           />
                         </TableHead>
                         <TableHead>Student</TableHead>
                         <TableHead>Course</TableHead>
                         <TableHead>Result Date</TableHead>
+                        <TableHead>Printed</TableHead>
                         <TableHead>Verification</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {declaredLoading ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
                       ) : filteredDeclaredResults.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No declared results yet.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No declared results yet.</TableCell></TableRow>
                       ) : filteredDeclaredResults.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell>
-                            <Checkbox
-                              checked={selectedForPrinting.includes(r.id)}
-                              onCheckedChange={() => togglePrintSelection(r.id)}
-                            />
+                            <Checkbox checked={selectedForPrinting.includes(r.id)} onCheckedChange={() => togglePrintSelection(r.id)} />
                           </TableCell>
                           <TableCell>
                             <p className="font-medium">{r.students?.name}</p>
@@ -408,9 +353,13 @@ export default function AdminResults() {
                           <TableCell>{r.courses?.name}</TableCell>
                           <TableCell>{r.result_date ? new Date(r.result_date).toLocaleDateString() : '-'}</TableCell>
                           <TableCell>
+                            {r.certificate_printed_at
+                              ? <Badge variant="secondary">{new Date(r.certificate_printed_at).toLocaleDateString()}</Badge>
+                              : <span className="text-muted-foreground text-sm">Not yet</span>}
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center gap-2 text-muted-foreground">
-                              <QrCode className="w-4 h-4" />
-                              <span>Enabled</span>
+                              <QrCode className="w-4 h-4" /><span>Enabled</span>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -428,55 +377,52 @@ export default function AdminResults() {
 }
 
 function AddResultDialog({
-  open,
-  onOpenChange,
-  onSubmit,
-  submitting,
+  open, onOpenChange, onSubmit, submitting,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (p: { student_id: string; course_id: string; exam_date: string; marks_obtained: number; total_marks: number }) => void;
+  onSubmit: (p: { student_id: string; course_id: string; exam_date: string; theory_marks: number; theory_total: number; practical_total: number }) => void;
   submitting: boolean;
 }) {
   const { data: students = [], isLoading } = useStudentsForResults();
   const [studentId, setStudentId] = useState('');
   const [examDate, setExamDate] = useState(new Date().toISOString().slice(0, 10));
-  const [marks, setMarks] = useState<number>(0);
-  const [totalMarks, setTotalMarks] = useState<number>(100);
+  const [theoryMarks, setTheoryMarks] = useState<number>(0);
+  const [theoryTotal, setTheoryTotal] = useState<number>(100);
+  const [practicalTotal, setPracticalTotal] = useState<number>(100);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const selected = students.find((s: any) => s.id === studentId);
 
   const handleSelect = (id: string) => {
     setStudentId(id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s: any = students.find((x: any) => x.id === id);
-    if (s?.courses?.max_marks) setTotalMarks(s.courses.max_marks);
+    if (s?.courses?.theory_max_marks) setTheoryTotal(s.courses.theory_max_marks);
+    if (s?.courses?.practical_max_marks) setPracticalTotal(s.courses.practical_max_marks);
   };
 
   const handleSubmit = () => {
-    if (!studentId || !selected) {
-      toast.error('Please select a student');
-      return;
-    }
+    if (!studentId || !selected) return toast.error('Please select a student');
     onSubmit({
       student_id: studentId,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       course_id: (selected as any).course_id,
       exam_date: examDate,
-      marks_obtained: Number(marks),
-      total_marks: Number(totalMarks),
+      theory_marks: Number(theoryMarks),
+      theory_total: Number(theoryTotal),
+      practical_total: Number(practicalTotal),
     });
-    setStudentId('');
-    setMarks(0);
+    setStudentId(''); setTheoryMarks(0);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button><Plus className="w-4 h-4 mr-2" />Add Result</Button>
-      </DialogTrigger>
+      <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-2" />Add Result (Manual)</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Exam Result</DialogTitle>
-          <DialogDescription>Record exam marks for a student. Result will be saved as Pending until declared.</DialogDescription>
+          <DialogDescription>Manually record theory marks. The center will fill practical marks before declaration.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-2">
@@ -484,10 +430,9 @@ function AddResultDialog({
             <Select value={studentId} onValueChange={handleSelect} disabled={isLoading}>
               <SelectTrigger><SelectValue placeholder={isLoading ? 'Loading...' : 'Select a student'} /></SelectTrigger>
               <SelectContent>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {students.map((s: any) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name} — {s.enrollment_no} ({s.courses?.name})
-                  </SelectItem>
+                  <SelectItem key={s.id} value={s.id}>{s.name} — {s.enrollment_no} ({s.courses?.name})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -496,14 +441,18 @@ function AddResultDialog({
             <Label>Exam Date</Label>
             <Input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Marks Obtained</Label>
-              <Input type="number" value={marks} onChange={(e) => setMarks(parseInt(e.target.value) || 0)} />
+              <Label>Theory Marks</Label>
+              <Input type="number" value={theoryMarks} onChange={(e) => setTheoryMarks(parseFloat(e.target.value) || 0)} />
             </div>
             <div className="grid gap-2">
-              <Label>Total Marks</Label>
-              <Input type="number" value={totalMarks} onChange={(e) => setTotalMarks(parseInt(e.target.value) || 0)} />
+              <Label>Theory Total</Label>
+              <Input type="number" value={theoryTotal} onChange={(e) => setTheoryTotal(parseFloat(e.target.value) || 0)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Practical Total</Label>
+              <Input type="number" value={practicalTotal} onChange={(e) => setPracticalTotal(parseFloat(e.target.value) || 0)} />
             </div>
           </div>
         </div>

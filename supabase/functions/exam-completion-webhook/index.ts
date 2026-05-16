@@ -60,6 +60,10 @@ Deno.serve(async (req) => {
     status?: string;
     completed_at?: string;
     attempt_id?: string;
+    marks_obtained?: number;
+    total_marks?: number;
+    theory_marks?: number;
+    theory_total?: number;
   };
   try {
     payload = JSON.parse(rawBody);
@@ -86,7 +90,7 @@ Deno.serve(async (req) => {
 
   const { data: student, error: lookupErr } = await supabase
     .from("students")
-    .select("id")
+    .select("id, course_id, courses(theory_max_marks, practical_max_marks)")
     .eq("enrollment_no", enrollment_id)
     .maybeSingle();
 
@@ -112,6 +116,45 @@ Deno.serve(async (req) => {
   if (histErr) {
     console.error("exam_history upsert error", histErr);
     return json(500, { ok: false, error: "history_write_failed" });
+  }
+
+  // Create/update a student_results row in awaiting_practical with theory marks
+  const theory_marks = Number(
+    payload.theory_marks ?? payload.marks_obtained ?? 0
+  );
+  const courseRow = (student as { courses?: { theory_max_marks?: number; practical_max_marks?: number } }).courses;
+  const theory_total = Number(
+    payload.theory_total ?? payload.total_marks ?? courseRow?.theory_max_marks ?? 100
+  );
+  const practical_total = Number(courseRow?.practical_max_marks ?? 100);
+  const exam_date = completed_at.toISOString().slice(0, 10);
+
+  const { data: existing } = await supabase
+    .from("student_results")
+    .select("id, status, practical_submitted_at")
+    .eq("student_id", (student as { id: string }).id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!existing) {
+    const { error: insErr } = await supabase.from("student_results").insert({
+      student_id: (student as { id: string }).id,
+      course_id: (student as { course_id: string }).course_id,
+      exam_date,
+      theory_marks,
+      theory_total,
+      practical_total,
+      total_marks: theory_total + practical_total,
+      marks_obtained: theory_marks,
+      status: "awaiting_practical",
+    });
+    if (insErr) console.error("student_results insert error", insErr);
+  } else if (existing.status === "awaiting_practical" && !existing.practical_submitted_at) {
+    await supabase
+      .from("student_results")
+      .update({ theory_marks, theory_total })
+      .eq("id", existing.id);
   }
 
   // Lock the student record

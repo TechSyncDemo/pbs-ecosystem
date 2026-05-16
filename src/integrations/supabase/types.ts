@@ -426,7 +426,9 @@ export type Database = {
           max_marks: number
           name: string
           passing_marks: number
+          practical_max_marks: number
           status: string | null
+          theory_max_marks: number
           updated_at: string
         }
         Insert: {
@@ -443,7 +445,9 @@ export type Database = {
           max_marks?: number
           name: string
           passing_marks?: number
+          practical_max_marks?: number
           status?: string | null
+          theory_max_marks?: number
           updated_at?: string
         }
         Update: {
@@ -460,7 +464,9 @@ export type Database = {
           max_marks?: number
           name?: string
           passing_marks?: number
+          practical_max_marks?: number
           status?: string | null
+          theory_max_marks?: number
           updated_at?: string
         }
         Relationships: [
@@ -783,6 +789,7 @@ export type Database = {
       }
       student_results: {
         Row: {
+          certificate_printed_at: string | null
           course_id: string
           created_at: string
           declared_by: string | null
@@ -790,13 +797,21 @@ export type Database = {
           grace_marks: number
           id: string
           marks_obtained: number
+          practical_grace: number
+          practical_marks: number
+          practical_submitted_at: string | null
+          practical_total: number
           result_date: string | null
           status: string
           student_id: string
+          theory_grace: number
+          theory_marks: number
+          theory_total: number
           total_marks: number
           updated_at: string
         }
         Insert: {
+          certificate_printed_at?: string | null
           course_id: string
           created_at?: string
           declared_by?: string | null
@@ -804,13 +819,21 @@ export type Database = {
           grace_marks?: number
           id?: string
           marks_obtained?: number
+          practical_grace?: number
+          practical_marks?: number
+          practical_submitted_at?: string | null
+          practical_total?: number
           result_date?: string | null
           status?: string
           student_id: string
+          theory_grace?: number
+          theory_marks?: number
+          theory_total?: number
           total_marks?: number
           updated_at?: string
         }
         Update: {
+          certificate_printed_at?: string | null
           course_id?: string
           created_at?: string
           declared_by?: string | null
@@ -818,9 +841,16 @@ export type Database = {
           grace_marks?: number
           id?: string
           marks_obtained?: number
+          practical_grace?: number
+          practical_marks?: number
+          practical_submitted_at?: string | null
+          practical_total?: number
           result_date?: string | null
           status?: string
           student_id?: string
+          theory_grace?: number
+          theory_marks?: number
+          theory_total?: number
           total_marks?: number
           updated_at?: string
         }
@@ -1182,6 +1212,14 @@ export type Database = {
           p_center_id: string
           p_quantity: number
           p_stock_item_id: string
+        }
+        Returns: undefined
+      }
+      submit_practical_marks: {
+        Args: {
+          _practical_marks: number
+          _practical_total: number
+          _result_id: string
         }
         Returns: undefined
       }

@@ -1,64 +1,112 @@
-## Coupon Code System
+## Goal
 
-Add admin-managed coupon codes that centers can apply at checkout to reduce order totals.
+Restructure the exam-result lifecycle so theory marks flow in automatically from the exam portal, centers fill in practical marks once, admins fine-tune and declare, and centers receive provisional documents after admin prints.
 
-### 1. Database (new table `coupons`)
+## New end-to-end flow
 
-Fields:
-- `code` (text, unique, uppercase)
-- `discount_type` ('percentage' | 'fixed')
-- `discount_value` (numeric) — % (0–100) or flat ₹ amount
-- `max_discount` (numeric, nullable) — cap for percentage coupons
-- `min_order_amount` (numeric, default 0) — minimum cart subtotal required
-- `usage_limit` (integer, nullable) — total redemptions allowed (null = unlimited)
-- `usage_count` (integer, default 0)
-- `per_center_limit` (integer, nullable) — redemptions per center
-- `valid_from`, `valid_until` (timestamptz)
-- `status` ('active' | 'inactive')
-- `description` (text, nullable)
+```text
+Student finishes exam on Exam Portal
+        │  (webhook)
+        ▼
+exam_history row + student locked
+        │
+        ▼
+student_results row auto-created
+  status = awaiting_practical
+  theory_marks / theory_total filled
+        │
+        ▼  Center portal → Results page
+Center enters PRACTICAL marks → Submit
+  status = pending      (practical_submitted_at set, both fields locked for center)
+        │
+        ▼  Super Admin → Results page (Declaration tab)
+Admin can add / subtract on
+  theory_grace  &  practical_grace
+Admin clicks Declare
+  status = declared, result_date set
+        │
+        ▼  Center sees declared marks (read-only)
+        │
+        ▼  Super Admin → Printing Queue, prints PDF
+  certificate_printed_at set
+        │
+        ▼  Center can download:
+       Provisional Marksheet
+       Provisional Certificate
+   (both watermarked “PROVISIONAL”)
+```
 
-Add `coupon_id`, `coupon_code`, `discount_amount` columns to `orders` table.
+## Database changes (one migration)
 
-New table `coupon_redemptions` (coupon_id, center_id, order_id, redeemed_at) to track usage and enforce per-center limits.
+- `courses`
+  - `theory_max_marks int default 100`
+  - `practical_max_marks int default 100`
+- `student_results`
+  - `theory_marks numeric default 0`
+  - `theory_total numeric default 100`
+  - `practical_marks numeric default 0`
+  - `practical_total numeric default 100`
+  - `theory_grace numeric default 0`
+  - `practical_grace numeric default 0`
+  - `practical_submitted_at timestamptz`
+  - `certificate_printed_at timestamptz`
+  - Allow status values: `awaiting_practical | pending | declared`
+- Backfill: copy current `marks_obtained` → `theory_marks`, `total_marks` → `theory_total`, `grace_marks` → `theory_grace`.
+- New RLS for centers on `student_results`:
+  - SELECT own (already exists)
+  - UPDATE own row only when `status = 'awaiting_practical'` and only `practical_marks` / `practical_total` / `practical_submitted_at` change; lock once `practical_submitted_at` is set.
 
-RLS:
-- Super admins: full manage on `coupons` and `coupon_redemptions`.
-- Authenticated centers: SELECT active coupons (to validate); INSERT into redemptions tied to their own center.
+## Edge function: `exam-completion-webhook`
 
-Validation function `validate_coupon(code, center_id, order_amount)` (SECURITY DEFINER) returns discount amount + status, used by both client preview and final apply (atomic increment of `usage_count` on order placement).
+Extend the accepted payload to optionally include `marks_obtained`, `total_marks`, `theory_marks`, `theory_total`. When present:
+- Look up `course_id` from the student.
+- Upsert a `student_results` row keyed on `(student_id, exam_date)` with `status = 'awaiting_practical'`, theory marks filled, practical fields zero.
+- If no marks in payload, still create the awaiting row with `theory_marks = 0` so center sees the student.
 
-### 2. Admin UI — Settings page (new "Coupons" tab)
+(No changes to signature/idempotency logic.)
 
-Add a fifth tab to `src/pages/admin/Settings.tsx` alongside General/Financial/Notifications/Profile:
+## Center portal — new `Results` page
 
-- Table list of coupons: code, type, value, validity, usage (used/limit), status, actions
-- "Create Coupon" dialog with all fields above
-- Edit / toggle active / delete actions
-- Quick stats: total coupons, active, total discount given
+Path: `/center/results`, linked in `CenterLayout` sidebar.
 
-New files:
-- `src/hooks/useCoupons.ts` — list/create/update/delete/toggle hooks
-- `src/components/admin/CouponForm.tsx` — create/edit dialog
-- `src/components/admin/CouponsTable.tsx` — list table
+- Tabs: **Awaiting Practical | Submitted | Declared**.
+- Awaiting Practical row shows: student, course, theory marks (read-only), practical input + total, Submit button. On submit confirms with a dialog; once submitted row moves to Submitted and is fully read-only.
+- Declared tab shows final theory + practical + grace breakdown, total, grade, and — once `certificate_printed_at` is set — two download buttons: **Provisional Marksheet** and **Provisional Certificate**.
 
-### 3. Center Order flow — `src/pages/center/Orders.tsx`
+## Super admin — `Results` page rewrite
 
-In the "Create Order" dialog, below the cart subtotal:
-- "Apply coupon" input + Apply button
-- On apply: call validate function → show discount line + new total, or inline error
-- Remove coupon (X) button when applied
-- On submit: send `coupon_id`, `coupon_code`, `discount_amount`, and adjusted `total_amount` with the order; insert into `coupon_redemptions`
+- Declaration tab columns: Student · Course · Theory (marks/total) · Theory Grace (± input) · Practical (marks/total) · Practical Grace (± input) · Final · Declare.
+- Filters unchanged; only show rows where center has already submitted practical (`status = 'pending'`).
+- “Add Result” dialog adjusted to capture theory + practical or removed (now automatic via webhook). Keep a minimal manual-add for offline cases under a separate “Manual entry” button — theory + practical fields.
+- Printing tab: same as today; print actions now also set `certificate_printed_at` on the row.
 
-Show applied coupon + discount on order detail / list views (admin Orders too).
+## PDF generation
 
-### 4. Edge cases
-- Reject expired, inactive, exceeded-limit, below-min-order coupons
-- Discount cannot exceed subtotal (clamp)
-- Percentage coupons honor `max_discount` cap
-- Codes stored uppercase; comparison case-insensitive
+- Update `generateMarksheet.ts` and `generateCertificate.ts` to accept a `provisional?: boolean` flag and stamp a light diagonal “PROVISIONAL” watermark plus a footer note when true.
+- Center-side download buttons call these generators with `provisional: true`. Admin print stays non-provisional (final copy).
 
-### Build order
-1. Migration (table + columns + RLS + validate function)
-2. `useCoupons` hook + admin Coupons tab/components
-3. Center order dialog: apply/remove coupon + persist on submit
-4. Display discount on admin & center order views
+## Hook layer
+
+- Replace `useResults.ts` queries with the new column set (`theory_marks`, `practical_marks`, graces, etc.) and a `useCenterResults` hook for the center portal.
+- New mutations: `useSubmitPractical`, `useUpdateGrace(field)`, `useMarkCertificatePrinted`.
+
+## Files touched
+
+- New migration under `supabase/migrations/`
+- `supabase/functions/exam-completion-webhook/index.ts`
+- `src/hooks/useResults.ts` (rewrite types/queries)
+- `src/hooks/useCenterResults.ts` (new)
+- `src/pages/admin/Results.tsx` (column rewrite, watermark wiring)
+- `src/pages/center/Results.tsx` (new)
+- `src/layouts/CenterLayout.tsx` (sidebar entry)
+- `src/App.tsx` (route)
+- `src/lib/generateMarksheet.ts`, `src/lib/generateCertificate.ts` (provisional watermark)
+- Regenerated `src/integrations/supabase/types.ts` after migration
+
+## Assumptions worth confirming
+
+1. The exam-portal webhook can be extended to send `marks_obtained` / `total_marks` (theory). If not, theory marks will default to 0 and admins fill them manually.
+2. A single `student_results` row per student per course (matches current behaviour).
+3. Provisional documents are identical layout to final ones, just watermarked — no separate template.
+
+If any of these three assumptions are wrong, tell me which and I’ll adjust before building.

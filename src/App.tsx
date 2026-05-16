@@ -40,6 +40,7 @@ import CenterOrders from "./pages/center/Orders";
 import CenterProfile from "./pages/center/Profile";
 import CenterSupport from "./pages/center/Support";
 import CenterTutorials from "./pages/center/Tutorials";
+import CenterResults from "./pages/center/Results";
 
 
 const queryClient = new QueryClient();
@@ -142,6 +143,11 @@ const App = () => (
             <Route path="/center/students" element={
               <ProtectedRoute allowedRoles={['center_admin']}>
                 <CenterStudents />
+              </ProtectedRoute>
+            } />
+            <Route path="/center/results" element={
+              <ProtectedRoute allowedRoles={['center_admin']}>
+                <CenterResults />
               </ProtectedRoute>
             } />
             <Route path="/center/stock" element={
