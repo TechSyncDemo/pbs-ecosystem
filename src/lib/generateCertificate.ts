@@ -11,14 +11,15 @@ export interface CertificateData {
   resultDate: string;
   grade: string;
   certificateId: string;
+  certificateNo?: string | null;
   provisional?: boolean;
 }
 
 const PRIMARY = '#0f4c81';
 const ACCENT = '#c9a961';
 
-function verificationUrl(id: string) {
-  return `${window.location.origin}/verify/${id}`;
+function verificationUrl(certNoOrId: string) {
+  return `${window.location.origin}/verify/${certNoOrId}`;
 }
 
 async function qrDataUrl(text: string) {
@@ -100,7 +101,7 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData) {
 
   // Bottom row: QR (left), Enrollment (center), Signature (right)
   try {
-    const qr = await qrDataUrl(verificationUrl(data.certificateId));
+    const qr = await qrDataUrl(verificationUrl(data.certificateNo || data.certificateId));
     doc.addImage(qr, 'PNG', 25, h - 55, 28, 28);
   } catch { /* */ }
   doc.setFont('helvetica', 'normal');
@@ -116,10 +117,10 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData) {
   doc.setFont('helvetica', 'normal');
   doc.text(data.enrollmentNo, cx, h - 38, { align: 'center' });
   doc.setFont('helvetica', 'bold');
-  doc.text('Certificate ID', cx, h - 30, { align: 'center' });
+  doc.text('Certificate No', cx, h - 30, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(data.certificateId, cx, h - 24, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text(data.certificateNo || data.certificateId, cx, h - 24, { align: 'center' });
 
   // Signature
   doc.setDrawColor('#000000');
