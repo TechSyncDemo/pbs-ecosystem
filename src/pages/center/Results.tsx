@@ -54,6 +54,7 @@ export default function CenterResults() {
       finalMarks: final,
       totalMarks: total,
       certificateId: r.id,
+      certificateNo: (r as unknown as { certificate_no?: string | null }).certificate_no,
       provisional: true,
     });
   };
@@ -72,6 +73,7 @@ export default function CenterResults() {
       resultDate: r.result_date ?? new Date().toISOString(),
       grade: grade(pct),
       certificateId: r.id,
+      certificateNo: (r as unknown as { certificate_no?: string | null }).certificate_no,
       provisional: true,
     });
   };
