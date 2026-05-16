@@ -7,11 +7,16 @@ export type ResultRow = {
   student_id: string;
   course_id: string;
   exam_date: string;
-  marks_obtained: number;
-  total_marks: number;
-  grace_marks: number;
+  theory_marks: number;
+  theory_total: number;
+  practical_marks: number;
+  practical_total: number;
+  theory_grace: number;
+  practical_grace: number;
   status: string;
   result_date: string | null;
+  practical_submitted_at: string | null;
+  certificate_printed_at: string | null;
   students: {
     id: string;
     name: string;
@@ -19,14 +24,16 @@ export type ResultRow = {
     center_id: string;
     centers: { id: string; name: string; code: string } | null;
   } | null;
-  courses: { id: string; name: string; code: string; max_marks: number; duration_months: number } | null;
+  courses: { id: string; name: string; code: string; duration_months: number; theory_max_marks: number; practical_max_marks: number } | null;
 };
 
 const RESULTS_QUERY = `
-  id, student_id, course_id, exam_date, marks_obtained, total_marks,
-  grace_marks, status, result_date,
+  id, student_id, course_id, exam_date,
+  theory_marks, theory_total, practical_marks, practical_total,
+  theory_grace, practical_grace,
+  status, result_date, practical_submitted_at, certificate_printed_at,
   students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code ) ),
-  courses!inner ( id, name, code, max_marks, duration_months )
+  courses!inner ( id, name, code, duration_months, theory_max_marks, practical_max_marks )
 `;
 
 export function usePendingResults() {
@@ -37,7 +44,7 @@ export function usePendingResults() {
         .from('student_results')
         .select(RESULTS_QUERY)
         .eq('status', 'pending')
-        .order('exam_date', { ascending: false });
+        .order('practical_submitted_at', { ascending: false });
       if (error) throw error;
       return (data as unknown as ResultRow[]) ?? [];
     },
@@ -59,13 +66,13 @@ export function useDeclaredResults() {
   });
 }
 
-export function useUpdateGraceMarks() {
+export function useUpdateGrace() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, grace_marks }: { id: string; grace_marks: number }) => {
+    mutationFn: async ({ id, field, value }: { id: string; field: 'theory_grace' | 'practical_grace'; value: number }) => {
       const { error } = await supabase
         .from('student_results')
-        .update({ grace_marks })
+        .update({ [field]: value })
         .eq('id', id);
       if (error) throw error;
     },
@@ -81,26 +88,28 @@ export function useDeclareResults() {
       const { data: userData } = await supabase.auth.getUser();
       const { data: results, error: fetchErr } = await supabase
         .from('student_results')
-        .select('id, student_id')
+        .select('id, student_id, theory_marks, theory_grace, practical_marks, practical_grace, theory_total, practical_total')
         .in('id', ids);
       if (fetchErr) throw fetchErr;
 
-      const { error } = await supabase
-        .from('student_results')
-        .update({
+      // Persist combined totals for compatibility
+      for (const r of results ?? []) {
+        const final = Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace);
+        const total = Number(r.theory_total) + Number(r.practical_total);
+        await supabase.from('student_results').update({
+          marks_obtained: Number(r.theory_marks) + Number(r.practical_marks),
+          total_marks: total,
+          grace_marks: Number(r.theory_grace) + Number(r.practical_grace),
           status: 'declared',
           result_date: new Date().toISOString(),
           declared_by: userData.user?.id ?? null,
-        })
-        .in('id', ids);
-      if (error) throw error;
+        }).eq('id', r.id);
+        void final;
+      }
 
       const studentIds = (results ?? []).map((r) => r.student_id);
       if (studentIds.length > 0) {
-        await supabase
-          .from('students')
-          .update({ status: 'completed' })
-          .in('id', studentIds);
+        await supabase.from('students').update({ status: 'completed' }).in('id', studentIds);
       }
       return ids.length;
     },
@@ -113,6 +122,20 @@ export function useDeclareResults() {
   });
 }
 
+export function useMarkPrinted() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('student_results')
+        .update({ certificate_printed_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['student_results'] }),
+  });
+}
+
 export function useAddResult() {
   const qc = useQueryClient();
   return useMutation({
@@ -120,19 +143,21 @@ export function useAddResult() {
       student_id: string;
       course_id: string;
       exam_date: string;
-      marks_obtained: number;
-      total_marks: number;
+      theory_marks: number;
+      theory_total: number;
+      practical_total: number;
     }) => {
       const { error } = await supabase.from('student_results').insert({
         ...input,
-        status: 'pending',
-        grace_marks: 0,
+        marks_obtained: input.theory_marks,
+        total_marks: input.theory_total + input.practical_total,
+        status: 'awaiting_practical',
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['student_results'] });
-      toast.success('Result added');
+      toast.success('Result added — awaiting practical from center');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -144,7 +169,7 @@ export function useStudentsForResults() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('students')
-        .select('id, name, enrollment_no, course_id, center_id, courses ( id, name, max_marks ), centers ( id, name )')
+        .select('id, name, enrollment_no, course_id, center_id, courses ( id, name, theory_max_marks, practical_max_marks ), centers ( id, name )')
         .eq('status', 'active')
         .order('name');
       if (error) throw error;
