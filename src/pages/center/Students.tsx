@@ -608,6 +608,8 @@ export default function CenterStudents() {
                       <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Exam</TableHead>
+                      <TableHead>Theory</TableHead>
+                      <TableHead>Practical</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
