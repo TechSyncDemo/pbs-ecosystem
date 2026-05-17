@@ -52,6 +52,7 @@ import { useCenterStudents, useCreateStudent, useUpdateStudent, type StudentWith
 import { useCourses } from '@/hooks/useCourses';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { useCenterStock } from '@/hooks/useStock';
+import { useCenterResults, useSubmitPractical } from '@/hooks/useCenterResults';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -72,6 +73,8 @@ export default function CenterStudents() {
   const { data: courses = [] } = useCourses();
   const { data: authorizations = [] } = useCenterAuthorizations(centerId);
   const { data: stockData = [] } = useCenterStock(centerId);
+  const { data: centerResults = [] } = useCenterResults();
+  const submitPractical = useSubmitPractical();
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
 
@@ -96,6 +99,13 @@ export default function CenterStudents() {
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [exportFromDate, setExportFromDate] = useState('');
   const [exportToDate, setExportToDate] = useState('');
+  const [practicalDrafts, setPracticalDrafts] = useState<Record<string, string>>({});
+
+  // Map student_id -> result row (latest)
+  const resultByStudent = centerResults.reduce<Record<string, typeof centerResults[number]>>((acc, r) => {
+    if (r.student_id && !acc[r.student_id]) acc[r.student_id] = r;
+    return acc;
+  }, {});
 
   const [newStudent, setNewStudent] = useState({
     name: '',
@@ -598,6 +608,8 @@ export default function CenterStudents() {
                       <TableHead>Fees Pending</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Exam</TableHead>
+                      <TableHead>Theory</TableHead>
+                      <TableHead>Practical</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -679,6 +691,83 @@ export default function CenterStudents() {
                               {examLabel}
                             </Badge>
                           </TableCell>
+                          {(() => {
+                            const result = resultByStudent[student.id];
+                            const declared = result?.status === 'declared';
+                            const practicalMax = Number(
+                              result?.practical_total ||
+                              result?.courses?.practical_max_marks ||
+                              courses.find((c) => c.id === student.course_id)?.practical_max_marks ||
+                              100
+                            );
+                            const draftKey = result?.id ?? '';
+                            const draftVal = practicalDrafts[draftKey];
+                            const currentPractical = draftVal !== undefined
+                              ? draftVal
+                              : (result ? String(result.practical_marks ?? '') : '');
+                            return (
+                              <>
+                                <TableCell>
+                                  {result ? (
+                                    <span className="font-medium">
+                                      {Number(result.theory_marks ?? 0)}<span className="text-muted-foreground">/{Number(result.theory_total ?? 0)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {!result ? (
+                                    <span className="text-muted-foreground text-xs">—</span>
+                                  ) : declared ? (
+                                    <span className="font-medium flex items-center gap-1">
+                                      <Lock className="w-3 h-3 text-muted-foreground" />
+                                      {Number(result.practical_marks ?? 0)}<span className="text-muted-foreground">/{practicalMax}</span>
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        max={practicalMax}
+                                        value={currentPractical}
+                                        onChange={(e) =>
+                                          setPracticalDrafts((prev) => ({ ...prev, [draftKey]: e.target.value }))
+                                        }
+                                        className="h-8 w-20"
+                                      />
+                                      <span className="text-xs text-muted-foreground">/{practicalMax}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 px-2"
+                                        disabled={
+                                          submitPractical.isPending ||
+                                          currentPractical === '' ||
+                                          Number(currentPractical) < 0 ||
+                                          Number(currentPractical) > practicalMax
+                                        }
+                                        onClick={async () => {
+                                          await submitPractical.mutateAsync({
+                                            id: result.id,
+                                            practical_marks: Number(currentPractical),
+                                            practical_total: practicalMax,
+                                          });
+                                          setPracticalDrafts((prev) => {
+                                            const next = { ...prev };
+                                            delete next[draftKey];
+                                            return next;
+                                          });
+                                        }}
+                                      >
+                                        Save
+                                      </Button>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </>
+                            );
+                          })()}
                           <TableCell>
                             <Button
                               variant="ghost"
