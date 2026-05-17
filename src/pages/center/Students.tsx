@@ -52,6 +52,7 @@ import { useCenterStudents, useCreateStudent, useUpdateStudent, type StudentWith
 import { useCourses } from '@/hooks/useCourses';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { useCenterStock } from '@/hooks/useStock';
+import { useCenterResults, useSubmitPractical } from '@/hooks/useCenterResults';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -72,6 +73,8 @@ export default function CenterStudents() {
   const { data: courses = [] } = useCourses();
   const { data: authorizations = [] } = useCenterAuthorizations(centerId);
   const { data: stockData = [] } = useCenterStock(centerId);
+  const { data: centerResults = [] } = useCenterResults();
+  const submitPractical = useSubmitPractical();
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
 
@@ -96,6 +99,13 @@ export default function CenterStudents() {
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [exportFromDate, setExportFromDate] = useState('');
   const [exportToDate, setExportToDate] = useState('');
+  const [practicalDrafts, setPracticalDrafts] = useState<Record<string, string>>({});
+
+  // Map student_id -> result row (latest)
+  const resultByStudent = centerResults.reduce<Record<string, typeof centerResults[number]>>((acc, r) => {
+    if (r.student_id && !acc[r.student_id]) acc[r.student_id] = r;
+    return acc;
+  }, {});
 
   const [newStudent, setNewStudent] = useState({
     name: '',
