@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import cbitvtLogo from '@/assets/cbitvt-logo.png';
 
 type VerifyRow = {
   certificate_no: string;
@@ -172,6 +173,13 @@ export default function VerifyCertificate() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/30 to-background flex items-center justify-center p-4">
       <Card className="max-w-xl w-full border-0 shadow-card">
+        <div className="px-6 pt-6">
+          <img
+            src={cbitvtLogo}
+            alt="Central Board of IT & Vocational Training"
+            className="w-full max-w-md mx-auto h-auto object-contain"
+          />
+        </div>
         <CardHeader className="text-center">
           <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <ShieldCheck className="w-7 h-7 text-primary" />
