@@ -44,8 +44,8 @@ export function usePendingResults() {
       const { data, error } = await supabase
         .from('student_results')
         .select(RESULTS_QUERY)
-        .eq('status', 'pending')
-        .order('practical_submitted_at', { ascending: false });
+        .in('status', ['pending', 'awaiting_practical'])
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return (data as unknown as ResultRow[]) ?? [];
     },
