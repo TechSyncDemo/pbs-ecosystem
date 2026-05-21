@@ -240,10 +240,11 @@ export default function AdminResults() {
                         const tg = graceDraft[r.id]?.theory ?? Number(r.theory_grace);
                         const pg = graceDraft[r.id]?.practical ?? Number(r.practical_grace);
                         const final = Number(r.theory_marks) + tg + Number(r.practical_marks) + pg;
+                        const practicalPending = r.status === 'awaiting_practical' || !r.practical_submitted_at;
                         return (
                           <TableRow key={r.id}>
                             <TableCell>
-                              <Checkbox checked={selectedForDeclaration.includes(r.id)} onCheckedChange={() => toggleDeclareSelection(r.id)} />
+                              <Checkbox checked={selectedForDeclaration.includes(r.id)} onCheckedChange={() => toggleDeclareSelection(r.id)} disabled={practicalPending} />
                             </TableCell>
                             <TableCell>
                               <p className="font-medium">{r.students?.name}</p>
@@ -256,15 +257,20 @@ export default function AdminResults() {
                                 onChange={(e) => setGrace(r.id, 'theory', parseFloat(e.target.value) || 0)}
                                 onBlur={() => commitGrace(r.id, 'theory', Number(r.theory_grace))} />
                             </TableCell>
-                            <TableCell>{Number(r.practical_marks)} / {Number(r.practical_total)}</TableCell>
+                            <TableCell>
+                              {practicalPending
+                                ? <Badge variant="outline">Awaiting center</Badge>
+                                : <>{Number(r.practical_marks)} / {Number(r.practical_total)}</>}
+                            </TableCell>
                             <TableCell>
                               <Input type="number" className="w-20 h-8" value={pg}
                                 onChange={(e) => setGrace(r.id, 'practical', parseFloat(e.target.value) || 0)}
-                                onBlur={() => commitGrace(r.id, 'practical', Number(r.practical_grace))} />
+                                onBlur={() => commitGrace(r.id, 'practical', Number(r.practical_grace))}
+                                disabled={practicalPending} />
                             </TableCell>
                             <TableCell className="font-bold">{final} / {Number(r.theory_total) + Number(r.practical_total)}</TableCell>
                             <TableCell>
-                              <Button size="sm" onClick={() => handleDeclareOne(r.id)} disabled={declareResults.isPending}>
+                              <Button size="sm" onClick={() => handleDeclareOne(r.id)} disabled={declareResults.isPending || practicalPending}>
                                 <Mail className="w-4 h-4 mr-2" />Declare
                               </Button>
                             </TableCell>
