@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Award, FileText, Printer, QrCode, Mail, Building, Calendar, Plus, Loader2 } from 'lucide-react';
+import { Award, FileText, Printer, QrCode, Mail, Building, Calendar, Loader2 } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,15 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   usePendingResults,
   useDeclaredResults,
   useUpdateGrace,
   useDeclareResults,
-  useAddResult,
-  useStudentsForResults,
   useMarkPrinted,
   type ResultRow,
 } from '@/hooks/useResults';
@@ -89,7 +86,6 @@ export default function AdminResults() {
   const { data: centers = [] } = useCenters();
   const updateGrace = useUpdateGrace();
   const declareResults = useDeclareResults();
-  const addResult = useAddResult();
   const markPrinted = useMarkPrinted();
 
   const [selectedForDeclaration, setSelectedForDeclaration] = useState<string[]>([]);
@@ -97,7 +93,6 @@ export default function AdminResults() {
   const [declarationFilters, setDeclarationFilters] = useState({ center: 'all', startDate: '', endDate: '' });
   const [printingFilters, setPrintingFilters] = useState({ center: 'all', startDate: '', endDate: '' });
   const [graceDraft, setGraceDraft] = useState<Record<string, { theory?: number; practical?: number }>>({});
-  const [addOpen, setAddOpen] = useState(false);
 
   const setGrace = (id: string, field: 'theory' | 'practical', value: number) =>
     setGraceDraft((p) => ({ ...p, [id]: { ...p[id], [field]: value } }));
@@ -173,7 +168,6 @@ export default function AdminResults() {
             <h1 className="text-3xl font-heading font-bold text-foreground">Result &amp; Certificate Management</h1>
             <p className="text-muted-foreground mt-1">Review center-submitted practical marks, adjust grace, declare results and print documents.</p>
           </div>
-          <AddResultDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={(p) => addResult.mutate(p, { onSuccess: () => setAddOpen(false) })} submitting={addResult.isPending} />
         </div>
 
         <Tabs defaultValue="declaration">
