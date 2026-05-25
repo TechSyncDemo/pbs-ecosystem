@@ -5,10 +5,12 @@ import {
   Clock,
   Banknote,
   CreditCard,
-  Eye,
   Warehouse,
   Building,
+  Copy,
+  AlertTriangle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,6 +92,15 @@ export default function AdminOrders() {
   const filteredStocks = selectedCenterId
     ? centerStocks.filter(s => s.center_id === selectedCenterId)
     : [];
+
+  const copy = (text?: string | null, label = 'Value') => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied`);
+  };
+
+  const isPaid = selectedOrder?.payment_status === 'paid';
+  const hasRzp = !!selectedOrder?.razorpay_payment_id;
 
   return (
     <AdminLayout>
@@ -235,7 +246,7 @@ export default function AdminOrders() {
 
       {/* Manual Payment Verification Dialog */}
       <Dialog open={isVerifyOpen} onOpenChange={setIsVerifyOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Verify Payment for {selectedOrder?.order_no}</DialogTitle>
             <DialogDescription>
@@ -243,19 +254,88 @@ export default function AdminOrders() {
               Amount: Rs. {Number(selectedOrder?.total_amount || 0).toLocaleString('en-IN')}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label>Payment Receipt</Label>
-            <div className="mt-2 border rounded-lg p-4 flex flex-col items-center justify-center h-48 bg-muted/50">
-              <p className="text-sm text-muted-foreground">Receipt preview would be shown here.</p>
-              <Button variant="link" className="mt-2">
-                View Full Receipt <Eye className="w-4 h-4 ml-2" />
-              </Button>
+          <div className="py-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Razorpay Receipt</Label>
+              {isPaid ? (
+                <Badge className="bg-success hover:bg-success/90"><CheckCircle className="w-3 h-3 mr-1" />Paid</Badge>
+              ) : (
+                <Badge className="bg-warning hover:bg-warning/90"><Clock className="w-3 h-3 mr-1" />Unpaid</Badge>
+              )}
             </div>
+
+            {hasRzp ? (
+              <div className="border rounded-lg p-4 bg-muted/30 space-y-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Razorpay Order ID</div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-xs bg-background border rounded px-2 py-1 truncate">
+                      {selectedOrder?.razorpay_order_id || '—'}
+                    </code>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copy(selectedOrder?.razorpay_order_id, 'Order ID')}>
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Razorpay Payment ID</div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-xs bg-background border rounded px-2 py-1 truncate">
+                      {selectedOrder?.razorpay_payment_id || '—'}
+                    </code>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copy(selectedOrder?.razorpay_payment_id, 'Payment ID')}>
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                {selectedOrder?.razorpay_signature && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Signature (HMAC-SHA256)</div>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 font-mono text-xs bg-background border rounded px-2 py-1 truncate">
+                        {selectedOrder.razorpay_signature}
+                      </code>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copy(selectedOrder.razorpay_signature, 'Signature')}>
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Amount</div>
+                    <div className="font-semibold">Rs. {Number(selectedOrder?.total_amount || 0).toLocaleString('en-IN')}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Paid at</div>
+                    <div className="font-medium">{selectedOrder?.updated_at ? new Date(selectedOrder.updated_at).toLocaleString('en-IN') : '—'}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-success pt-1">
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Signature verified server-side via HMAC-SHA256.
+                </div>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-4 bg-warning/10 border-warning/30 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-semibold text-foreground">No Razorpay payment recorded</div>
+                  <div className="text-muted-foreground mt-1">
+                    The center has not completed Razorpay checkout for this order. Approving manually will release stock without payment confirmation.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsVerifyOpen(false)}>Cancel</Button>
             <Button onClick={handleApprovePayment} disabled={updateOrderStatus.isPending}>
-              {updateOrderStatus.isPending ? 'Approving...' : 'Approve & Release Stock'}
+              {updateOrderStatus.isPending
+                ? 'Approving...'
+                : isPaid
+                ? 'Release Stock'
+                : 'Mark Paid & Release Stock'}
             </Button>
           </DialogFooter>
         </DialogContent>
