@@ -29,26 +29,47 @@ const PRIMARY = '#0f4c81';
 
 const money = (n: number) => `Rs. ${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export function generateOrderBill(data: OrderBillData) {
+async function loadLogoDataUrl(): Promise<string | null> {
+  try {
+    const res = await fetch(logoUrl);
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch { return null; }
+}
+
+export async function generateOrderBill(data: OrderBillData) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
   let y = 15;
 
   // Header band
   doc.setFillColor(PRIMARY);
-  doc.rect(0, 0, W, 22, 'F');
+  doc.rect(0, 0, W, 30, 'F');
+
+  const logo = await loadLogoDataUrl();
+  if (logo) {
+    try { doc.addImage(logo, 'JPEG', 10, 5, 22, 20); } catch {}
+  }
+
   doc.setTextColor('#ffffff');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('PROACTIVE B-SCHOOL', 12, 12);
+  doc.text('PROACTIVE TECHNOLOGY', 36, 14);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('Tax Invoice / Payment Receipt', 12, 18);
+  doc.text('Tax Invoice / Payment Receipt', 36, 20);
+  doc.text('Crafting Successful Skilled Professionals', 36, 25);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('PAID', W - 12, 14, { align: 'right' });
 
-  y = 32;
+  y = 40;
   doc.setTextColor('#111111');
 
   // Invoice meta
@@ -141,6 +162,12 @@ export function generateOrderBill(data: OrderBillData) {
     y += 5;
   }
 
+  if (data.convenienceFee && data.convenienceFee > 0) {
+    doc.text('Convenience Fee (3%)', W / 2 + 5, y);
+    doc.text(money(data.convenienceFee), W - 14, y, { align: 'right' });
+    y += 5;
+  }
+
   doc.setDrawColor(180);
   doc.line(W / 2, y, W - 12, y);
   y += 6;
@@ -171,6 +198,16 @@ export function generateOrderBill(data: OrderBillData) {
   doc.setTextColor('#666666');
   doc.text('Thank you for your business.', 12, y);
   doc.text('This is a computer-generated receipt; no signature required.', 12, y + 4);
+
+  // Bottom footer — inclusive of GST notice
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(PRIMARY);
+  doc.text('This bill is inclusive of GST and convenience fees.', W / 2, H - 12, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor('#888888');
+  doc.setFontSize(8);
+  doc.text('Proactive Technology  •  Crafting Successful Skilled Professionals', W / 2, H - 7, { align: 'center' });
 
   doc.save(`bill-${data.orderNo}.pdf`);
 }
