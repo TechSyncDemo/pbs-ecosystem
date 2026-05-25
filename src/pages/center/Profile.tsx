@@ -362,12 +362,7 @@ export default function CenterProfile() {
                               authorizationCode: group.authCode,
                               centerName: center?.name || '',
                               centerCode: center?.code || '',
-                              centerAddress: [
-                                (center as any)?.certificate_address,
-                                center?.city,
-                                center?.state,
-                                center?.pincode,
-                              ].filter(Boolean).join(', '),
+                              centerAddress: (center as any)?.certificate_address || '',
                               courseName: group.authName,
                               courseCode: group.authCode,
                               validFrom: validFrom ? format(parseISO(validFrom), 'dd MMM yyyy') : 'N/A',
