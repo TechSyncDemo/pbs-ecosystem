@@ -654,6 +654,9 @@ export type Database = {
           order_no: string
           payment_id: string | null
           payment_status: string | null
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          razorpay_signature: string | null
           status: string | null
           total_amount: number
           updated_at: string
@@ -671,6 +674,9 @@ export type Database = {
           order_no: string
           payment_id?: string | null
           payment_status?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
           status?: string | null
           total_amount?: number
           updated_at?: string
@@ -688,6 +694,9 @@ export type Database = {
           order_no?: string
           payment_id?: string | null
           payment_status?: string | null
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          razorpay_signature?: string | null
           status?: string | null
           total_amount?: number
           updated_at?: string
