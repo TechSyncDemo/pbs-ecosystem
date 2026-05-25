@@ -567,12 +567,12 @@ export default function CenterOrders() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handlePlaceOrder('pending_verification')}
+                  onClick={() => handlePlaceOrder()}
                   disabled={orderItems.length === 0 || createOrder.isPending}
                 >
                   {createOrder.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Place Order
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Pay Rs. {finalTotal.toLocaleString()}
                 </Button>
               </DialogFooter>
             </DialogContent>
