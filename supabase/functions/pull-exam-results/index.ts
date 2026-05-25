@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const LIST_ATTEMPTS_URL = "https://mjewqdginfurpujyvmds.supabase.co/functions/v1/list-attempts";
 
@@ -37,12 +37,11 @@ Deno.serve(async (req) => {
   const authClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
   });
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsErr } = await authClient.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
+  const { data: userData, error: userErr } = await authClient.auth.getUser();
+  if (userErr || !userData?.user) {
     return json(401, { error: "Unauthorized" });
   }
-  const userId = claimsData.claims.sub as string;
+  const userId = userData.user.id;
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
