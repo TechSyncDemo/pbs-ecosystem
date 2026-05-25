@@ -39,15 +39,35 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Download,
+  RefreshCw,
 } from 'lucide-react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCenterOrders, useCreateOrder } from '@/hooks/useOrders';
 import { useCenterAuthorizations } from '@/hooks/useCenterCourses';
 import { validateCoupon, applyCouponToOrder, type ValidatedCoupon } from '@/hooks/useCoupons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { generateOrderBill } from '@/lib/generateOrderBill';
+
+declare global {
+  interface Window { Razorpay?: any }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+}
 
 export default function CenterOrders() {
   const { user } = useAuth();
