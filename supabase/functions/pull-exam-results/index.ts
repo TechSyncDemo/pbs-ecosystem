@@ -68,14 +68,33 @@ Deno.serve(async (req) => {
   const upstreamText = await upstreamRes.text();
   if (!upstreamRes.ok) {
     console.error("list-attempts upstream error", upstreamRes.status, upstreamText);
-    return json(502, { error: `Exam portal returned ${upstreamRes.status}`, detail: upstreamText });
+    // Graceful degradation: return 200 so the client doesn't crash on a 502.
+    return json(200, {
+      ok: false,
+      fallback: true,
+      error: "EXAM_PORTAL_UNAVAILABLE",
+      upstream_status: upstreamRes.status,
+      detail: upstreamText,
+      fetched: 0,
+      imported: 0,
+      skipped: 0,
+      failed: 0,
+    });
   }
 
   let parsed: { attempts?: Attempt[] };
   try {
     parsed = JSON.parse(upstreamText);
   } catch {
-    return json(502, { error: "invalid_upstream_json" });
+    return json(200, {
+      ok: false,
+      fallback: true,
+      error: "invalid_upstream_json",
+      fetched: 0,
+      imported: 0,
+      skipped: 0,
+      failed: 0,
+    });
   }
   const attempts = Array.isArray(parsed.attempts) ? parsed.attempts : [];
 
