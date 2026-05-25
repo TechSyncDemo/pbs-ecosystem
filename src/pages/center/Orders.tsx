@@ -330,6 +330,12 @@ export default function CenterOrders() {
 
     const courseToStockItem = new Map(stockItems.map(si => [si.course_id, si.id]));
 
+    const missing = orderItems.filter(i => !courseToStockItem.get(i.course_id));
+    if (missing.length > 0) {
+      toast.error('Stock item not configured for one or more selected courses. Please contact admin.');
+      return;
+    }
+
     const created = await createOrder.mutateAsync({
       order: {
         center_id: centerId,
@@ -340,7 +346,7 @@ export default function CenterOrders() {
         notes: 'Razorpay',
       },
       items: orderItems.map(item => ({
-        stock_item_id: courseToStockItem.get(item.course_id) || item.course_id,
+        stock_item_id: courseToStockItem.get(item.course_id)!,
         quantity: item.qty,
         unit_price: item.unit_price,
         total_price: item.qty * item.unit_price,
