@@ -160,7 +160,6 @@ export default function CenterProfile() {
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editableData, setEditableData] = useState({
-    address: '',
     city: '',
     state: '',
     pincode: '',
@@ -174,7 +173,6 @@ export default function CenterProfile() {
 
   const handleOpenEdit = () => {
     setEditableData({
-      address: center?.address || '',
       city: center?.city || '',
       state: center?.state || '',
       pincode: center?.pincode || '',
@@ -192,7 +190,6 @@ export default function CenterProfile() {
     if (centerId) {
       await updateCenter.mutateAsync({
         id: centerId,
-        address: editableData.address,
         city: editableData.city,
         state: editableData.state,
         pincode: editableData.pincode,
@@ -235,8 +232,6 @@ export default function CenterProfile() {
     );
   }
 
-  const fullAddress = [center.address, center.city, center.state, center.pincode].filter(Boolean).join(', ');
-
   return (
     <CenterLayout>
       <div className="space-y-8">
@@ -263,7 +258,6 @@ export default function CenterProfile() {
             <CardContent className="space-y-4">
               <InfoItem icon={Building} label="Center Name" value={center.name} />
               <InfoItem icon={Building} label="Center Code" value={center.code} />
-              <InfoItem icon={MapPin} label="Address" value={fullAddress} />
               <InfoItem icon={MapPin} label="Address for Certificate" value={(center as any).certificate_address || ''} />
               <InfoItem icon={MapPin} label="Address for Courier & Communication" value={(center as any).communication_address || ''} />
               <InfoItem icon={Phone} label="Phone" value={center.phone || ''} />
@@ -368,7 +362,7 @@ export default function CenterProfile() {
                               authorizationCode: group.authCode,
                               centerName: center?.name || '',
                               centerCode: center?.code || '',
-                              centerAddress: [center?.address, center?.city, center?.state, center?.pincode].filter(Boolean).join(', '),
+                              centerAddress: (center as any)?.certificate_address || '',
                               courseName: group.authName,
                               courseCode: group.authCode,
                               validFrom: validFrom ? format(parseISO(validFrom), 'dd MMM yyyy') : 'N/A',
@@ -415,13 +409,6 @@ export default function CenterProfile() {
                       <Lock className="w-3 h-3 text-muted-foreground" />
                     </Label>
                     <Input value={center?.email || ''} disabled className="bg-muted" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Address</Label>
-                    <Textarea
-                      value={editableData.address}
-                      onChange={(e) => setEditableData({ ...editableData, address: e.target.value })}
-                    />
                   </div>
                   <div className="grid gap-2">
                     <Label>Address for Certificate</Label>
