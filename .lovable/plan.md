@@ -1,112 +1,68 @@
-## Goal
+## Razorpay Payment, jsPDF Bill, and Rs. Symbol
 
-Restructure the exam-result lifecycle so theory marks flow in automatically from the exam portal, centers fill in practical marks once, admins fine-tune and declare, and centers receive provisional documents after admin prints.
+Confirmed defaults: payment success auto-approves the order and releases stock (no manual admin verification step for Razorpay-paid orders); `IndianRupee` lucide icon stays as a visual icon.
 
-## New end-to-end flow
+Razorpay secrets (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`) are already saved. Database schema has been extended with `razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature` on the `orders` table.
 
-```text
-Student finishes exam on Exam Portal
-        │  (webhook)
-        ▼
-exam_history row + student locked
-        │
-        ▼
-student_results row auto-created
-  status = awaiting_practical
-  theory_marks / theory_total filled
-        │
-        ▼  Center portal → Results page
-Center enters PRACTICAL marks → Submit
-  status = pending      (practical_submitted_at set, both fields locked for center)
-        │
-        ▼  Super Admin → Results page (Declaration tab)
-Admin can add / subtract on
-  theory_grace  &  practical_grace
-Admin clicks Declare
-  status = declared, result_date set
-        │
-        ▼  Center sees declared marks (read-only)
-        │
-        ▼  Super Admin → Printing Queue, prints PDF
-  certificate_printed_at set
-        │
-        ▼  Center can download:
-       Provisional Marksheet
-       Provisional Certificate
-   (both watermarked “PROVISIONAL”)
-```
+### 1. Razorpay edge functions
 
-## Database changes (one migration)
+**`supabase/functions/create-razorpay-order/index.ts`** — Auth-protected. Accepts `{ amount_inr, receipt }`, calls Razorpay REST `POST /v1/orders` with `amount = Math.round(amount_inr * 100)` (paise), `currency: "INR"`, using Basic auth `key_id:key_secret`. Returns `{ razorpay_order_id, amount, currency, key_id }`.
 
-- `courses`
-  - `theory_max_marks int default 100`
-  - `practical_max_marks int default 100`
-- `student_results`
-  - `theory_marks numeric default 0`
-  - `theory_total numeric default 100`
-  - `practical_marks numeric default 0`
-  - `practical_total numeric default 100`
-  - `theory_grace numeric default 0`
-  - `practical_grace numeric default 0`
-  - `practical_submitted_at timestamptz`
-  - `certificate_printed_at timestamptz`
-  - Allow status values: `awaiting_practical | pending | declared`
-- Backfill: copy current `marks_obtained` → `theory_marks`, `total_marks` → `theory_total`, `grace_marks` → `theory_grace`.
-- New RLS for centers on `student_results`:
-  - SELECT own (already exists)
-  - UPDATE own row only when `status = 'awaiting_practical'` and only `practical_marks` / `practical_total` / `practical_submitted_at` change; lock once `practical_submitted_at` is set.
+**`supabase/functions/verify-razorpay-payment/index.ts`** — Auth-protected. Accepts `{ order_id, razorpay_order_id, razorpay_payment_id, razorpay_signature }`. Verifies HMAC-SHA256(`razorpay_order_id|razorpay_payment_id`, key_secret) via Web Crypto. On success:
+- Updates `orders`: `status='approved'`, `payment_status='paid'`, stores all 3 razorpay fields.
+- Loads order items, calls `increment_center_stock` RPC for each item to release stock.
+Returns `{ success: true }`.
 
-## Edge function: `exam-completion-webhook`
+### 2. Frontend: `src/pages/center/Orders.tsx`
 
-Extend the accepted payload to optionally include `marks_obtained`, `total_marks`, `theory_marks`, `theory_total`. When present:
-- Look up `course_id` from the student.
-- Upsert a `student_results` row keyed on `(student_id, exam_date)` with `status = 'awaiting_practical'`, theory marks filled, practical fields zero.
-- If no marks in payload, still create the awaiting row with `theory_marks = 0` so center sees the student.
+- Add helper `loadRazorpayScript()` that injects `https://checkout.razorpay.com/v1/checkout.js` once.
+- Rewrite `handlePlaceOrder` flow:
+  1. Create DB order (status `pending`, payment_status `pending`) — keep existing logic.
+  2. Apply coupon (existing).
+  3. Call `create-razorpay-order` edge function.
+  4. Open Razorpay checkout with returned `key_id`, `order_id`, `amount` (paise), center prefill (name/email/phone).
+  5. On `handler` success → call `verify-razorpay-payment` → on success: invalidate queries, generate + download bill PDF, toast, close dialog.
+  6. On `modal.ondismiss` or failure → toast "Payment cancelled — order kept as pending, you can retry".
+- Add a **Retry Payment** + **Download Bill** button on each order row in the table:
+  - Retry shown when `payment_status='pending'`.
+  - Download bill shown when `payment_status='paid'`.
 
-(No changes to signature/idempotency logic.)
+### 3. jsPDF bill generator
 
-## Center portal — new `Results` page
+**`src/lib/generateOrderBill.ts`** — Uses `jspdf` + `jspdf-autotable` (already in deps via marksheet generator).
 
-Path: `/center/results`, linked in `CenterLayout` sidebar.
+Layout:
+- Header: PBS branding, "TAX INVOICE / PAYMENT RECEIPT"
+- Bill To: center name, address, phone, email
+- Invoice meta: Order No, Date, Razorpay Payment ID
+- Itemised table: # | Course / Kit | Qty | Unit Price | Total (Rs. prefix)
+- Totals block: Subtotal, Discount (if coupon), Grand Total
+- Footer: "Paid via Razorpay" + payment id + timestamp + thank-you note.
 
-- Tabs: **Awaiting Practical | Submitted | Declared**.
-- Awaiting Practical row shows: student, course, theory marks (read-only), practical input + total, Submit button. On submit confirms with a dialog; once submitted row moves to Submitted and is fully read-only.
-- Declared tab shows final theory + practical + grace breakdown, total, grade, and — once `certificate_printed_at` is set — two download buttons: **Provisional Marksheet** and **Provisional Certificate**.
+### 4. Currency symbol: ₹ → Rs.
 
-## Super admin — `Results` page rewrite
+Replace `₹` with `Rs. ` (note trailing space) in these files:
+- `src/pages/legal/Terms.tsx`
+- `src/pages/center/Dashboard.tsx`
+- `src/pages/center/Orders.tsx`
+- `src/pages/center/Students.tsx`
+- `src/components/admin/CourseForm.tsx`
+- `src/components/admin/CouponsManager.tsx`
+- `src/components/admin/AuthorizationForm.tsx`
+- `src/pages/admin/Authorizations.tsx`
+- `src/pages/admin/Dashboard.tsx`
+- `src/pages/admin/Orders.tsx`
+- `src/pages/admin/Reports.tsx`
 
-- Declaration tab columns: Student · Course · Theory (marks/total) · Theory Grace (± input) · Practical (marks/total) · Practical Grace (± input) · Final · Declare.
-- Filters unchanged; only show rows where center has already submitted practical (`status = 'pending'`).
-- “Add Result” dialog adjusted to capture theory + practical or removed (now automatic via webhook). Keep a minimal manual-add for offline cases under a separate “Manual entry” button — theory + practical fields.
-- Printing tab: same as today; print actions now also set `certificate_printed_at` on the row.
+### 5. Memory updates
 
-## PDF generation
+Update `mem://index.md` core rules:
+- Remove "Orders bypass manual payment; directly enter `pending_verification`."
+- Add: "Orders use Razorpay live checkout; amount sent in paise; payment success auto-approves and releases stock."
+- Add: "All currency strings display `Rs.` prefix, never `₹`."
 
-- Update `generateMarksheet.ts` and `generateCertificate.ts` to accept a `provisional?: boolean` flag and stamp a light diagonal “PROVISIONAL” watermark plus a footer note when true.
-- Center-side download buttons call these generators with `provisional: true`. Admin print stays non-provisional (final copy).
-
-## Hook layer
-
-- Replace `useResults.ts` queries with the new column set (`theory_marks`, `practical_marks`, graces, etc.) and a `useCenterResults` hook for the center portal.
-- New mutations: `useSubmitPractical`, `useUpdateGrace(field)`, `useMarkCertificatePrinted`.
-
-## Files touched
-
-- New migration under `supabase/migrations/`
-- `supabase/functions/exam-completion-webhook/index.ts`
-- `src/hooks/useResults.ts` (rewrite types/queries)
-- `src/hooks/useCenterResults.ts` (new)
-- `src/pages/admin/Results.tsx` (column rewrite, watermark wiring)
-- `src/pages/center/Results.tsx` (new)
-- `src/layouts/CenterLayout.tsx` (sidebar entry)
-- `src/App.tsx` (route)
-- `src/lib/generateMarksheet.ts`, `src/lib/generateCertificate.ts` (provisional watermark)
-- Regenerated `src/integrations/supabase/types.ts` after migration
-
-## Assumptions worth confirming
-
-1. The exam-portal webhook can be extended to send `marks_obtained` / `total_marks` (theory). If not, theory marks will default to 0 and admins fill them manually.
-2. A single `student_results` row per student per course (matches current behaviour).
-3. Provisional documents are identical layout to final ones, just watermarked — no separate template.
-
-If any of these three assumptions are wrong, tell me which and I’ll adjust before building.
+### Technical notes
+- `key_secret` only ever used inside edge functions; never bundled to client.
+- Razorpay amount math: `Math.round(rupees * 100)` to avoid floating-point paise drift.
+- HMAC verification done with Deno Web Crypto (`crypto.subtle.importKey` + `sign('HMAC', …)`).
+- Both edge functions validate JWT via `supabase.auth.getClaims(token)`.

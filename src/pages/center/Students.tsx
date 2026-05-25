@@ -417,7 +417,7 @@ export default function CenterStudents() {
                 <TabsContent value="personal" className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label>Course Fees (₹)</Label>
+                      <Label>Course Fees (Rs. )</Label>
                       <Input
                         type="number"
                         value={newStudent.course_fee}
@@ -426,7 +426,7 @@ export default function CenterStudents() {
                       <p className="text-xs text-muted-foreground">Total fees to collect from this student (editable)</p>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Advance Fees Paid (₹)</Label>
+                      <Label>Advance Fees Paid (Rs. )</Label>
                       <Input type="number" placeholder="0" value={newStudent.advance_fee}
                         onChange={(e) => setNewStudent({ ...newStudent, advance_fee: e.target.value })} />
                     </div>
@@ -558,7 +558,7 @@ export default function CenterStudents() {
                   <IndianRupee className="w-5 h-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">₹{(stats.totalFees / 1000).toFixed(0)}K</p>
+                  <p className="text-2xl font-bold">Rs. {(stats.totalFees / 1000).toFixed(0)}K</p>
                   <p className="text-sm text-muted-foreground">Fees Collected</p>
                 </div>
               </div>
@@ -668,16 +668,16 @@ export default function CenterStudents() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="font-medium">₹{courseFee.toLocaleString()}</span>
+                            <span className="font-medium">Rs. {courseFee.toLocaleString()}</span>
                           </TableCell>
                           <TableCell>
-                            <span className="text-success font-medium">₹{totalCollected.toLocaleString()}</span>
+                            <span className="text-success font-medium">Rs. {totalCollected.toLocaleString()}</span>
                           </TableCell>
                           <TableCell>
                             {pending > 0 ? (
-                              <span className="text-destructive font-medium">₹{pending.toLocaleString()}</span>
+                              <span className="text-destructive font-medium">Rs. {pending.toLocaleString()}</span>
                             ) : (
-                              <span className="text-muted-foreground">₹0</span>
+                              <span className="text-muted-foreground">Rs. 0</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -891,15 +891,15 @@ export default function CenterStudents() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Course Fee</Label>
-                      <p className="text-lg font-bold">₹{editCourseFee.toLocaleString()}</p>
+                      <p className="text-lg font-bold">Rs. {editCourseFee.toLocaleString()}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Total Collection</Label>
-                      <p className="text-lg font-bold text-success">₹{Number(editForm.fee_paid).toLocaleString()}</p>
+                      <p className="text-lg font-bold text-success">Rs. {Number(editForm.fee_paid).toLocaleString()}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Pending</Label>
-                      <p className="text-lg font-bold text-destructive">₹{editPending.toLocaleString()}</p>
+                      <p className="text-lg font-bold text-destructive">Rs. {editPending.toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">

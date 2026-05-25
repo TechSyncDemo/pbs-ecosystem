@@ -23,7 +23,7 @@ export default function Terms() {
 
       <h2>3. Pricing &amp; Payments</h2>
       <ul>
-        <li>All fees are listed in Indian Rupees (INR / ₹) and are inclusive of applicable taxes unless stated otherwise.</li>
+        <li>All fees are listed in Indian Rupees (INR / Rs. ) and are inclusive of applicable taxes unless stated otherwise.</li>
         <li>Online payments are processed securely through Razorpay. PBS does not store your card, UPI, or net-banking credentials.</li>
         <li>Orders are confirmed only after successful payment verification.</li>
         <li>PBS reserves the right to revise prices, course content, and exam fees at any time. Changes apply to new orders only.</li>

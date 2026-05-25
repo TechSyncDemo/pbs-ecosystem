@@ -107,7 +107,7 @@ export default function CouponsManager() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (Rs. )</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -117,12 +117,12 @@ export default function CouponsManager() {
               </div>
               {form.discount_type === 'percentage' && (
                 <div className="grid gap-2">
-                  <Label>Max Discount (₹, optional)</Label>
+                  <Label>Max Discount (Rs. , optional)</Label>
                   <Input type="number" min="0" value={form.max_discount} onChange={(e) => setForm({ ...form, max_discount: e.target.value })} placeholder="No cap" />
                 </div>
               )}
               <div className="grid gap-2">
-                <Label>Minimum Order Amount (₹)</Label>
+                <Label>Minimum Order Amount (Rs. )</Label>
                 <Input type="number" min="0" value={form.min_order_amount} onChange={(e) => setForm({ ...form, min_order_amount: Number(e.target.value) })} />
               </div>
               <div className="grid gap-2">
@@ -184,10 +184,10 @@ export default function CouponsManager() {
                     <TableCell className="font-mono font-semibold">{c.code}</TableCell>
                     <TableCell>
                       {c.discount_type === 'percentage'
-                        ? `${c.discount_value}%${c.max_discount ? ` (max ₹${c.max_discount})` : ''}`
-                        : `₹${c.discount_value}`}
+                        ? `${c.discount_value}%${c.max_discount ? ` (max Rs. ${c.max_discount})` : ''}`
+                        : `Rs. ${c.discount_value}`}
                     </TableCell>
-                    <TableCell>₹{c.min_order_amount}</TableCell>
+                    <TableCell>Rs. {c.min_order_amount}</TableCell>
                     <TableCell>
                       {c.usage_count}{c.usage_limit ? ` / ${c.usage_limit}` : ''}
                     </TableCell>

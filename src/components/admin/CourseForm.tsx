@@ -188,7 +188,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
             <FormField control={form.control} name="exam_fee"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Exam Only Fee (₹)</FormLabel>
+                  <FormLabel>Exam Only Fee (Rs. )</FormLabel>
                   <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
                   <FormDescription className="text-xs">For exam-only registrations</FormDescription>
                   <FormMessage />
@@ -197,7 +197,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
             <FormField control={form.control} name="fee"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Fee - Exam + Kit (₹)</FormLabel>
+                  <FormLabel>Full Fee - Exam + Kit (Rs. )</FormLabel>
                   <FormControl><Input type="number" min={0} placeholder="15000" {...field} /></FormControl>
                   <FormDescription className="text-xs">For full course with materials</FormDescription>
                   <FormMessage />

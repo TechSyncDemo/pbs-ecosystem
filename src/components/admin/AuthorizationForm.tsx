@@ -157,7 +157,7 @@ export function AuthorizationForm({
         {selectedCourse && (
           <div className="p-3 bg-muted/50 rounded-lg text-sm">
             <span className="text-muted-foreground">Course Fee: </span>
-            <span className="font-medium">₹{selectedCourse.fee.toLocaleString("en-IN")}</span>
+            <span className="font-medium">Rs. {selectedCourse.fee.toLocaleString("en-IN")}</span>
           </div>
         )}
 
@@ -168,7 +168,7 @@ export function AuthorizationForm({
             name="registration_amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Registration Amount (₹)</FormLabel>
+                <FormLabel>Registration Amount (Rs. )</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="0" {...field} />
                 </FormControl>
@@ -197,7 +197,7 @@ export function AuthorizationForm({
             name="kit_value"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Kit Value (₹)</FormLabel>
+                <FormLabel>Kit Value (Rs. )</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="0" {...field} />
                 </FormControl>
@@ -210,7 +210,7 @@ export function AuthorizationForm({
             name="exam_value"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Exam Value (₹)</FormLabel>
+                <FormLabel>Exam Value (Rs. )</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="0" {...field} />
                 </FormControl>

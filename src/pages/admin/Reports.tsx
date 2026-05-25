@@ -284,8 +284,8 @@ export default function AdminReports() {
                             <TableCell className="font-medium">{s.name}</TableCell>
                             <TableCell>{s.course_name || '-'}</TableCell>
                             <TableCell><Badge variant="outline">{s.center_name}</Badge></TableCell>
-                            <TableCell className="text-success font-medium">₹{Number(s.fee_paid || 0).toLocaleString()}</TableCell>
-                            <TableCell className={Number(s.fee_pending || 0) > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>₹{Number(s.fee_pending || 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-success font-medium">Rs. {Number(s.fee_paid || 0).toLocaleString()}</TableCell>
+                            <TableCell className={Number(s.fee_pending || 0) > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>Rs. {Number(s.fee_pending || 0).toLocaleString()}</TableCell>
                             <TableCell><Badge variant="outline" className="capitalize">{s.status || 'active'}</Badge></TableCell>
                             <TableCell>{new Date(s.admission_date).toLocaleDateString()}</TableCell>
                           </TableRow>
@@ -349,9 +349,9 @@ export default function AdminReports() {
                             <TableCell className="font-medium">{s.name}</TableCell>
                             <TableCell><Badge variant="outline">{s.center_name}</Badge></TableCell>
                             <TableCell>{s.course_name || '-'}</TableCell>
-                            <TableCell>₹{(Number(s.fee_paid || 0) + Number(s.fee_pending || 0)).toLocaleString()}</TableCell>
-                            <TableCell className="text-success font-medium">₹{Number(s.fee_paid || 0).toLocaleString()}</TableCell>
-                            <TableCell className="text-destructive font-medium">₹{Number(s.fee_pending || 0).toLocaleString()}</TableCell>
+                            <TableCell>Rs. {(Number(s.fee_paid || 0) + Number(s.fee_pending || 0)).toLocaleString()}</TableCell>
+                            <TableCell className="text-success font-medium">Rs. {Number(s.fee_paid || 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-destructive font-medium">Rs. {Number(s.fee_pending || 0).toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

@@ -212,7 +212,7 @@ export default function AdminAuthorizations() {
             onChange={e => setFormData(p => ({ ...p, validity_days: e.target.value }))} />
         </div>
         <div className="space-y-2">
-          <Label>Authorization Fees (₹)</Label>
+          <Label>Authorization Fees (Rs. )</Label>
           <Input type="number" placeholder="0" value={formData.fees}
             onChange={e => setFormData(p => ({ ...p, fees: e.target.value }))} />
         </div>
