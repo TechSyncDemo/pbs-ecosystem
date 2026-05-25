@@ -168,6 +168,8 @@ export default function CenterProfile() {
     phone: '',
     profileName: '',
     profilePhone: '',
+    certificateAddress: '',
+    communicationAddress: '',
   });
 
   const handleOpenEdit = () => {
@@ -180,6 +182,8 @@ export default function CenterProfile() {
       phone: center?.phone || '',
       profileName: profile?.full_name || '',
       profilePhone: profile?.phone || '',
+      certificateAddress: (center as any)?.certificate_address || '',
+      communicationAddress: (center as any)?.communication_address || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -194,6 +198,8 @@ export default function CenterProfile() {
         pincode: editableData.pincode,
         contact_person: editableData.contactPerson,
         phone: editableData.phone,
+        certificate_address: editableData.certificateAddress,
+        communication_address: editableData.communicationAddress,
       });
     }
 
@@ -258,6 +264,8 @@ export default function CenterProfile() {
               <InfoItem icon={Building} label="Center Name" value={center.name} />
               <InfoItem icon={Building} label="Center Code" value={center.code} />
               <InfoItem icon={MapPin} label="Address" value={fullAddress} />
+              <InfoItem icon={MapPin} label="Address for Certificate" value={(center as any).certificate_address || ''} />
+              <InfoItem icon={MapPin} label="Address for Courier & Communication" value={(center as any).communication_address || ''} />
               <InfoItem icon={Phone} label="Phone" value={center.phone || ''} />
               <InfoItem icon={Mail} label="Email" value={center.email || ''} />
               <InfoItem icon={User} label="Contact Person" value={center.contact_person || ''} />
