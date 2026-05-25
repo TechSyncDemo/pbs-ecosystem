@@ -97,8 +97,16 @@ export default function AdminResults() {
     try {
       const { data, error } = await supabase.functions.invoke('pull-exam-results');
       if (error) throw error;
-      const d = data as { fetched?: number; imported?: number; skipped?: number; failed?: number };
-      toast.success(`Pulled ${d.fetched ?? 0} attempts — imported ${d.imported ?? 0}, skipped ${d.skipped ?? 0}${d.failed ? `, failed ${d.failed}` : ''}`);
+      const d = data as { ok?: boolean; fallback?: boolean; error?: string; upstream_status?: number; fetched?: number; imported?: number; skipped?: number; failed?: number };
+      if (d?.fallback) {
+        toast.error(
+          d.error === 'EXAM_PORTAL_UNAVAILABLE'
+            ? `Exam portal is temporarily unavailable${d.upstream_status ? ` (HTTP ${d.upstream_status})` : ''}. Please try again later.`
+            : `Could not pull results: ${d.error ?? 'unknown error'}`
+        );
+      } else {
+        toast.success(`Pulled ${d.fetched ?? 0} attempts — imported ${d.imported ?? 0}, skipped ${d.skipped ?? 0}${d.failed ? `, failed ${d.failed}` : ''}`);
+      }
       qc.invalidateQueries({ queryKey: ['pending_results'] });
       qc.invalidateQueries({ queryKey: ['declared_results'] });
       qc.invalidateQueries({ queryKey: ['center_results'] });
