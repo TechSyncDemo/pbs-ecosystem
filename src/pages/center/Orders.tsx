@@ -184,7 +184,9 @@ export default function CenterOrders() {
 
   const orderTotal = orderItems.reduce((acc, item) => acc + item.qty * item.unit_price, 0);
   const discount = appliedCoupon?.valid ? Number(appliedCoupon.discount_amount || 0) : 0;
-  const finalTotal = Math.max(0, orderTotal - discount);
+  const afterDiscount = Math.max(0, orderTotal - discount);
+  const convenienceFee = Math.round(afterDiscount * 0.03 * 100) / 100;
+  const finalTotal = Math.round((afterDiscount + convenienceFee) * 100) / 100;
 
   const handleApplyCoupon = async () => {
     if (!centerId || !couponInput.trim() || orderTotal <= 0) return;
@@ -223,6 +225,8 @@ export default function CenterOrders() {
       }));
     const subtotal = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
     const discount = Number(order.discount_amount || 0);
+    const total = Number(order.total_amount || 0);
+    const conv = Math.max(0, Math.round((total - (subtotal - discount)) * 100) / 100);
     const addressParts = [centerInfo?.address, centerInfo?.city, centerInfo?.state, centerInfo?.pincode].filter(Boolean);
     return {
       orderNo: order.order_no,
@@ -236,7 +240,8 @@ export default function CenterOrders() {
       subtotal,
       discount,
       couponCode: order.coupon_code,
-      total: Number(order.total_amount || 0),
+      convenienceFee: conv,
+      total,
       razorpayPaymentId: order.razorpay_payment_id || order.payment_id,
       razorpayOrderId: order.razorpay_order_id,
     };
@@ -554,9 +559,13 @@ export default function CenterOrders() {
                           <span>− Rs. {discount.toLocaleString()}</span>
                         </div>
                       )}
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>Convenience Fee (3%)</span>
+                        <span>Rs. {convenienceFee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                       <div className="flex items-center justify-between pt-2 border-t">
-                        <span className="text-lg font-medium">Order Total</span>
-                        <span className="text-2xl font-bold">Rs. {finalTotal.toLocaleString()}</span>
+                        <span className="text-lg font-medium">Order Total <span className="text-xs text-muted-foreground font-normal">(incl. GST &amp; convenience fees)</span></span>
+                        <span className="text-2xl font-bold">Rs. {finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                   </div>
