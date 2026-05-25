@@ -669,6 +669,7 @@ export default function CenterOrders() {
                       <TableHead>Total</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -710,6 +711,17 @@ export default function CenterOrders() {
                             {order.status === 'pending' && <Clock className="w-3 h-3 mr-1" />}
                             {order.status || 'pending'}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {order.payment_status === 'paid' ? (
+                            <Button variant="outline" size="sm" onClick={() => handleDownloadBill(order)}>
+                              <Download className="w-3.5 h-3.5 mr-1" /> Bill
+                            </Button>
+                          ) : (
+                            <Button variant="default" size="sm" onClick={() => handleRetryPayment(order)}>
+                              <RefreshCw className="w-3.5 h-3.5 mr-1" /> Pay Now
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
