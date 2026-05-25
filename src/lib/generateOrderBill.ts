@@ -64,7 +64,7 @@ export async function generateOrderBill(data: OrderBillData) {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text('Tax Invoice / Payment Receipt', 36, 20);
-  doc.text('Crafting Successful Skilled Professionals', 36, 25);
+  
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('PAID', W - 12, 14, { align: 'right' });
@@ -207,7 +207,9 @@ export async function generateOrderBill(data: OrderBillData) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor('#888888');
   doc.setFontSize(8);
-  doc.text('Proactive Technology  •  Crafting Successful Skilled Professionals', W / 2, H - 7, { align: 'center' });
+  doc.text('Proactive Technology', W / 2, H - 7, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text('This bill is inclusive of all taxes.', W / 2, H - 3, { align: 'center' });
 
   doc.save(`bill-${data.orderNo}.pdf`);
 }
