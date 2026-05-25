@@ -206,16 +206,110 @@ export default function CenterOrders() {
     setCouponError(null);
   };
 
-  const handlePlaceOrder = async (paymentMethod: string) => {
-    if (!centerId || orderItems.length === 0) return;
+  const generateOrderNo = () => {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const timestamp = now.getTime().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `ORD${year}${timestamp}${random}`;
+  };
 
-    const generateOrderNo = () => {
-      const now = new Date();
-      const year = now.getFullYear().toString().slice(-2);
-      const timestamp = now.getTime().toString().slice(-6);
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      return `ORD${year}${timestamp}${random}`;
+  const buildBillDataFromOrder = (order: any) => {
+    const items: { name: string; qty: number; unit_price: number }[] =
+      (order.order_items || []).map((it: any) => ({
+        name: it.stock_items?.name || 'Item',
+        qty: Number(it.quantity || 0),
+        unit_price: Number(it.unit_price || 0),
+      }));
+    const subtotal = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
+    const discount = Number(order.discount_amount || 0);
+    const addressParts = [centerInfo?.address, centerInfo?.city, centerInfo?.state, centerInfo?.pincode].filter(Boolean);
+    return {
+      orderNo: order.order_no,
+      orderDate: format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a'),
+      centerName: centerInfo?.name || user?.centerName || '',
+      centerCode: centerInfo?.code,
+      centerAddress: addressParts.join(', '),
+      centerPhone: centerInfo?.phone || undefined,
+      centerEmail: centerInfo?.email || undefined,
+      items,
+      subtotal,
+      discount,
+      couponCode: order.coupon_code,
+      total: Number(order.total_amount || 0),
+      razorpayPaymentId: order.razorpay_payment_id || order.payment_id,
+      razorpayOrderId: order.razorpay_order_id,
     };
+  };
+
+  const startRazorpayCheckout = async (orderRow: any, amountInr: number) => {
+    const loaded = await loadRazorpayScript();
+    if (!loaded) { toast.error('Failed to load payment gateway'); return; }
+
+    const { data: rpOrder, error: fnErr } = await supabase.functions.invoke('create-razorpay-order', {
+      body: { amount_inr: amountInr, receipt: orderRow.order_no },
+    });
+    if (fnErr || !rpOrder?.razorpay_order_id) {
+      toast.error(fnErr?.message || rpOrder?.error || 'Could not initiate payment');
+      return;
+    }
+
+    // Persist razorpay order id so retries reuse it
+    await supabase.from('orders').update({ razorpay_order_id: rpOrder.razorpay_order_id }).eq('id', orderRow.id);
+
+    const rzp = new window.Razorpay({
+      key: rpOrder.key_id,
+      amount: rpOrder.amount,
+      currency: rpOrder.currency,
+      order_id: rpOrder.razorpay_order_id,
+      name: 'Proactive B-School',
+      description: `Order ${orderRow.order_no}`,
+      prefill: {
+        name: centerInfo?.name || user?.centerName || '',
+        email: centerInfo?.email || user?.email || '',
+        contact: centerInfo?.phone || '',
+      },
+      theme: { color: '#0f4c81' },
+      handler: async (resp: any) => {
+        const { data: vr, error: vErr } = await supabase.functions.invoke('verify-razorpay-payment', {
+          body: {
+            order_id: orderRow.id,
+            razorpay_order_id: resp.razorpay_order_id,
+            razorpay_payment_id: resp.razorpay_payment_id,
+            razorpay_signature: resp.razorpay_signature,
+          },
+        });
+        if (vErr || !vr?.success) {
+          toast.error(vErr?.message || vr?.error || 'Payment verification failed');
+          return;
+        }
+        toast.success('Payment successful — stock released');
+        queryClient.invalidateQueries({ queryKey: ['center-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['center-stock'] });
+
+        // Re-fetch order with items for bill
+        const { data: full } = await supabase
+          .from('orders')
+          .select('*, order_items(*, stock_items(name, code))')
+          .eq('id', orderRow.id)
+          .single();
+        if (full) {
+          full.razorpay_payment_id = resp.razorpay_payment_id;
+          full.razorpay_order_id = resp.razorpay_order_id;
+          generateOrderBill(buildBillDataFromOrder(full));
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          toast.message('Payment cancelled — order saved as pending, you can retry.');
+        },
+      },
+    });
+    rzp.open();
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!centerId || orderItems.length === 0) return;
 
     // Look up stock_item_ids for each course
     const courseIdsInOrder = [...new Set(orderItems.map(i => i.course_id))];
@@ -225,7 +319,6 @@ export default function CenterOrders() {
       .in('course_id', courseIdsInOrder);
 
     if (siError || !stockItems) {
-      const { toast } = await import('sonner');
       toast.error('Failed to resolve stock items for courses');
       return;
     }
@@ -239,7 +332,7 @@ export default function CenterOrders() {
         total_amount: finalTotal,
         status: 'pending',
         payment_status: 'pending',
-        notes: `Payment method: ${paymentMethod}`,
+        notes: 'Razorpay',
       },
       items: orderItems.map(item => ({
         stock_item_id: courseToStockItem.get(item.course_id) || item.course_id,
@@ -256,6 +349,18 @@ export default function CenterOrders() {
     setIsOrderDialogOpen(false);
     setOrderItems([]);
     handleRemoveCoupon();
+
+    if (created?.id) {
+      await startRazorpayCheckout({ ...created, order_no: created.order_no }, Number(finalTotal));
+    }
+  };
+
+  const handleRetryPayment = async (order: any) => {
+    await startRazorpayCheckout(order, Number(order.total_amount || 0));
+  };
+
+  const handleDownloadBill = (order: any) => {
+    generateOrderBill(buildBillDataFromOrder(order));
   };
 
   const getStatusColor = (status: string) => {
