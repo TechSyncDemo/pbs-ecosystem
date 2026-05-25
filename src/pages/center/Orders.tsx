@@ -76,6 +76,22 @@ export default function CenterOrders() {
   const { data: orders = [], isLoading } = useCenterOrders(centerId);
   const { data: centerCourses = [] } = useCenterAuthorizations(centerId);
   const createOrder = useCreateOrder();
+  const queryClient = useQueryClient();
+
+  const { data: centerInfo } = useQuery({
+    queryKey: ['center-info', centerId],
+    queryFn: async () => {
+      if (!centerId) return null;
+      const { data, error } = await supabase
+        .from('centers')
+        .select('name, code, address, city, state, pincode, phone, email')
+        .eq('id', centerId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!centerId,
+  });
 
   // Fetch ALL courses belonging to the authorizations the center is approved for
   const courseIds = centerCourses.map((cc: any) => cc.course_id);
