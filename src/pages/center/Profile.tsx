@@ -423,6 +423,22 @@ export default function CenterProfile() {
                       onChange={(e) => setEditableData({ ...editableData, address: e.target.value })}
                     />
                   </div>
+                  <div className="grid gap-2">
+                    <Label>Address for Certificate</Label>
+                    <Textarea
+                      placeholder="Address that will appear on issued certificates"
+                      value={editableData.certificateAddress}
+                      onChange={(e) => setEditableData({ ...editableData, certificateAddress: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Address for Courier & Communication</Label>
+                    <Textarea
+                      placeholder="Address used for all couriers and official communication"
+                      value={editableData.communicationAddress}
+                      onChange={(e) => setEditableData({ ...editableData, communicationAddress: e.target.value })}
+                    />
+                  </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
                       <Label>City</Label>
