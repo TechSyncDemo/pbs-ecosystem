@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Award, FileText, Printer, QrCode, Mail, Building, Calendar, Loader2 } from 'lucide-react';
+import { Award, FileText, Printer, QrCode, Mail, Building, Calendar, Loader2, RefreshCw } from 'lucide-react';
 import AdminLayout from '@/layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ import {
 import { useCenters } from '@/hooks/useCenters';
 import { generateMarksheetsBulk, type MarksheetData } from '@/lib/generateMarksheet';
 import { generateCertificatesBulk, type CertificateData } from '@/lib/generateCertificate';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 function gradeFor(percent: number) {
   if (percent >= 75) return 'Distinction';
@@ -87,6 +89,25 @@ export default function AdminResults() {
   const updateGrace = useUpdateGrace();
   const declareResults = useDeclareResults();
   const markPrinted = useMarkPrinted();
+  const qc = useQueryClient();
+  const [pulling, setPulling] = useState(false);
+
+  const handlePullResults = async () => {
+    setPulling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('pull-exam-results');
+      if (error) throw error;
+      const d = data as { fetched?: number; imported?: number; skipped?: number; failed?: number };
+      toast.success(`Pulled ${d.fetched ?? 0} attempts — imported ${d.imported ?? 0}, skipped ${d.skipped ?? 0}${d.failed ? `, failed ${d.failed}` : ''}`);
+      qc.invalidateQueries({ queryKey: ['pending_results'] });
+      qc.invalidateQueries({ queryKey: ['declared_results'] });
+      qc.invalidateQueries({ queryKey: ['center_results'] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to pull exam results');
+    } finally {
+      setPulling(false);
+    }
+  };
 
   const [selectedForDeclaration, setSelectedForDeclaration] = useState<string[]>([]);
   const [selectedForPrinting, setSelectedForPrinting] = useState<string[]>([]);
@@ -168,6 +189,10 @@ export default function AdminResults() {
             <h1 className="text-3xl font-heading font-bold text-foreground">Result &amp; Certificate Management</h1>
             <p className="text-muted-foreground mt-1">Review center-submitted practical marks, adjust grace, declare results and print documents.</p>
           </div>
+          <Button onClick={handlePullResults} disabled={pulling} variant="outline">
+            {pulling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            Pull Exam Results
+          </Button>
         </div>
 
         <Tabs defaultValue="declaration">
