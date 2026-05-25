@@ -22,12 +22,12 @@ import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 
 function formatCurrency(amount: number): string {
   if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(1)}L`;
+    return `Rs. ${(amount / 100000).toFixed(1)}L`;
   }
   if (amount >= 1000) {
-    return `₹${(amount / 1000).toFixed(1)}K`;
+    return `Rs. ${(amount / 1000).toFixed(1)}K`;
   }
-  return `₹${amount.toFixed(0)}`;
+  return `Rs. ${amount.toFixed(0)}`;
 }
 
 function formatDate(dateString: string): string {

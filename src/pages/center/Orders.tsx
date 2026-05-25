@@ -351,9 +351,9 @@ export default function CenterOrders() {
                           <TableRow key={index}>
                             <TableCell className="font-medium">{item.name}</TableCell>
                             <TableCell className="text-center">{item.qty}</TableCell>
-                            <TableCell className="text-right">₹{item.unit_price.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">Rs. {item.unit_price.toLocaleString()}</TableCell>
                             <TableCell className="text-right font-medium">
-                              ₹{(item.qty * item.unit_price).toLocaleString()}
+                              Rs. {(item.qty * item.unit_price).toLocaleString()}
                             </TableCell>
                             <TableCell>
                               <Button
@@ -382,7 +382,7 @@ export default function CenterOrders() {
                         <div className="flex items-center justify-between p-3 rounded-lg border border-success/40 bg-success/10">
                           <div className="text-sm">
                             <span className="font-mono font-semibold">{appliedCoupon.code}</span>
-                            <span className="text-muted-foreground"> applied — you save ₹{discount.toLocaleString()}</span>
+                            <span className="text-muted-foreground"> applied — you save Rs. {discount.toLocaleString()}</span>
                           </div>
                           <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>Remove</Button>
                         </div>
@@ -405,17 +405,17 @@ export default function CenterOrders() {
                     <div className="p-4 bg-muted/50 rounded-lg space-y-1">
                       <div className="flex items-center justify-between text-sm">
                         <span>Subtotal</span>
-                        <span>₹{orderTotal.toLocaleString()}</span>
+                        <span>Rs. {orderTotal.toLocaleString()}</span>
                       </div>
                       {discount > 0 && (
                         <div className="flex items-center justify-between text-sm text-success">
                           <span>Discount ({appliedCoupon?.code})</span>
-                          <span>− ₹{discount.toLocaleString()}</span>
+                          <span>− Rs. {discount.toLocaleString()}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between pt-2 border-t">
                         <span className="text-lg font-medium">Order Total</span>
-                        <span className="text-2xl font-bold">₹{finalTotal.toLocaleString()}</span>
+                        <span className="text-2xl font-bold">Rs. {finalTotal.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -487,7 +487,7 @@ export default function CenterOrders() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    ₹{(stats.totalValue / 1000).toFixed(0)}K
+                    Rs. {(stats.totalValue / 1000).toFixed(0)}K
                   </p>
                   <p className="text-sm text-muted-foreground">Total Value</p>
                 </div>
@@ -558,7 +558,7 @@ export default function CenterOrders() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="font-bold">₹{Number(order.total_amount).toLocaleString()}</span>
+                          <span className="font-bold">Rs. {Number(order.total_amount).toLocaleString()}</span>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">{order.payment_status || 'pending'}</Badge>

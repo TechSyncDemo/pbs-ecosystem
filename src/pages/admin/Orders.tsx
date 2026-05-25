@@ -144,7 +144,7 @@ export default function AdminOrders() {
                             <TableRow key={order.id}>
                               <TableCell className="font-medium">{order.order_no}</TableCell>
                               <TableCell>{order.center_name}</TableCell>
-                              <TableCell>₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
+                              <TableCell>Rs. {Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
                               <TableCell className="flex items-center gap-2">
                                 {getPaymentIcon(order.payment_status)}
                                 {order.payment_status === 'paid' ? 'Paid' : 'Pending'}
@@ -240,7 +240,7 @@ export default function AdminOrders() {
             <DialogTitle>Verify Payment for {selectedOrder?.order_no}</DialogTitle>
             <DialogDescription>
               Center: {selectedOrder?.center_name} <br />
-              Amount: ₹{Number(selectedOrder?.total_amount || 0).toLocaleString('en-IN')}
+              Amount: Rs. {Number(selectedOrder?.total_amount || 0).toLocaleString('en-IN')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
