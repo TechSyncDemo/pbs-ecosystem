@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import logoUrl from '@/assets/pbs-logo.jpeg';
 
 export interface OrderBillItem {
   name: string;
@@ -18,6 +19,7 @@ export interface OrderBillData {
   subtotal: number;
   discount?: number;
   couponCode?: string | null;
+  convenienceFee?: number;
   total: number;
   razorpayPaymentId?: string | null;
   razorpayOrderId?: string | null;
