@@ -194,8 +194,10 @@ export type Database = {
       centers: {
         Row: {
           address: string | null
+          certificate_address: string | null
           city: string | null
           code: string
+          communication_address: string | null
           contact_person: string | null
           coordinator_id: string | null
           created_at: string
@@ -212,8 +214,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          certificate_address?: string | null
           city?: string | null
           code: string
+          communication_address?: string | null
           contact_person?: string | null
           coordinator_id?: string | null
           created_at?: string
@@ -230,8 +234,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          certificate_address?: string | null
           city?: string | null
           code?: string
+          communication_address?: string | null
           contact_person?: string | null
           coordinator_id?: string | null
           created_at?: string
