@@ -211,6 +211,7 @@ export type Database = {
           state: string | null
           status: string | null
           updated_at: string
+          whatsapp: string | null
         }
         Insert: {
           address?: string | null
@@ -231,6 +232,7 @@ export type Database = {
           state?: string | null
           status?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Update: {
           address?: string | null
@@ -251,6 +253,7 @@ export type Database = {
           state?: string | null
           status?: string | null
           updated_at?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
