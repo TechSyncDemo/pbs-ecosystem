@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import CenterLayout from '@/layouts/CenterLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, FileText, Award, Send } from 'lucide-react';
+import { Loader2, FileText, Award, Send, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCenterResults, useSubmitPractical } from '@/hooks/useCenterResults';
 import type { ResultRow } from '@/hooks/useResults';
 import { generateMarksheet } from '@/lib/generateMarksheet';
 import { generateCertificate } from '@/lib/generateCertificate';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 function grade(percent: number) {
   if (percent >= 75) return 'Distinction';
@@ -24,10 +26,45 @@ function grade(percent: number) {
 }
 
 export default function CenterResults() {
-  const { data: results = [], isLoading } = useCenterResults();
+  const { data: results = [], isLoading, refetch } = useCenterResults();
   const submit = useSubmitPractical();
+  const qc = useQueryClient();
   const [draft, setDraft] = useState<Record<string, { marks: number; total: number }>>({});
   const [confirmOpen, setConfirmOpen] = useState<ResultRow | null>(null);
+  const [refreshKey, setRefreshKey] = useState('');
+  const [refreshCount, setRefreshCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const MAX_REFRESH_PER_DAY = 3;
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? 'anon';
+      const key = `center_results_refresh:${uid}:${new Date().toISOString().slice(0, 10)}`;
+      setRefreshKey(key);
+      setRefreshCount(parseInt(localStorage.getItem(key) ?? '0', 10) || 0);
+    })();
+  }, []);
+
+  const handleRefresh = async () => {
+    if (refreshCount >= MAX_REFRESH_PER_DAY) {
+      toast.error(`Daily refresh limit reached (${MAX_REFRESH_PER_DAY}/day). Try again tomorrow.`);
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await refetch();
+      await qc.invalidateQueries({ queryKey: ['center_results'] });
+      const next = refreshCount + 1;
+      setRefreshCount(next);
+      if (refreshKey) localStorage.setItem(refreshKey, String(next));
+      toast.success(`Results refreshed (${next}/${MAX_REFRESH_PER_DAY} today)`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const awaiting = useMemo(() => results.filter((r) => r.status === 'awaiting_practical'), [results]);
   const submitted = useMemo(() => results.filter((r) => r.status === 'pending'), [results]);
@@ -90,9 +127,24 @@ export default function CenterResults() {
   return (
     <CenterLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-foreground">Exam Results</h1>
-          <p className="text-muted-foreground mt-1">Submit practical marks after a student completes the theory exam. Once submitted, marks cannot be edited.</p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-heading font-bold text-foreground">Exam Results</h1>
+            <p className="text-muted-foreground mt-1">Theory marks are fetched automatically from the exam portal and are read-only. You may only submit practical marks.</p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing || refreshCount >= MAX_REFRESH_PER_DAY}
+              variant="outline"
+            >
+              {refreshing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Refresh Results
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {Math.max(0, MAX_REFRESH_PER_DAY - refreshCount)} of {MAX_REFRESH_PER_DAY} refreshes left today
+            </span>
+          </div>
         </div>
 
         <Tabs defaultValue="awaiting">
