@@ -36,6 +36,7 @@ interface CenterWithCount {
   pincode?: string | null;
   email?: string | null;
   phone?: string | null;
+  whatsapp?: string | null;
   contact_person?: string | null;
   status?: string | null;
   created_at: string;
@@ -128,7 +129,7 @@ export default function AdminCenters() {
   const handleExport = () => {
     if (!centers) return;
     const csv = [
-      ["Name", "Code", "City", "State", "Contact", "Email", "Status", "Students"],
+      ["Name", "Code", "City", "State", "Contact", "Email", "Mobile", "WhatsApp", "Status", "Students"],
       ...centers.map((c: any) => [
         c.name,
         c.code,
@@ -136,11 +137,13 @@ export default function AdminCenters() {
         c.state || "",
         c.contact_person || "",
         c.email || "",
+        c.phone || "",
+        c.whatsapp || "",
         c.status || "",
         c.studentCount,
       ]),
     ]
-      .map((row) => row.join(","))
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
