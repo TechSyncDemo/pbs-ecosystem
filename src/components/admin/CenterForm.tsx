@@ -86,6 +86,7 @@ const centerFormSchema = z.object({
   pincode: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().optional(),
+  whatsapp: z.string().optional(),
   contact_person: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
   coordinator_id: z.string().optional(),
@@ -165,6 +166,7 @@ export function CenterForm({ center, onSubmit, onCancel, isLoading, isCreatingUs
       pincode: center?.pincode || "",
       email: center?.email || "",
       phone: center?.phone || "",
+      whatsapp: (center as any)?.whatsapp || "",
       contact_person: center?.contact_person || "",
       status: (center?.status as "active" | "inactive") || "active",
       coordinator_id: (center as any)?.coordinator_id || "",
@@ -423,7 +425,19 @@ export function CenterForm({ center, onSubmit, onCancel, isLoading, isCreatingUs
           <FormField control={form.control} name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone</FormLabel>
+                <FormLabel>Mobile</FormLabel>
+                <FormControl><Input placeholder="+91 98765 43210" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField control={form.control} name="whatsapp"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>WhatsApp Number</FormLabel>
                 <FormControl><Input placeholder="+91 98765 43210" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>

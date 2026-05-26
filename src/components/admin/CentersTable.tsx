@@ -52,6 +52,7 @@ interface CenterWithCount {
   pincode?: string | null;
   email?: string | null;
   phone?: string | null;
+  whatsapp?: string | null;
   contact_person?: string | null;
   status?: string | null;
   created_at: string;
@@ -116,6 +117,7 @@ export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: Ce
               <TableHead>Center Name / Code</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Contact</TableHead>
+              <TableHead>Mobile / WhatsApp</TableHead>
               <TableHead>Students</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
@@ -124,7 +126,7 @@ export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: Ce
           <TableBody>
             {centers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No centers found
                 </TableCell>
               </TableRow>
@@ -147,6 +149,14 @@ export function CentersTable({ centers, onEdit, onToggleStatus, isUpdating }: Ce
                     <div>
                       <div>{center.contact_person || "-"}</div>
                       <div className="text-sm text-muted-foreground">{center.email}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div>{center.phone || "-"}</div>
+                      <div className="text-sm text-muted-foreground">
+                        WA: {center.whatsapp || "-"}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
