@@ -258,7 +258,7 @@ export default function CenterProfile() {
             <CardContent className="space-y-4">
               <InfoItem icon={Building} label="Center Name" value={center.name} />
               <InfoItem icon={Building} label="Center Code" value={center.code} />
-              <InfoItem icon={MapPin} label="Address for Certificate" value={(center as any).certificate_address || ''} />
+              <InfoItem icon={MapPin} label="Location for Authority Certificate" value={(center as any).certificate_address || ''} />
               <InfoItem icon={MapPin} label="Address for Courier & Communication" value={(center as any).communication_address || ''} />
               <InfoItem icon={Phone} label="Phone" value={center.phone || ''} />
               <InfoItem icon={Mail} label="Email" value={center.email || ''} />
@@ -411,9 +411,9 @@ export default function CenterProfile() {
                     <Input value={center?.email || ''} disabled className="bg-muted" />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Address for Certificate</Label>
+                    <Label>Location for Authority Certificate</Label>
                     <Textarea
-                      placeholder="Address that will appear on issued certificates"
+                      placeholder="Location that will appear on issued authority certificates"
                       value={editableData.certificateAddress}
                       onChange={(e) => setEditableData({ ...editableData, certificateAddress: e.target.value })}
                     />
