@@ -10,6 +10,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen } from "lucide-react";
@@ -48,6 +55,7 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
   const { data: authorizations = [] } = useAuthorizations();
   const activeAuthorizations = authorizations.filter(a => a.status === 'active');
   const { data: portalExams = [], isLoading: examsLoading, error: examsError } = useExamPortalExams(true);
+  const [examPickerOpen, setExamPickerOpen] = useState(false);
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema),
@@ -247,33 +255,78 @@ export function CourseForm({ course, onSubmit, onCancel, isSubmitting, onManageS
           render={({ field }) => (
             <FormItem>
               <FormLabel>Exam Portal Exam (Optional)</FormLabel>
-              <Select
-                onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                value={field.value || "__none__"}
-                disabled={examsLoading}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    {examsLoading ? (
-                      <span className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Loading exams…
-                      </span>
-                    ) : (
-                      <SelectValue placeholder="Select an exam from the portal" />
-                    )}
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="__none__">— None —</SelectItem>
-                  {portalExams.map((exam) => (
-                    <SelectItem key={exam.id} value={exam.id}>
-                      {exam.title}
-                      {exam.category ? ` · ${exam.category}` : ""}
-                      {typeof exam.question_count === "number" ? ` · ${exam.question_count} Q` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={examPickerOpen} onOpenChange={setExamPickerOpen}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      disabled={examsLoading}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        !field.value && "text-muted-foreground",
+                      )}
+                    >
+                      {examsLoading ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" /> Loading exams…
+                        </span>
+                      ) : field.value ? (
+                        portalExams.find((e) => e.id === field.value)?.title ?? "Select an exam"
+                      ) : (
+                        "Select an exam from the portal"
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command
+                    filter={(value, search) =>
+                      value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                    }
+                  >
+                    <CommandInput placeholder="Search exam by name or category..." />
+                    <CommandList>
+                      <CommandEmpty>No exam found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="none"
+                          onSelect={() => {
+                            field.onChange("");
+                            setExamPickerOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
+                          — None —
+                        </CommandItem>
+                        {portalExams.map((exam) => {
+                          const label = `${exam.title}${exam.category ? ` · ${exam.category}` : ""}`;
+                          return (
+                            <CommandItem
+                              key={exam.id}
+                              value={label}
+                              onSelect={() => {
+                                field.onChange(exam.id);
+                                setExamPickerOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  field.value === exam.id ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              <span className="truncate">{label}</span>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <FormDescription className="text-xs">
                 {examsError
                   ? "Couldn't load exams from the portal. Check the integration."
