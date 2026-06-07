@@ -46,8 +46,17 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
   const { data: isSuper } = await admin.rpc("has_role", { _user_id: userId, _role: "super_admin" });
-  if (!isSuper) {
+  const { data: isCenter } = await admin.rpc("has_role", { _user_id: userId, _role: "center_admin" });
+  if (!isSuper && !isCenter) {
     return json(403, { error: "Forbidden" });
+  }
+
+  // For center admins, scope to their own center
+  let callerCenterId: string | null = null;
+  if (!isSuper && isCenter) {
+    const { data: cid } = await admin.rpc("get_user_center_id", { _user_id: userId });
+    callerCenterId = (cid as string | null) ?? null;
+    if (!callerCenterId) return json(403, { error: "No center associated with user" });
   }
 
   const apiKey = Deno.env.get("EXAM_PORTAL_API_KEY");
@@ -114,10 +123,16 @@ Deno.serve(async (req) => {
 
       const { data: student } = await admin
         .from("students")
-        .select("id, course_id, courses(theory_max_marks, practical_max_marks)")
+        .select("id, course_id, center_id, courses(theory_max_marks, practical_max_marks)")
         .eq("enrollment_no", enrollment_no)
         .maybeSingle();
       if (!student) {
+        skipped++;
+        continue;
+      }
+
+      // Scope to caller's center if center admin
+      if (callerCenterId && (student as { center_id?: string }).center_id !== callerCenterId) {
         skipped++;
         continue;
       }
