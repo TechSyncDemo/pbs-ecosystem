@@ -53,12 +53,20 @@ export default function CenterResults() {
     }
     setRefreshing(true);
     try {
+      // Pull latest completed exam attempts from the exam portal for this center
+      const { data: pullData, error: pullErr } = await supabase.functions.invoke('pull-exam-results');
+      if (pullErr) throw pullErr;
+      const imported = (pullData as { imported?: number } | null)?.imported ?? 0;
       await refetch();
       await qc.invalidateQueries({ queryKey: ['center_results'] });
       const next = refreshCount + 1;
       setRefreshCount(next);
       if (refreshKey) localStorage.setItem(refreshKey, String(next));
-      toast.success(`Results refreshed (${next}/${MAX_REFRESH_PER_DAY} today)`);
+      toast.success(
+        imported > 0
+          ? `${imported} new result${imported === 1 ? '' : 's'} fetched (${next}/${MAX_REFRESH_PER_DAY} today)`
+          : `No new results yet (${next}/${MAX_REFRESH_PER_DAY} today)`
+      );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
