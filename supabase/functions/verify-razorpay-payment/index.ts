@@ -95,6 +95,35 @@ Deno.serve(async (req) => {
         p_quantity: it.quantity,
       });
       if (stockErr) console.error('stock release error', stockErr);
+
+      // Ensure the center is authorized to admit students for this course.
+      // Stock alone is not enough — admissions require an active center_courses row.
+      const { data: stockItem, error: siErr } = await admin
+        .from('stock_items')
+        .select('course_id')
+        .eq('id', it.stock_item_id)
+        .maybeSingle();
+      if (siErr) {
+        console.error('stock_item lookup error', siErr);
+        continue;
+      }
+      if (stockItem?.course_id) {
+        const { error: authErr } = await admin
+          .from('center_courses')
+          .upsert(
+            {
+              center_id: orderRow.center_id,
+              course_id: stockItem.course_id,
+              status: 'active',
+              valid_from: new Date().toISOString().slice(0, 10),
+              valid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .slice(0, 10),
+            },
+            { onConflict: 'center_id,course_id', ignoreDuplicates: false }
+          );
+        if (authErr) console.error('center_courses upsert error', authErr);
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
