@@ -108,21 +108,41 @@ Deno.serve(async (req) => {
         continue;
       }
       if (stockItem?.course_id) {
-        const { error: authErr } = await admin
+        // Check if an authorization already exists; if so, just ensure it's active
+        // and extend validity. If not, insert a fresh one. Never overwrite
+        // financial fields (commission, kit_value, exam_value, registration_amount).
+        const { data: existing } = await admin
           .from('center_courses')
-          .upsert(
-            {
+          .select('id, valid_until')
+          .eq('center_id', orderRow.center_id)
+          .eq('course_id', stockItem.course_id)
+          .maybeSingle();
+
+        const newValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+
+        if (existing) {
+          const keep = existing.valid_until && existing.valid_until > newValidUntil
+            ? existing.valid_until
+            : newValidUntil;
+          const { error: updErr } = await admin
+            .from('center_courses')
+            .update({ status: 'active', valid_until: keep })
+            .eq('id', existing.id);
+          if (updErr) console.error('center_courses update error', updErr);
+        } else {
+          const { error: insErr } = await admin
+            .from('center_courses')
+            .insert({
               center_id: orderRow.center_id,
               course_id: stockItem.course_id,
               status: 'active',
               valid_from: new Date().toISOString().slice(0, 10),
-              valid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-                .toISOString()
-                .slice(0, 10),
-            },
-            { onConflict: 'center_id,course_id', ignoreDuplicates: false }
-          );
-        if (authErr) console.error('center_courses upsert error', authErr);
+              valid_until: newValidUntil,
+            });
+          if (insErr) console.error('center_courses insert error', insErr);
+        }
       }
     }
 
