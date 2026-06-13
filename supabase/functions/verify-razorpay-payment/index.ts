@@ -95,6 +95,55 @@ Deno.serve(async (req) => {
         p_quantity: it.quantity,
       });
       if (stockErr) console.error('stock release error', stockErr);
+
+      // Ensure the center is authorized to admit students for this course.
+      // Stock alone is not enough — admissions require an active center_courses row.
+      const { data: stockItem, error: siErr } = await admin
+        .from('stock_items')
+        .select('course_id')
+        .eq('id', it.stock_item_id)
+        .maybeSingle();
+      if (siErr) {
+        console.error('stock_item lookup error', siErr);
+        continue;
+      }
+      if (stockItem?.course_id) {
+        // Check if an authorization already exists; if so, just ensure it's active
+        // and extend validity. If not, insert a fresh one. Never overwrite
+        // financial fields (commission, kit_value, exam_value, registration_amount).
+        const { data: existing } = await admin
+          .from('center_courses')
+          .select('id, valid_until')
+          .eq('center_id', orderRow.center_id)
+          .eq('course_id', stockItem.course_id)
+          .maybeSingle();
+
+        const newValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+
+        if (existing) {
+          const keep = existing.valid_until && existing.valid_until > newValidUntil
+            ? existing.valid_until
+            : newValidUntil;
+          const { error: updErr } = await admin
+            .from('center_courses')
+            .update({ status: 'active', valid_until: keep })
+            .eq('id', existing.id);
+          if (updErr) console.error('center_courses update error', updErr);
+        } else {
+          const { error: insErr } = await admin
+            .from('center_courses')
+            .insert({
+              center_id: orderRow.center_id,
+              course_id: stockItem.course_id,
+              status: 'active',
+              valid_from: new Date().toISOString().slice(0, 10),
+              valid_until: newValidUntil,
+            });
+          if (insErr) console.error('center_courses insert error', insErr);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
