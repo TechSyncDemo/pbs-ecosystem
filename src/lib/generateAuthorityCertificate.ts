@@ -62,7 +62,7 @@ export async function generateAuthorityCertificate(data: CertificateData) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
-  doc.text(data.centerAddress, 20, 119, { align: 'left', maxWidth: 170 });
+  doc.text(data.centerAddress, 55, 119, { align: 'left', maxWidth: 135 });
 
   // 4) Center / PLC Code — same line as "vide PLC code:"
   doc.setFont('helvetica', 'bold');
