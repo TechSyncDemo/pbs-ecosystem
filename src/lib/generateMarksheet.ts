@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import QRCode from 'qrcode';
+import marksheetTemplateSrc from '@/assets/marksheet-template.jpg';
 
 export interface MarksheetData {
   studentName: string;
@@ -21,17 +21,68 @@ export interface MarksheetData {
   certificateId: string;
   certificateNo?: string | null;
   provisional?: boolean;
+  subjects?: string[];
 }
 
-const PRIMARY = '#0f4c81';
-const ACCENT = '#c9a961';
-
-function verificationUrl(id: string) {
-  return `${window.location.origin}/verify/${id}`;
+async function loadImage(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject('Canvas not supported');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.95));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
-async function qrDataUrl(text: string) {
-  return QRCode.toDataURL(text, { margin: 1, width: 256, color: { dark: '#000000', light: '#ffffff' } });
+function shortSN(id: string) {
+  const digits = (id || '').replace(/\D/g, '');
+  const tail = digits ? digits.slice(-5).padStart(5, '0') : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+  return `A${tail}`;
+}
+
+function rollNoFrom(data: MarksheetData) {
+  const digits = (data.certificateNo || data.certificateId || data.enrollmentNo || '').replace(/\D/g, '');
+  return digits ? digits.slice(-6).padStart(6, '0') : data.enrollmentNo;
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = d.toLocaleString('en-US', { month: 'short' });
+  return `${day} ${mon} ${d.getFullYear()}`;
+}
+
+function numberToWords(n: number): string {
+  if (!Number.isFinite(n)) return '';
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const inWords = (num: number): string => {
+    if (num === 0) return 'Zero';
+    if (num < 20) return a[num];
+    if (num < 100) return b[Math.floor(num / 10)] + (num % 10 ? ' ' + a[num % 10] : '');
+    if (num < 1000) return a[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' ' + inWords(num % 100) : '');
+    if (num < 100000) return inWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 ? ' ' + inWords(num % 1000) : '');
+    return String(num);
+  };
+  return inWords(Math.floor(n));
+}
+
+function gradeOf(percent: number): string {
+  if (percent >= 75) return 'A+';
+  if (percent >= 60) return 'A';
+  if (percent >= 50) return 'B';
+  if (percent >= 40) return 'C';
+  return 'F';
 }
 
 function drawProvisionalWatermark(doc: jsPDF) {
@@ -47,101 +98,141 @@ function drawProvisionalWatermark(doc: jsPDF) {
   doc.setTextColor('#000000');
 }
 
-async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData) {
-  const w = doc.internal.pageSize.getWidth();
-  const h = doc.internal.pageSize.getHeight();
-  const cx = w / 2;
+async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateData: string) {
+  const w = doc.internal.pageSize.getWidth(); // ~215.9 (letter mm)
+  const h = doc.internal.pageSize.getHeight(); // ~279.4
 
-  doc.setDrawColor(PRIMARY); doc.setLineWidth(1.2); doc.rect(8, 8, w - 16, h - 16);
-  doc.setLineWidth(0.3); doc.rect(11, 11, w - 22, h - 22);
+  doc.addImage(templateData, 'JPEG', 0, 0, w, h);
 
-  doc.setFillColor(PRIMARY); doc.rect(11, 11, w - 22, 22, 'F');
-  doc.setTextColor('#ffffff'); doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
-  doc.text('PBS COMPUTER EDUCATION', cx, 22, { align: 'center' });
-  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
-  doc.text('Statement of Marks', cx, 29, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
 
-  doc.setFillColor(ACCENT); doc.rect(11, 33, w - 22, 8, 'F');
-  doc.setTextColor('#ffffff'); doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-  doc.text(data.provisional ? 'PROVISIONAL MARKSHEET' : 'MARKSHEET', cx, 39, { align: 'center' });
-
-  doc.setTextColor('#000000'); doc.setFontSize(11);
-  let y = 54;
-  const row = (l1: string, v1: string, l2?: string, v2?: string) => {
-    doc.setFont('helvetica', 'bold'); doc.text(l1, 20, y);
-    doc.setFont('helvetica', 'normal'); doc.text(v1, 70, y);
-    if (l2) { doc.setFont('helvetica', 'bold'); doc.text(l2, 115, y);
-      doc.setFont('helvetica', 'normal'); doc.text(v2 ?? '', 160, y); }
-    y += 8;
+  // Header info block (Roll No / Candidate Name / Center / Course)
+  const leftX = 20;
+  let y = 78;
+  const label = (k: string, v: string, maxWidth?: number) => {
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${k} : `, leftX, y);
+    const kw = doc.getTextWidth(`${k} : `);
+    doc.setFont('helvetica', 'bold');
+    doc.text(v, leftX + kw, y, { maxWidth: maxWidth ?? (w - leftX - kw - 15) });
+    const lines = doc.splitTextToSize(v, maxWidth ?? (w - leftX - kw - 15)).length;
+    y += 6 * lines + 1;
   };
-  row('Student Name', data.studentName, 'Enrollment No', data.enrollmentNo);
-  row('Course', data.courseName, 'Course Code', data.courseCode ?? '-');
-  row('Center', data.centerName, 'Center Code', data.centerCode ?? '-');
-  row('Exam Date', new Date(data.examDate).toLocaleDateString(), 'Result Date', new Date(data.resultDate).toLocaleDateString());
+  label('Roll No', rollNoFrom(data));
+  label('Candidate Name', data.studentName);
+  label('Center', data.centerName);
+  label('Course', data.courseName);
 
-  y += 6;
-  doc.setFillColor(PRIMARY); doc.rect(20, y, w - 40, 9, 'F');
-  doc.setTextColor('#ffffff'); doc.setFont('helvetica', 'bold');
-  doc.text('Subject', 25, y + 6);
-  doc.text('Obtained', w - 90, y + 6);
-  doc.text('Grace', w - 60, y + 6);
-  doc.text('Max', w - 25, y + 6, { align: 'right' });
-  y += 9;
+  // Marks table
+  const tableX = leftX;
+  const tableW = w - leftX * 2;
+  const col1W = tableW * 0.55; // Subject
+  const col2W = tableW * 0.16; // Maximum Marks
+  const col3W = tableW * 0.16; // Marks Obtained
+  const col4W = tableW - col1W - col2W - col3W; // Remark
 
-  doc.setTextColor('#000000');
-  const r4 = (sub: string, m: number, g: number, max: number, bold = false) => {
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.rect(20, y, w - 40, 9);
-    doc.text(sub, 25, y + 6);
-    doc.text(String(m), w - 90, y + 6);
-    doc.text(String(g), w - 60, y + 6);
-    doc.text(String(max), w - 25, y + 6, { align: 'right' });
-    y += 9;
-  };
-  r4('Theory', data.theoryMarks, data.theoryGrace, data.theoryTotal);
-  r4('Practical', data.practicalMarks, data.practicalGrace, data.practicalTotal);
-  r4('Total', data.finalMarks, data.theoryGrace + data.practicalGrace, data.totalMarks, true);
+  let ty = y + 4;
+  // Header row
+  doc.setFillColor(245, 245, 245);
+  doc.rect(tableX, ty, tableW, 9, 'F');
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(tableX, ty, col1W, 9);
+  doc.rect(tableX + col1W, ty, col2W, 9);
+  doc.rect(tableX + col1W + col2W, ty, col3W, 9);
+  doc.rect(tableX + col1W + col2W + col3W, ty, col4W, 9);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Subject', tableX + col1W / 2, ty + 6, { align: 'center' });
+  doc.text('Maximum\nMarks', tableX + col1W + col2W / 2, ty + 4, { align: 'center' });
+  doc.text('Marks\nObtained', tableX + col1W + col2W + col3W / 2, ty + 4, { align: 'center' });
+  doc.text('Remark', tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
+  ty += 9;
 
+  // Theory row — bulleted subjects
+  const subjects = data.subjects && data.subjects.length > 0
+    ? data.subjects
+    : [data.courseName];
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  const bulletLineH = 5.5;
+  const theoryRowH = Math.max(28, subjects.length * bulletLineH + 6);
+  doc.rect(tableX, ty, col1W, theoryRowH);
+  doc.rect(tableX + col1W, ty, col2W, theoryRowH);
+  doc.rect(tableX + col1W + col2W, ty, col3W, theoryRowH);
+  doc.rect(tableX + col1W + col2W + col3W, ty, col4W, theoryRowH);
+  let sy = ty + 5;
+  for (const sub of subjects) {
+    const wrapped = doc.splitTextToSize(`• ${sub}`, col1W - 6);
+    doc.text(wrapped, tableX + 3, sy);
+    sy += wrapped.length * bulletLineH;
+  }
+  doc.text(String(data.theoryTotal), tableX + col1W + col2W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
+  doc.text(String(data.theoryMarks), tableX + col1W + col2W + col3W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
+  doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
+  ty += theoryRowH;
+
+  // Practical / Project row
+  const rowH = 9;
+  doc.rect(tableX, ty, col1W, rowH);
+  doc.rect(tableX + col1W, ty, col2W, rowH);
+  doc.rect(tableX + col1W + col2W, ty, col3W, rowH);
+  doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
+  doc.text('Practical / Project', tableX + 3, ty + 6);
+  doc.text(String(data.practicalTotal), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
+  doc.text(String(data.practicalMarks), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
+  doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
+  ty += rowH;
+
+  // Total / Grade row
   const percent = data.totalMarks > 0 ? (data.finalMarks / data.totalMarks) * 100 : 0;
-  const grade = percent >= 75 ? 'Distinction' : percent >= 60 ? 'First Class' : percent >= 50 ? 'Second Class' : percent >= 40 ? 'Pass' : 'Fail';
-  y += 4;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-  doc.text(`Percentage: ${percent.toFixed(2)}%`, 20, y); y += 7;
-  doc.text(`Grade: ${grade}`, 20, y); y += 7;
-  doc.text(`Result: ${percent >= 40 ? 'PASS' : 'FAIL'}`, 20, y); y += 10;
+  const grade = gradeOf(percent);
+  const result = percent >= 40 ? 'PASS' : 'FAIL';
+  doc.setFont('helvetica', 'bold');
+  doc.rect(tableX, ty, col1W, rowH);
+  doc.rect(tableX + col1W, ty, col2W, rowH);
+  doc.rect(tableX + col1W + col2W, ty, col3W, rowH);
+  doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
+  doc.text(`Total / Grade : ${grade}`, tableX + 3, ty + 6);
+  doc.text(String(data.totalMarks), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
+  doc.text(String(data.finalMarks), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
+  doc.text(result, tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
+  ty += rowH;
 
-  const verifyKey = data.certificateNo || data.certificateId;
-  try { const qr = await qrDataUrl(verificationUrl(verifyKey)); doc.addImage(qr, 'PNG', 20, y, 30, 30); } catch { /* */ }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor('#444444');
-  doc.text('Scan QR to verify authenticity', 55, y + 8);
-  doc.text(`Certificate No: ${verifyKey}`, 55, y + 14);
-  doc.text(`Verify at: ${verificationUrl(verifyKey)}`, 55, y + 20);
+  // Marks in words
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(`Marks In Word : ${numberToWords(data.finalMarks)}`, leftX, ty + 8);
 
-  doc.setDrawColor('#000000'); doc.setLineWidth(0.3);
-  doc.line(w - 70, h - 35, w - 20, h - 35);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor('#000000');
-  doc.text('Authorized Signatory', w - 45, h - 30, { align: 'center' });
-  doc.setFontSize(8); doc.setTextColor('#666666');
-  doc.text(data.provisional
-    ? 'This is a provisional document — final marksheet will be issued in due course.'
-    : 'This is a computer-generated document.', cx, h - 14, { align: 'center' });
+  // S/N, Date, Place at bottom-left
+  const sn = shortSN(data.certificateNo || data.certificateId);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  const metaY = 230;
+  doc.text(`S/N : ${sn}`, 22, metaY);
+  doc.text(`Date : ${formatDate(data.resultDate)}`, 22, metaY + 7);
+  doc.text(`Place : MUMBAI`, 22, metaY + 14);
 
   if (data.provisional) drawProvisionalWatermark(doc);
 }
 
 export async function generateMarksheet(data: MarksheetData) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  await renderMarksheetOnDoc(doc, data);
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const templateData = await loadImage(marksheetTemplateSrc);
+  await renderMarksheetOnDoc(doc, data, templateData);
   doc.save(`${data.provisional ? 'Provisional_' : ''}Marksheet_${data.enrollmentNo}.pdf`);
 }
 
 export async function generateMarksheetsBulk(items: MarksheetData[]) {
   if (items.length === 0) return;
   if (items.length === 1) return generateMarksheet(items[0]);
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const templateData = await loadImage(marksheetTemplateSrc);
   for (let i = 0; i < items.length; i++) {
     if (i > 0) doc.addPage();
-    await renderMarksheetOnDoc(doc, items[i]);
+    await renderMarksheetOnDoc(doc, items[i], templateData);
   }
   doc.save(`${items[0].provisional ? 'Provisional_' : ''}Marksheets_Bulk_${Date.now()}.pdf`);
 }
