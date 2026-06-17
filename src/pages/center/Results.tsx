@@ -18,11 +18,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 function grade(percent: number) {
-  if (percent >= 75) return 'Distinction';
-  if (percent >= 60) return 'First Class';
-  if (percent >= 50) return 'Second Class';
-  if (percent >= 40) return 'Pass';
-  return 'Fail';
+  if (percent >= 75) return 'A+';
+  if (percent >= 60) return 'A';
+  if (percent >= 50) return 'B';
+  if (percent >= 40) return 'C';
+  return 'F';
 }
 
 export default function CenterResults() {
