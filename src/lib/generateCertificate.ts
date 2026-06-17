@@ -33,10 +33,10 @@ async function loadImage(src: string): Promise<string> {
   });
 }
 
-function shortSN(id: string) {
-  const digits = (id || '').replace(/\D/g, '');
-  const tail = digits ? digits.slice(-5).padStart(5, '0') : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-  return `A${tail}`;
+function serialNo(data: CertificateData) {
+  // S/N matches the unique exam sign-in / certificate code used on the
+  // verify-certificate page so the same value is verifiable end-to-end.
+  return (data.certificateNo || data.certificateId || '').toString().toUpperCase();
 }
 
 function monthYear(dateStr: string) {
@@ -90,14 +90,14 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   // "set the signature and seal of the Director, CBITVT." — printed.
 
   // Bottom-left meta block
-  const sn = shortSN(data.certificateNo || data.certificateId);
+  const sn = serialNo(data);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   const metaY = 230;
-  doc.text(`S/N : ${sn}`, 22, metaY);
-  doc.text(`Date : ${formatDate(data.resultDate)}`, 22, metaY + 7);
-  doc.text(`Place : MUMBAI`, 22, metaY + 14);
+  doc.text(`S/N   : ${sn}`, 22, metaY);
+  doc.text(`Date  : ${formatDate(new Date().toISOString())}`, 22, metaY + 7);
+  doc.text(`Place : Mumbai`, 22, metaY + 14);
 
   if (data.provisional) {
     const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
