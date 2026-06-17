@@ -162,11 +162,11 @@ export default function VerifyCertificate() {
   const finalMarks = data ? Number(data.marks_obtained) + Number(data.grace_marks) : 0;
   const percent = data && data.total_marks > 0 ? (finalMarks / Number(data.total_marks)) * 100 : 0;
   const grade =
-    percent >= 75 ? 'Distinction'
-      : percent >= 60 ? 'First Class'
-      : percent >= 50 ? 'Second Class'
-      : percent >= 40 ? 'Pass'
-      : 'Fail';
+    percent >= 75 ? 'A+'
+      : percent >= 60 ? 'A'
+      : percent >= 50 ? 'B'
+      : percent >= 40 ? 'C'
+      : 'F';
 
   const formattedInput = useMemo(() => certNo.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8), [certNo]);
 
