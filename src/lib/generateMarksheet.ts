@@ -42,15 +42,13 @@ async function loadImage(src: string): Promise<string> {
   });
 }
 
-function shortSN(id: string) {
-  const digits = (id || '').replace(/\D/g, '');
-  const tail = digits ? digits.slice(-5).padStart(5, '0') : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-  return `A${tail}`;
+function serialNo(data: MarksheetData) {
+  // Same unique code used at exam sign-in and on the verify-certificate page.
+  return (data.certificateNo || data.certificateId || '').toString().toUpperCase();
 }
 
 function rollNoFrom(data: MarksheetData) {
-  const digits = (data.certificateNo || data.certificateId || data.enrollmentNo || '').replace(/\D/g, '');
-  return digits ? digits.slice(-6).padStart(6, '0') : data.enrollmentNo;
+  return serialNo(data) || data.enrollmentNo;
 }
 
 function formatDate(dateStr: string) {
@@ -186,7 +184,7 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
-  // Total / Grade row
+  // Total row
   const percent = data.totalMarks > 0 ? (data.finalMarks / data.totalMarks) * 100 : 0;
   const grade = gradeOf(percent);
   const result = percent >= 40 ? 'PASS' : 'FAIL';
@@ -195,10 +193,20 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.rect(tableX + col1W, ty, col2W, rowH);
   doc.rect(tableX + col1W + col2W, ty, col3W, rowH);
   doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
-  doc.text(`Total / Grade : ${grade}`, tableX + 3, ty + 6);
+  doc.text('Total', tableX + 3, ty + 6);
   doc.text(String(data.totalMarks), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
   doc.text(String(data.finalMarks), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
   doc.text(result, tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
+  ty += rowH;
+
+  // Result row — percentage converted to grade
+  doc.setFont('helvetica', 'bold');
+  doc.rect(tableX, ty, col1W, rowH);
+  doc.rect(tableX + col1W, ty, col2W + col3W, rowH);
+  doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
+  doc.text('Result (Percentage / Grade)', tableX + 3, ty + 6);
+  doc.text(`${percent.toFixed(2)} %`, tableX + col1W + (col2W + col3W) / 2, ty + 6, { align: 'center' });
+  doc.text(grade, tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
   // Marks in words
@@ -207,13 +215,13 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.text(`Marks In Word : ${numberToWords(data.finalMarks)}`, leftX, ty + 8);
 
   // S/N, Date, Place at bottom-left
-  const sn = shortSN(data.certificateNo || data.certificateId);
+  const sn = serialNo(data);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   const metaY = 230;
-  doc.text(`S/N : ${sn}`, 22, metaY);
-  doc.text(`Date : ${formatDate(data.resultDate)}`, 22, metaY + 7);
-  doc.text(`Place : MUMBAI`, 22, metaY + 14);
+  doc.text(`S/N   : ${sn}`, 22, metaY);
+  doc.text(`Date  : ${formatDate(new Date().toISOString())}`, 22, metaY + 7);
+  doc.text(`Place : Mumbai`, 22, metaY + 14);
 
   if (data.provisional) drawProvisionalWatermark(doc);
 }
