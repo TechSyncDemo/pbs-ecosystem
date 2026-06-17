@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import QRCode from 'qrcode';
+import certificateTemplateSrc from '@/assets/cbitvt-certificate-template.jpg';
 
 export interface CertificateData {
   studentName: string;
@@ -15,155 +15,116 @@ export interface CertificateData {
   provisional?: boolean;
 }
 
-const PRIMARY = '#0f4c81';
-const ACCENT = '#c9a961';
-
-function verificationUrl(certNoOrId: string) {
-  return `${window.location.origin}/verify/${certNoOrId}`;
+async function loadImage(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject('Canvas not supported');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.95));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
-async function qrDataUrl(text: string) {
-  return QRCode.toDataURL(text, { margin: 1, width: 256 });
+function shortSN(id: string) {
+  const digits = (id || '').replace(/\D/g, '');
+  const tail = digits ? digits.slice(-5).padStart(5, '0') : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+  return `A${tail}`;
 }
 
-async function renderCertOnDoc(doc: jsPDF, data: CertificateData) {
-  const w = doc.internal.pageSize.getWidth(); // 297
-  const h = doc.internal.pageSize.getHeight(); // 210
+function monthYear(dateStr: string) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { month: '', year: '' };
+  return {
+    month: d.toLocaleString('en-US', { month: 'long' }),
+    year: String(d.getFullYear()),
+  };
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = d.toLocaleString('en-US', { month: 'short' });
+  return `${day} ${mon} ${d.getFullYear()}`;
+}
+
+async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: string) {
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
   const cx = w / 2;
 
-  // Decorative borders
-  doc.setDrawColor(PRIMARY);
-  doc.setLineWidth(2);
-  doc.rect(8, 8, w - 16, h - 16);
-  doc.setDrawColor(ACCENT);
-  doc.setLineWidth(0.8);
-  doc.rect(12, 12, w - 24, h - 24);
-  doc.setDrawColor(PRIMARY);
-  doc.setLineWidth(0.3);
-  doc.rect(15, 15, w - 30, h - 30);
+  doc.addImage(templateData, 'JPEG', 0, 0, w, h);
 
-  // Top accent
-  doc.setFillColor(PRIMARY);
-  doc.rect(15, 15, w - 30, 14, 'F');
-  doc.setTextColor('#ffffff');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('PBS COMPUTER EDUCATION', cx, 25, { align: 'center' });
+  // Body text — italic serif, centered, matches sample wording
+  doc.setTextColor(0, 0, 0);
 
-  // Title
-  doc.setTextColor(PRIMARY);
-  doc.setFont('times', 'bolditalic');
-  doc.setFontSize(36);
-  doc.text('Certificate of Completion', cx, 50, { align: 'center' });
-
-  // Subtitle
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.setTextColor('#444444');
-  doc.text('This certificate is proudly presented to', cx, 62, { align: 'center' });
-
+  // "This Certificate is awarded to" is already printed on the template.
   // Student name
-  doc.setFont('times', 'bold');
-  doc.setFontSize(30);
-  doc.setTextColor('#000000');
-  doc.text(data.studentName, cx, 80, { align: 'center' });
+  doc.setFont('times', 'italic');
+  doc.setFontSize(22);
+  doc.text(data.studentName, cx, 108, { align: 'center' });
 
-  // Underline under name
-  doc.setDrawColor(ACCENT);
-  doc.setLineWidth(0.6);
-  const nameWidth = doc.getTextWidth(data.studentName);
-  doc.line(cx - nameWidth / 2 - 10, 84, cx + nameWidth / 2 + 10, 84);
-
-  // Body text
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.setTextColor('#222222');
-  doc.text(`for successfully completing the course`, cx, 96, { align: 'center' });
+  // "the within signed [box] upon successful" — printed; nothing inside the box.
+  // "completion of the" — printed.
 
   // Course name
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(PRIMARY);
-  doc.text(data.courseName, cx, 108, { align: 'center' });
+  doc.setFont('times', 'bolditalic');
+  doc.setFontSize(16);
+  doc.text(data.courseName, cx, 145, { align: 'center', maxWidth: w - 60 });
 
-  // Details line
+  // "having passed the examination with" — printed.
+  // Grade + month/year line
+  const { month, year } = monthYear(data.resultDate);
+  doc.setFont('times', 'italic');
+  doc.setFontSize(15);
+  doc.text(`'${data.grade}' Grade on ${month}' ${year} in witness whereof is`, cx, 173, { align: 'center' });
+
+  // "set the signature and seal of the Director, CBITVT." — printed.
+
+  // Bottom-left meta block
+  const sn = shortSN(data.certificateNo || data.certificateId);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.setTextColor('#222222');
-  const detailLine = `at ${data.centerName}${data.centerCode ? ` (${data.centerCode})` : ''}`;
-  doc.text(detailLine, cx, 118, { align: 'center' });
-  doc.text(
-    `with grade ${data.grade} on ${new Date(data.resultDate).toLocaleDateString()}.`,
-    cx,
-    126,
-    { align: 'center' }
-  );
-
-  // Bottom row: QR (left), Enrollment (center), Signature (right)
-  try {
-    const qr = await qrDataUrl(verificationUrl(data.certificateNo || data.certificateId));
-    doc.addImage(qr, 'PNG', 25, h - 55, 28, 28);
-  } catch { /* */ }
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor('#555555');
-  doc.text('Scan to verify', 39, h - 23, { align: 'center' });
-
-  // Center info
   doc.setFontSize(10);
-  doc.setTextColor('#000000');
-  doc.setFont('helvetica', 'bold');
-  doc.text('Enrollment No', cx, h - 45, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.text(data.enrollmentNo, cx, h - 38, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text('Certificate No', cx, h - 30, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.text(data.certificateNo || data.certificateId, cx, h - 24, { align: 'center' });
-
-  // Signature
-  doc.setDrawColor('#000000');
-  doc.setLineWidth(0.4);
-  doc.line(w - 75, h - 35, w - 25, h - 35);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor('#000000');
-  doc.text('Director', w - 50, h - 30, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor('#666666');
-  doc.text('PBS Computer Education', w - 50, h - 25, { align: 'center' });
+  doc.setTextColor(40, 40, 40);
+  const metaY = 230;
+  doc.text(`S/N : ${sn}`, 22, metaY);
+  doc.text(`Date : ${formatDate(data.resultDate)}`, 22, metaY + 7);
+  doc.text(`Place : MUMBAI`, 22, metaY + 14);
 
   if (data.provisional) {
     const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
     if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 0.18 }));
-    doc.setTextColor('#b00020');
+    doc.setTextColor(176, 0, 32);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(90);
     doc.text('PROVISIONAL', cx, h / 2, { align: 'center', angle: 20 });
     if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 1 }));
-    doc.setTextColor('#666666');
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.text('Provisional certificate — final certificate will be issued in due course.', cx, h - 14, { align: 'center' });
   }
 }
 
 export async function generateCertificate(data: CertificateData) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  await renderCertOnDoc(doc, data);
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const templateData = await loadImage(certificateTemplateSrc);
+  await renderCertOnDoc(doc, data, templateData);
   doc.save(`${data.provisional ? 'Provisional_' : ''}Certificate_${data.enrollmentNo}.pdf`);
 }
 
 export async function generateCertificatesBulk(items: CertificateData[]) {
   if (items.length === 0) return;
   if (items.length === 1) return generateCertificate(items[0]);
-
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const templateData = await loadImage(certificateTemplateSrc);
   for (let i = 0; i < items.length; i++) {
     if (i > 0) doc.addPage();
-    await renderCertOnDoc(doc, items[i]);
+    await renderCertOnDoc(doc, items[i], templateData);
   }
   doc.save(`${items[0].provisional ? 'Provisional_' : ''}Certificates_Bulk_${Date.now()}.pdf`);
 }
