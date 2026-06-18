@@ -125,7 +125,7 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   };
   label('Roll No', rollNoFrom(data));
   label('Candidate Name', data.studentName);
-  label('Center', data.centerName);
+  label('Center', `${data.centerName}${data.centerCity ? ', ' + data.centerCity : ''}`);
   label('Course', data.courseName);
 
   // Marks table
@@ -227,13 +227,6 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.text(`S/N   : ${sn}`, 22, metaY);
   doc.text(`Date  : ${formatDate(data.resultDate)}`, 22, metaY + 7);
   doc.text(`Place : Mumbai`, 22, metaY + 14);
-
-  // Footer — Center Name, City
-  const footerY = h - 12;
-  const cityPart = data.centerCity ? `, ${data.centerCity}` : '';
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(`${data.centerName}${cityPart}`, w / 2, footerY, { align: 'center' });
 
   if (data.provisional) drawProvisionalWatermark(doc);
 }
