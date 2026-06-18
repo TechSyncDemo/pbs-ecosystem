@@ -81,11 +81,17 @@ export default function CenterResults() {
   const downloadProvisionalMarksheet = async (r: ResultRow) => {
     const final = Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace);
     const total = Number(r.theory_total) + Number(r.practical_total);
+    const subjects = (r.courses?.course_topics ?? [])
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map((t) => t.topic_name)
+      .filter(Boolean);
     await generateMarksheet({
       studentName: r.students?.name ?? '-',
       enrollmentNo: r.students?.enrollment_no ?? '-',
       centerName: r.students?.centers?.name ?? '-',
       centerCode: r.students?.centers?.code,
+      centerCity: r.students?.centers?.city ?? null,
       courseName: r.courses?.name ?? '-',
       courseCode: r.courses?.code,
       examDate: r.exam_date,
@@ -100,6 +106,7 @@ export default function CenterResults() {
       totalMarks: total,
       certificateId: r.id,
       certificateNo: (r as unknown as { certificate_no?: string | null }).certificate_no,
+      subjects: subjects.length > 0 ? subjects : undefined,
       provisional: true,
     });
   };
@@ -113,6 +120,7 @@ export default function CenterResults() {
       enrollmentNo: r.students?.enrollment_no ?? '-',
       centerName: r.students?.centers?.name ?? '-',
       centerCode: r.students?.centers?.code,
+      centerCity: r.students?.centers?.city ?? null,
       courseName: r.courses?.name ?? '-',
       courseDuration: r.courses?.duration_months ? `${r.courses.duration_months} months` : undefined,
       resultDate: r.result_date ?? new Date().toISOString(),
