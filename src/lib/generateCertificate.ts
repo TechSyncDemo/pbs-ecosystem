@@ -6,6 +6,7 @@ export interface CertificateData {
   enrollmentNo: string;
   centerName: string;
   centerCode?: string;
+  centerCity?: string | null;
   courseName: string;
   courseDuration?: string;
   resultDate: string;
@@ -13,6 +14,7 @@ export interface CertificateData {
   certificateId: string;
   certificateNo?: string | null;
   provisional?: boolean;
+  plainBackground?: boolean;
 }
 
 async function loadImage(src: string): Promise<string> {
@@ -61,13 +63,17 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   const h = doc.internal.pageSize.getHeight();
   const cx = w / 2;
 
-  doc.addImage(templateData, 'JPEG', 0, 0, w, h);
+  if (!data.plainBackground) {
+    doc.addImage(templateData, 'JPEG', 0, 0, w, h);
+  }
 
   doc.setTextColor(0, 0, 0);
 
-  const bodySize = 14;
-  const nameSize = 20;
-  const courseSize = 16;
+  // Larger, more calligraphic body text. jsPDF ships Times (closest readable
+  // serif/italic to a calligraphic hand) — sized up for legibility.
+  const bodySize = 17;
+  const nameSize = 28;
+  const courseSize = 22;
 
   const { month, year } = monthYear(data.resultDate);
   const gradeText = data.grade;
@@ -83,7 +89,7 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   // Line 1: "This Certificate is awarded to"
   doc.setFont('times', 'italic');
   doc.setFontSize(bodySize);
-  doc.text('This Certificate is awarded to', cx, 96, { align: 'center' });
+  doc.text('This Certificate is awarded to', cx, 92, { align: 'center' });
 
   // Candidate name — bold italic, prominent
   doc.setFont('times', 'bolditalic');
@@ -93,8 +99,8 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   // Line 3: "the within signed [BOX] upon successful completion of the"
   const segBeforeBox = 'the within signed ';
   const segAfterBox = ' upon successful completion of the';
-  const boxW = 35;
-  const boxH = 8;
+  const boxW = 40;
+  const boxH = 10;
   const wBefore = measure(segBeforeBox, 'italic', bodySize);
   const wAfter = measure(segAfterBox, 'italic', bodySize);
   const totalLine3 = wBefore + boxW + wAfter;
@@ -102,17 +108,17 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
 
   doc.setFont('times', 'italic');
   doc.setFontSize(bodySize);
-  doc.text(segBeforeBox, startX3, 124);
+  doc.text(segBeforeBox, startX3, 126);
   // Draw signature box
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
-  doc.rect(startX3 + wBefore, 124 - 6, boxW, boxH);
-  doc.text(segAfterBox, startX3 + wBefore + boxW, 124);
+  doc.rect(startX3 + wBefore, 126 - 7, boxW, boxH);
+  doc.text(segAfterBox, startX3 + wBefore + boxW, 126);
 
   // Course / subject name — bold italic
   doc.setFont('times', 'bolditalic');
   doc.setFontSize(courseSize);
-  doc.text(data.courseName, cx, 138, { align: 'center', maxWidth: w - 60 });
+  doc.text(data.courseName, cx, 144, { align: 'center', maxWidth: w - 60 });
 
   // Line 5: "having passed the examination with [GRADE] Grade on [MONTH YEAR]"
   const seg5a = 'having passed the examination with ';
@@ -126,21 +132,21 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
 
   doc.setFont('times', 'italic');
   doc.setFontSize(bodySize);
-  doc.text(seg5a, startX5, 154);
+  doc.text(seg5a, startX5, 162);
   let x5 = startX5 + w5a;
   doc.setFont('times', 'bolditalic');
-  doc.text(gradeText, x5, 154);
+  doc.text(gradeText, x5, 162);
   x5 += w5grade;
   doc.setFont('times', 'italic');
-  doc.text(seg5b, x5, 154);
+  doc.text(seg5b, x5, 162);
   x5 += w5b;
   doc.setFont('times', 'bolditalic');
-  doc.text(dateText, x5, 154);
+  doc.text(dateText, x5, 162);
 
   // Line 6: "in witness whereof..."
   doc.setFont('times', 'italic');
   doc.setFontSize(bodySize);
-  doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, 168, { align: 'center', maxWidth: w - 40 });
+  doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, 178, { align: 'center', maxWidth: w - 40 });
 
   // Bottom-left meta block
   const sn = serialNo(data);
@@ -149,16 +155,25 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   doc.setTextColor(40, 40, 40);
   const metaY = 230;
   doc.text(`S/N   : ${sn}`, 22, metaY);
-  doc.text(`Date  : ${formatDate(new Date().toISOString())}`, 22, metaY + 7);
+  // Date = declaration of result, not the day this PDF is printed.
+  doc.text(`Date  : ${formatDate(data.resultDate)}`, 22, metaY + 7);
   doc.text(`Place : Mumbai`, 22, metaY + 14);
+
+  // Footer — Center Name, City
+  const footerY = h - 12;
+  const cityPart = data.centerCity ? `, ${data.centerCity}` : '';
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  doc.text(`${data.centerName}${cityPart}`, w / 2, footerY, { align: 'center' });
 
   if (data.provisional) {
     const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
     if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 0.18 }));
     doc.setTextColor(176, 0, 32);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(90);
-    doc.text('PROVISIONAL', cx, h / 2, { align: 'center', angle: 20 });
+    doc.setFontSize(70);
+    doc.text('PROVISIONAL COPY', cx, h / 2, { align: 'center', angle: 20 });
     if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 1 }));
   }
 }

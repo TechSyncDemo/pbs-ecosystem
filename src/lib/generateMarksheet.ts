@@ -6,6 +6,7 @@ export interface MarksheetData {
   enrollmentNo: string;
   centerName: string;
   centerCode?: string;
+  centerCity?: string | null;
   courseName: string;
   courseCode?: string;
   examDate: string;
@@ -22,6 +23,7 @@ export interface MarksheetData {
   certificateNo?: string | null;
   provisional?: boolean;
   subjects?: string[];
+  plainBackground?: boolean;
 }
 
 async function loadImage(src: string): Promise<string> {
@@ -48,7 +50,8 @@ function serialNo(data: MarksheetData) {
 }
 
 function rollNoFrom(data: MarksheetData) {
-  return serialNo(data) || data.enrollmentNo;
+  // Roll No should be the candidate's PBS enrollment number.
+  return data.enrollmentNo || serialNo(data);
 }
 
 function formatDate(dateStr: string) {
@@ -90,8 +93,8 @@ function drawProvisionalWatermark(doc: jsPDF) {
   if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 0.18 }));
   doc.setTextColor('#b00020');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(80);
-  doc.text('PROVISIONAL', w / 2, h / 2, { align: 'center', angle: 30 });
+  doc.setFontSize(70);
+  doc.text('PROVISIONAL COPY', w / 2, h / 2, { align: 'center', angle: 30 });
   if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 1 }));
   doc.setTextColor('#000000');
 }
@@ -100,7 +103,9 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   const w = doc.internal.pageSize.getWidth(); // ~215.9 (letter mm)
   const h = doc.internal.pageSize.getHeight(); // ~279.4
 
-  doc.addImage(templateData, 'JPEG', 0, 0, w, h);
+  if (!data.plainBackground) {
+    doc.addImage(templateData, 'JPEG', 0, 0, w, h);
+  }
 
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
@@ -199,13 +204,13 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.text(result, tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
-  // Result row — percentage converted to grade
+  // Result row — percentage (rounded) converted to grade
   doc.setFont('helvetica', 'bold');
   doc.rect(tableX, ty, col1W, rowH);
   doc.rect(tableX + col1W, ty, col2W + col3W, rowH);
   doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
   doc.text('Result (Percentage / Grade)', tableX + 3, ty + 6);
-  doc.text(`${percent.toFixed(2)} %`, tableX + col1W + (col2W + col3W) / 2, ty + 6, { align: 'center' });
+  doc.text(`${Math.round(percent)} %`, tableX + col1W + (col2W + col3W) / 2, ty + 6, { align: 'center' });
   doc.text(grade, tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
@@ -214,14 +219,21 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.setFontSize(11);
   doc.text(`Marks In Word : ${numberToWords(data.finalMarks)}`, leftX, ty + 8);
 
-  // S/N, Date, Place at bottom-left
+  // S/N, Date (result declaration date), Place at bottom-left
   const sn = serialNo(data);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   const metaY = 230;
   doc.text(`S/N   : ${sn}`, 22, metaY);
-  doc.text(`Date  : ${formatDate(new Date().toISOString())}`, 22, metaY + 7);
+  doc.text(`Date  : ${formatDate(data.resultDate)}`, 22, metaY + 7);
   doc.text(`Place : Mumbai`, 22, metaY + 14);
+
+  // Footer — Center Name, City
+  const footerY = h - 12;
+  const cityPart = data.centerCity ? `, ${data.centerCity}` : '';
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(`${data.centerName}${cityPart}`, w / 2, footerY, { align: 'center' });
 
   if (data.provisional) drawProvisionalWatermark(doc);
 }

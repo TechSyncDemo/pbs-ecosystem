@@ -44,11 +44,17 @@ function totals(r: ResultRow) {
 
 function toMarksheet(r: ResultRow): MarksheetData {
   const t = totals(r);
+  const subjects = (r.courses?.course_topics ?? [])
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((t) => t.topic_name)
+    .filter(Boolean);
   return {
     studentName: r.students?.name ?? '-',
     enrollmentNo: r.students?.enrollment_no ?? '-',
     centerName: r.students?.centers?.name ?? '-',
     centerCode: r.students?.centers?.code,
+    centerCity: r.students?.centers?.city ?? null,
     courseName: r.courses?.name ?? '-',
     courseCode: r.courses?.code,
     examDate: r.exam_date,
@@ -63,6 +69,9 @@ function toMarksheet(r: ResultRow): MarksheetData {
     totalMarks: t.total,
     certificateId: r.id,
     certificateNo: r.certificate_no,
+    subjects: subjects.length > 0 ? subjects : undefined,
+    // Super admin prints onto pre-printed letterhead — text only, no graphics.
+    plainBackground: true,
   };
 }
 
@@ -73,12 +82,15 @@ function toCertificate(r: ResultRow): CertificateData {
     enrollmentNo: r.students?.enrollment_no ?? '-',
     centerName: r.students?.centers?.name ?? '-',
     centerCode: r.students?.centers?.code,
+    centerCity: r.students?.centers?.city ?? null,
     courseName: r.courses?.name ?? '-',
     courseDuration: r.courses?.duration_months ? `${r.courses.duration_months} months` : undefined,
     resultDate: r.result_date ?? new Date().toISOString(),
     grade: gradeFor(t.percent),
     certificateId: r.id,
     certificateNo: r.certificate_no,
+    // Super admin prints onto pre-printed letterhead — text only, no graphics.
+    plainBackground: true,
   };
 }
 
