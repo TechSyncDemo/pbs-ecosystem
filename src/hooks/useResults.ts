@@ -23,9 +23,17 @@ export type ResultRow = {
     name: string;
     enrollment_no: string;
     center_id: string;
-    centers: { id: string; name: string; code: string } | null;
+    centers: { id: string; name: string; code: string; city: string | null } | null;
   } | null;
-  courses: { id: string; name: string; code: string; duration_months: number; theory_max_marks: number; practical_max_marks: number } | null;
+  courses: {
+    id: string;
+    name: string;
+    code: string;
+    duration_months: number;
+    theory_max_marks: number;
+    practical_max_marks: number;
+    course_topics?: { topic_name: string; sort_order: number | null }[] | null;
+  } | null;
 };
 
 const RESULTS_QUERY = `
@@ -33,8 +41,8 @@ const RESULTS_QUERY = `
   theory_marks, theory_total, practical_marks, practical_total,
   theory_grace, practical_grace,
   status, result_date, practical_submitted_at, certificate_printed_at, certificate_no,
-  students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code ) ),
-  courses!inner ( id, name, code, duration_months, theory_max_marks, practical_max_marks )
+  students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code, city ) ),
+  courses!inner ( id, name, code, duration_months, theory_max_marks, practical_max_marks, course_topics ( topic_name, sort_order ) )
 `;
 
 export function usePendingResults() {
