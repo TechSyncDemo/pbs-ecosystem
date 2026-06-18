@@ -63,31 +63,84 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
 
   doc.addImage(templateData, 'JPEG', 0, 0, w, h);
 
-  // Body text — italic serif, centered, matches sample wording
   doc.setTextColor(0, 0, 0);
 
-  // "This Certificate is awarded to" is already printed on the template.
-  // Student name
-  doc.setFont('times', 'italic');
-  doc.setFontSize(22);
-  doc.text(data.studentName, cx, 108, { align: 'center' });
+  const bodySize = 14;
+  const nameSize = 20;
+  const courseSize = 16;
 
-  // "the within signed [box] upon successful" — printed; nothing inside the box.
-  // "completion of the" — printed.
-
-  // Course name
-  doc.setFont('times', 'bolditalic');
-  doc.setFontSize(16);
-  doc.text(data.courseName, cx, 145, { align: 'center', maxWidth: w - 60 });
-
-  // "having passed the examination with" — printed.
-  // Grade + month/year line
   const { month, year } = monthYear(data.resultDate);
-  doc.setFont('times', 'italic');
-  doc.setFontSize(15);
-  doc.text(`'${data.grade}' Grade on ${month}' ${year} in witness whereof is`, cx, 173, { align: 'center' });
+  const gradeText = data.grade;
+  const dateText = `${month}' ${year}`;
 
-  // "set the signature and seal of the Director, CBITVT." — printed.
+  // Helper to measure text width for positioning calculations
+  const measure = (text: string, style: string, size: number) => {
+    doc.setFont('times', style);
+    doc.setFontSize(size);
+    return doc.getTextWidth(text);
+  };
+
+  // Line 1: "This Certificate is awarded to"
+  doc.setFont('times', 'italic');
+  doc.setFontSize(bodySize);
+  doc.text('This Certificate is awarded to', cx, 96, { align: 'center' });
+
+  // Candidate name — bold italic, prominent
+  doc.setFont('times', 'bolditalic');
+  doc.setFontSize(nameSize);
+  doc.text(data.studentName, cx, 108, { align: 'center', maxWidth: w - 50 });
+
+  // Line 3: "the within signed [BOX] upon successful completion of the"
+  const segBeforeBox = 'the within signed ';
+  const segAfterBox = ' upon successful completion of the';
+  const boxW = 35;
+  const boxH = 8;
+  const wBefore = measure(segBeforeBox, 'italic', bodySize);
+  const wAfter = measure(segAfterBox, 'italic', bodySize);
+  const totalLine3 = wBefore + boxW + wAfter;
+  const startX3 = (w - totalLine3) / 2;
+
+  doc.setFont('times', 'italic');
+  doc.setFontSize(bodySize);
+  doc.text(segBeforeBox, startX3, 124);
+  // Draw signature box
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(startX3 + wBefore, 124 - 6, boxW, boxH);
+  doc.text(segAfterBox, startX3 + wBefore + boxW, 124);
+
+  // Course / subject name — bold italic
+  doc.setFont('times', 'bolditalic');
+  doc.setFontSize(courseSize);
+  doc.text(data.courseName, cx, 138, { align: 'center', maxWidth: w - 60 });
+
+  // Line 5: "having passed the examination with [GRADE] Grade on [MONTH YEAR]"
+  const seg5a = 'having passed the examination with ';
+  const seg5b = ' Grade on ';
+  const w5a = measure(seg5a, 'italic', bodySize);
+  const w5grade = measure(gradeText, 'bolditalic', bodySize);
+  const w5b = measure(seg5b, 'italic', bodySize);
+  const w5date = measure(dateText, 'bolditalic', bodySize);
+  const totalLine5 = w5a + w5grade + w5b + w5date;
+  const startX5 = (w - totalLine5) / 2;
+
+  doc.setFont('times', 'italic');
+  doc.setFontSize(bodySize);
+  doc.text(seg5a, startX5, 154);
+  let x5 = startX5 + w5a;
+  doc.setFont('times', 'bolditalic');
+  doc.text(gradeText, x5, 154);
+  x5 += w5grade;
+  doc.setFont('times', 'italic');
+  doc.text(seg5b, x5, 154);
+  x5 += w5b;
+  doc.setFont('times', 'bolditalic');
+  doc.text(dateText, x5, 154);
+
+  // Line 6: "in witness whereof..."
+  doc.setFont('times', 'italic');
+  doc.setFontSize(bodySize);
+  doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, 168, { align: 'center', maxWidth: w - 40 });
 
   // Bottom-left meta block
   const sn = serialNo(data);
