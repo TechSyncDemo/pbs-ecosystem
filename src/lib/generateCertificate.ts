@@ -96,6 +96,12 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   doc.setFontSize(nameSize);
   doc.text(data.studentName, cx, 108, { align: 'center', maxWidth: w - 50 });
 
+  // Center details directly below the candidate name
+  doc.setFont('times', 'italic');
+  doc.setFontSize(13);
+  const centerLine = `${data.centerName}${data.centerCity ? ', ' + data.centerCity : ''}`;
+  doc.text(centerLine, cx, 117, { align: 'center', maxWidth: w - 40 });
+
   // Line 3: "the within signed [BOX] upon successful completion of the"
   const segBeforeBox = 'the within signed ';
   const segAfterBox = ' upon successful completion of the';
@@ -158,14 +164,6 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   // Date = declaration of result, not the day this PDF is printed.
   doc.text(`Date  : ${formatDate(data.resultDate)}`, 22, metaY + 7);
   doc.text(`Place : Mumbai`, 22, metaY + 14);
-
-  // Footer — Center Name, City
-  const footerY = h - 12;
-  const cityPart = data.centerCity ? `, ${data.centerCity}` : '';
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
-  doc.text(`${data.centerName}${cityPart}`, w / 2, footerY, { align: 'center' });
 
   if (data.provisional) {
     const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
