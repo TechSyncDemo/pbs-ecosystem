@@ -119,9 +119,9 @@ Deno.serve(async (req) => {
   }
 
   // Create/update a student_results row in awaiting_practical with theory marks
-  const theory_marks = Number(
+  const theory_marks = Math.round(Number(
     payload.theory_marks ?? payload.marks_obtained ?? 0
-  );
+  ));
   const courseRow = (student as { courses?: { theory_max_marks?: number; practical_max_marks?: number } }).courses;
   const theory_total = Number(
     payload.theory_total ?? payload.total_marks ?? courseRow?.theory_max_marks ?? 100
