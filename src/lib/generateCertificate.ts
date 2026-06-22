@@ -36,8 +36,6 @@ async function loadImage(src: string): Promise<string> {
 }
 
 function serialNo(data: CertificateData) {
-  // S/N matches the unique exam sign-in / certificate code used on the
-  // verify-certificate page so the same value is verifiable end-to-end.
   return (data.certificateNo || data.certificateId || '').toString().toUpperCase();
 }
 
@@ -58,7 +56,44 @@ function formatDate(dateStr: string) {
   return `${day} ${mon} ${d.getFullYear()}`;
 }
 
-async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: string) {
+function toTitleCase(str: string): string {
+  if (!str) return str;
+  return str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([buffer]);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+let birthstoneFontPromise: Promise<string | null> | null = null;
+
+async function loadBirthstoneFont(): Promise<string | null> {
+  if (birthstoneFontPromise) return birthstoneFontPromise;
+
+  birthstoneFontPromise = (async () => {
+    try {
+      const response = await fetch('/fonts/Birthstone-Regular.ttf');
+      if (!response.ok) return null;
+      const buffer = await response.arrayBuffer();
+      return await arrayBufferToBase64(buffer);
+    } catch {
+      return null;
+    }
+  })();
+
+  return birthstoneFontPromise;
+}
+
+async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: string, fontBase64: string | null) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   const cx = w / 2;
@@ -67,10 +102,18 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
     doc.addImage(templateData, 'JPEG', 0, 0, w, h);
   }
 
+  // Register custom Birthstone font if available
+  const fontFamily = fontBase64 ? 'Birthstone' : 'times';
+  if (fontBase64) {
+    doc.addFileToVFS('Birthstone.ttf', fontBase64);
+    doc.addFont('Birthstone.ttf', 'Birthstone', 'normal');
+    doc.addFont('Birthstone.ttf', 'Birthstone', 'bold');
+    doc.addFont('Birthstone.ttf', 'Birthstone', 'italic');
+    doc.addFont('Birthstone.ttf', 'Birthstone', 'bolditalic');
+  }
+
   doc.setTextColor(0, 0, 0);
 
-  // Larger, more calligraphic body text. jsPDF ships Times (closest readable
-  // serif/italic to a calligraphic hand) — sized up for legibility.
   const bodySize = 17;
   const nameSize = 28;
   const courseSize = 22;
@@ -78,29 +121,23 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   const { month, year } = monthYear(data.resultDate);
   const gradeText = data.grade;
   const dateText = `${month}' ${year}`;
+  const studentName = toTitleCase(data.studentName);
 
-  // Helper to measure text width for positioning calculations
   const measure = (text: string, style: string, size: number) => {
-    doc.setFont('times', style);
+    doc.setFont(fontFamily, style);
     doc.setFontSize(size);
     return doc.getTextWidth(text);
   };
 
   // Line 1: "This Certificate is awarded to"
-  doc.setFont('times', 'italic');
+  doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
   doc.text('This Certificate is awarded to', cx, 92, { align: 'center' });
 
-  // Candidate name — bold italic, prominent
-  doc.setFont('times', 'bolditalic');
+  // Candidate name — bold italic, prominent, Title Case
+  doc.setFont(fontFamily, 'bolditalic');
   doc.setFontSize(nameSize);
-  doc.text(data.studentName, cx, 108, { align: 'center', maxWidth: w - 50 });
-
-  // Center details directly below the candidate name
-  doc.setFont('times', 'italic');
-  doc.setFontSize(13);
-  const centerLine = `${data.centerName}${data.centerCity ? ', ' + data.centerCity : ''}`;
-  doc.text(centerLine, cx, 117, { align: 'center', maxWidth: w - 40 });
+  doc.text(studentName, cx, 108, { align: 'center', maxWidth: w - 50 });
 
   // Line 3: "the within signed [BOX] upon successful completion of the"
   const segBeforeBox = 'the within signed ';
@@ -112,17 +149,16 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   const totalLine3 = wBefore + boxW + wAfter;
   const startX3 = (w - totalLine3) / 2;
 
-  doc.setFont('times', 'italic');
+  doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
   doc.text(segBeforeBox, startX3, 126);
-  // Draw signature box
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
   doc.rect(startX3 + wBefore, 126 - 7, boxW, boxH);
   doc.text(segAfterBox, startX3 + wBefore + boxW, 126);
 
   // Course / subject name — bold italic
-  doc.setFont('times', 'bolditalic');
+  doc.setFont(fontFamily, 'bolditalic');
   doc.setFontSize(courseSize);
   doc.text(data.courseName, cx, 144, { align: 'center', maxWidth: w - 60 });
 
@@ -136,32 +172,31 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
   const totalLine5 = w5a + w5grade + w5b + w5date;
   const startX5 = (w - totalLine5) / 2;
 
-  doc.setFont('times', 'italic');
+  doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
   doc.text(seg5a, startX5, 162);
   let x5 = startX5 + w5a;
-  doc.setFont('times', 'bolditalic');
+  doc.setFont(fontFamily, 'bolditalic');
   doc.text(gradeText, x5, 162);
   x5 += w5grade;
-  doc.setFont('times', 'italic');
+  doc.setFont(fontFamily, 'italic');
   doc.text(seg5b, x5, 162);
   x5 += w5b;
-  doc.setFont('times', 'bolditalic');
+  doc.setFont(fontFamily, 'bolditalic');
   doc.text(dateText, x5, 162);
 
   // Line 6: "in witness whereof..."
-  doc.setFont('times', 'italic');
+  doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
   doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, 178, { align: 'center', maxWidth: w - 40 });
 
   // Bottom-left meta block
   const sn = serialNo(data);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontFamily, 'normal');
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   const metaY = 230;
   doc.text(`S/N   : ${sn}`, 22, metaY);
-  // Date = declaration of result, not the day this PDF is printed.
   doc.text(`Date  : ${formatDate(data.resultDate)}`, 22, metaY + 7);
   doc.text(`Place : Mumbai`, 22, metaY + 14);
 
@@ -169,7 +204,7 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
     const anyDoc = doc as unknown as { GState?: new (o: { opacity: number }) => unknown; setGState?: (s: unknown) => void };
     if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 0.18 }));
     doc.setTextColor(176, 0, 32);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(fontFamily, 'bold');
     doc.setFontSize(70);
     doc.text('PROVISIONAL COPY', cx, h / 2, { align: 'center', angle: 20 });
     if (anyDoc.GState && anyDoc.setGState) anyDoc.setGState(new anyDoc.GState({ opacity: 1 }));
@@ -178,8 +213,11 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
 
 export async function generateCertificate(data: CertificateData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const templateData = await loadImage(certificateTemplateSrc);
-  await renderCertOnDoc(doc, data, templateData);
+  const [templateData, fontBase64] = await Promise.all([
+    loadImage(certificateTemplateSrc),
+    loadBirthstoneFont(),
+  ]);
+  await renderCertOnDoc(doc, data, templateData, fontBase64);
   doc.save(`${data.provisional ? 'Provisional_' : ''}Certificate_${data.enrollmentNo}.pdf`);
 }
 
@@ -187,10 +225,13 @@ export async function generateCertificatesBulk(items: CertificateData[]) {
   if (items.length === 0) return;
   if (items.length === 1) return generateCertificate(items[0]);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const templateData = await loadImage(certificateTemplateSrc);
+  const [templateData, fontBase64] = await Promise.all([
+    loadImage(certificateTemplateSrc),
+    loadBirthstoneFont(),
+  ]);
   for (let i = 0; i < items.length; i++) {
     if (i > 0) doc.addPage();
-    await renderCertOnDoc(doc, items[i], templateData);
+    await renderCertOnDoc(doc, items[i], templateData, fontBase64);
   }
   doc.save(`${items[0].provisional ? 'Provisional_' : ''}Certificates_Bulk_${Date.now()}.pdf`);
 }
