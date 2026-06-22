@@ -64,6 +64,7 @@ function formatDate(dateStr: string) {
 
 function numberToWords(n: number): string {
   if (!Number.isFinite(n)) return '';
+  const rounded = Math.round(n);
   const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
     'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -75,7 +76,7 @@ function numberToWords(n: number): string {
     if (num < 100000) return inWords(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 ? ' ' + inWords(num % 1000) : '');
     return String(num);
   };
-  return inWords(Math.floor(n));
+  return inWords(rounded);
 }
 
 function gradeOf(percent: number): string {
