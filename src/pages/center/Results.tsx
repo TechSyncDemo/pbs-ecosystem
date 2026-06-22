@@ -79,8 +79,8 @@ export default function CenterResults() {
   const declared = useMemo(() => results.filter((r) => r.status === 'declared'), [results]);
 
   const downloadProvisionalMarksheet = async (r: ResultRow) => {
-    const final = Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace);
-    const total = Number(r.theory_total) + Number(r.practical_total);
+    const final = Math.round(Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace));
+    const total = Math.round(Number(r.theory_total) + Number(r.practical_total));
     const subjects = (r.courses?.course_topics ?? [])
       .slice()
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -96,12 +96,12 @@ export default function CenterResults() {
       courseCode: r.courses?.code,
       examDate: r.exam_date,
       resultDate: r.result_date ?? new Date().toISOString(),
-      theoryMarks: Number(r.theory_marks),
-      theoryTotal: Number(r.theory_total),
-      theoryGrace: Number(r.theory_grace),
-      practicalMarks: Number(r.practical_marks),
-      practicalTotal: Number(r.practical_total),
-      practicalGrace: Number(r.practical_grace),
+      theoryMarks: Math.round(Number(r.theory_marks)),
+      theoryTotal: Math.round(Number(r.theory_total)),
+      theoryGrace: Math.round(Number(r.theory_grace)),
+      practicalMarks: Math.round(Number(r.practical_marks)),
+      practicalTotal: Math.round(Number(r.practical_total)),
+      practicalGrace: Math.round(Number(r.practical_grace)),
       finalMarks: final,
       totalMarks: total,
       certificateId: r.id,
@@ -112,9 +112,9 @@ export default function CenterResults() {
   };
 
   const downloadProvisionalCertificate = async (r: ResultRow) => {
-    const final = Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace);
-    const total = Number(r.theory_total) + Number(r.practical_total);
-    const pct = total > 0 ? (final / total) * 100 : 0;
+    const final = Math.round(Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace));
+    const total = Math.round(Number(r.theory_total) + Number(r.practical_total));
+    const pct = total > 0 ? Math.round((final / total) * 100) : 0;
     await generateCertificate({
       studentName: r.students?.name ?? '-',
       enrollmentNo: r.students?.enrollment_no ?? '-',
@@ -263,11 +263,11 @@ export default function CenterResults() {
                       {declared.length === 0 ? (
                         <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No declared results yet.</TableCell></TableRow>
                       ) : declared.map((r) => {
-                        const tF = Number(r.theory_marks) + Number(r.theory_grace);
-                        const pF = Number(r.practical_marks) + Number(r.practical_grace);
+                        const tF = Math.round(Number(r.theory_marks) + Number(r.theory_grace));
+                        const pF = Math.round(Number(r.practical_marks) + Number(r.practical_grace));
                         const final = tF + pF;
-                        const total = Number(r.theory_total) + Number(r.practical_total);
-                        const pct = total > 0 ? (final / total) * 100 : 0;
+                        const total = Math.round(Number(r.theory_total) + Number(r.practical_total));
+                        const pct = total > 0 ? Math.round((final / total) * 100) : 0;
                         const ready = !!r.certificate_printed_at;
                         return (
                           <TableRow key={r.id}>
@@ -276,9 +276,9 @@ export default function CenterResults() {
                               <p className="text-sm text-muted-foreground">{r.students?.enrollment_no}</p>
                             </TableCell>
                             <TableCell>{r.courses?.name}</TableCell>
-                            <TableCell>{tF} / {Number(r.theory_total)}</TableCell>
-                            <TableCell>{pF} / {Number(r.practical_total)}</TableCell>
-                            <TableCell className="font-bold">{final} / {total} ({pct.toFixed(1)}%)</TableCell>
+                            <TableCell>{tF} / {Math.round(Number(r.theory_total))}</TableCell>
+                            <TableCell>{pF} / {Math.round(Number(r.practical_total))}</TableCell>
+                            <TableCell className="font-bold">{final} / {total} ({pct}%)</TableCell>
                             <TableCell><Badge>{grade(pct)}</Badge></TableCell>
                             <TableCell>
                               {ready ? (

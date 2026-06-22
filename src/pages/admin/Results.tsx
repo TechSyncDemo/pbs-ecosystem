@@ -34,11 +34,11 @@ function gradeFor(percent: number) {
 }
 
 function totals(r: ResultRow) {
-  const theoryFinal = Number(r.theory_marks) + Number(r.theory_grace);
-  const practicalFinal = Number(r.practical_marks) + Number(r.practical_grace);
+  const theoryFinal = Math.round(Number(r.theory_marks) + Number(r.theory_grace));
+  const practicalFinal = Math.round(Number(r.practical_marks) + Number(r.practical_grace));
   const final = theoryFinal + practicalFinal;
-  const total = Number(r.theory_total) + Number(r.practical_total);
-  const percent = total > 0 ? (final / total) * 100 : 0;
+  const total = Math.round(Number(r.theory_total) + Number(r.practical_total));
+  const percent = total > 0 ? Math.round((final / total) * 100) : 0;
   return { theoryFinal, practicalFinal, final, total, percent };
 }
 
