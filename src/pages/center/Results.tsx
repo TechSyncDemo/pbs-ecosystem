@@ -276,9 +276,9 @@ export default function CenterResults() {
                               <p className="text-sm text-muted-foreground">{r.students?.enrollment_no}</p>
                             </TableCell>
                             <TableCell>{r.courses?.name}</TableCell>
-                            <TableCell>{tF} / {Number(r.theory_total)}</TableCell>
-                            <TableCell>{pF} / {Number(r.practical_total)}</TableCell>
-                            <TableCell className="font-bold">{final} / {total} ({pct.toFixed(1)}%)</TableCell>
+                            <TableCell>{tF} / {Math.round(Number(r.theory_total))}</TableCell>
+                            <TableCell>{pF} / {Math.round(Number(r.practical_total))}</TableCell>
+                            <TableCell className="font-bold">{final} / {total} ({pct}%)</TableCell>
                             <TableCell><Badge>{grade(pct)}</Badge></TableCell>
                             <TableCell>
                               {ready ? (
