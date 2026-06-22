@@ -263,11 +263,11 @@ export default function CenterResults() {
                       {declared.length === 0 ? (
                         <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No declared results yet.</TableCell></TableRow>
                       ) : declared.map((r) => {
-                        const tF = Number(r.theory_marks) + Number(r.theory_grace);
-                        const pF = Number(r.practical_marks) + Number(r.practical_grace);
+                        const tF = Math.round(Number(r.theory_marks) + Number(r.theory_grace));
+                        const pF = Math.round(Number(r.practical_marks) + Number(r.practical_grace));
                         const final = tF + pF;
-                        const total = Number(r.theory_total) + Number(r.practical_total);
-                        const pct = total > 0 ? (final / total) * 100 : 0;
+                        const total = Math.round(Number(r.theory_total) + Number(r.practical_total));
+                        const pct = total > 0 ? Math.round((final / total) * 100) : 0;
                         const ready = !!r.certificate_printed_at;
                         return (
                           <TableRow key={r.id}>
