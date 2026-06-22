@@ -160,19 +160,46 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
     ? data.subjects
     : [data.courseName];
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  const bulletLineH = 5.5;
-  const theoryRowH = Math.max(28, subjects.length * bulletLineH + 6);
+  // Dynamically size the theory row to fit all course-content subjects.
+  // Each subject can wrap to multiple lines if long, so measure properly.
+  let baseFontSize = 10;
+  let bulletLineH = 5.5;
+  const wrapAll = (size: number) => {
+    doc.setFontSize(size);
+    const lines: string[][] = [];
+    let total = 0;
+    for (const sub of subjects) {
+      const wrapped = doc.splitTextToSize(`• ${sub}`, col1W - 6) as string[];
+      lines.push(wrapped);
+      total += wrapped.length;
+    }
+    return { lines, total };
+  };
+  let { lines: subjectLines, total: totalLines } = wrapAll(baseFontSize);
+  // Space available between current ty and the bottom metadata block (~y=225)
+  const maxTableBottom = 220;
+  // Reserve room for the Practical, Total, Result rows (3 × 9mm) + words line (~12mm)
+  const reservedBelow = 9 * 3 + 12;
+  const availableForTheory = maxTableBottom - ty - reservedBelow;
+  // Shrink font progressively until it fits
+  while (totalLines * bulletLineH + 6 > availableForTheory && baseFontSize > 7) {
+    baseFontSize -= 0.5;
+    bulletLineH = baseFontSize * 0.55;
+    ({ lines: subjectLines, total: totalLines } = wrapAll(baseFontSize));
+  }
+  doc.setFontSize(baseFontSize);
+  const theoryRowH = Math.max(28, totalLines * bulletLineH + 6);
   doc.rect(tableX, ty, col1W, theoryRowH);
   doc.rect(tableX + col1W, ty, col2W, theoryRowH);
   doc.rect(tableX + col1W + col2W, ty, col3W, theoryRowH);
   doc.rect(tableX + col1W + col2W + col3W, ty, col4W, theoryRowH);
   let sy = ty + 5;
-  for (const sub of subjects) {
-    const wrapped = doc.splitTextToSize(`• ${sub}`, col1W - 6);
+  for (const wrapped of subjectLines) {
     doc.text(wrapped, tableX + 3, sy);
     sy += wrapped.length * bulletLineH;
   }
+  // Restore font size for numeric cells
+  doc.setFontSize(10);
   doc.text(String(Math.round(data.theoryTotal)), tableX + col1W + col2W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
   doc.text(String(Math.round(data.theoryMarks)), tableX + col1W + col2W + col3W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
   doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
