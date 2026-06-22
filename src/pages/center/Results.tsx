@@ -112,9 +112,9 @@ export default function CenterResults() {
   };
 
   const downloadProvisionalCertificate = async (r: ResultRow) => {
-    const final = Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace);
-    const total = Number(r.theory_total) + Number(r.practical_total);
-    const pct = total > 0 ? (final / total) * 100 : 0;
+    const final = Math.round(Number(r.theory_marks) + Number(r.theory_grace) + Number(r.practical_marks) + Number(r.practical_grace));
+    const total = Math.round(Number(r.theory_total) + Number(r.practical_total));
+    const pct = total > 0 ? Math.round((final / total) * 100) : 0;
     await generateCertificate({
       studentName: r.students?.name ?? '-',
       enrollmentNo: r.students?.enrollment_no ?? '-',
