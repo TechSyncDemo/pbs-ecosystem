@@ -173,8 +173,8 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
     doc.text(wrapped, tableX + 3, sy);
     sy += wrapped.length * bulletLineH;
   }
-  doc.text(String(data.theoryTotal), tableX + col1W + col2W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
-  doc.text(String(data.theoryMarks), tableX + col1W + col2W + col3W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
+  doc.text(String(Math.round(data.theoryTotal)), tableX + col1W + col2W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
+  doc.text(String(Math.round(data.theoryMarks)), tableX + col1W + col2W + col3W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
   doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
   ty += theoryRowH;
 
@@ -185,13 +185,15 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.rect(tableX + col1W + col2W, ty, col3W, rowH);
   doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
   doc.text('Practical / Project', tableX + 3, ty + 6);
-  doc.text(String(data.practicalTotal), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
-  doc.text(String(data.practicalMarks), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
+  doc.text(String(Math.round(data.practicalTotal)), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
+  doc.text(String(Math.round(data.practicalMarks)), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
   doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
   // Total row
-  const percent = data.totalMarks > 0 ? (data.finalMarks / data.totalMarks) * 100 : 0;
+  const roundedFinal = Math.round(data.finalMarks);
+  const roundedTotal = Math.round(data.totalMarks);
+  const percent = roundedTotal > 0 ? (roundedFinal / roundedTotal) * 100 : 0;
   const grade = gradeOf(percent);
   const result = percent >= 40 ? 'PASS' : 'FAIL';
   doc.setFont('helvetica', 'bold');
@@ -200,8 +202,8 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.rect(tableX + col1W + col2W, ty, col3W, rowH);
   doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
   doc.text('Total', tableX + 3, ty + 6);
-  doc.text(String(data.totalMarks), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
-  doc.text(String(data.finalMarks), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
+  doc.text(String(roundedTotal), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
+  doc.text(String(roundedFinal), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
   doc.text(result, tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
