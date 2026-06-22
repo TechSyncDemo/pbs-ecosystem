@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
       }
 
       const courseRow = (student as { courses?: { theory_max_marks?: number; practical_max_marks?: number } }).courses;
-      const theory_marks = Number(a.theory_marks ?? a.score ?? a.percentage ?? 0);
+      const theory_marks = Math.round(Number(a.theory_marks ?? a.score ?? a.percentage ?? 0));
       const theory_total = Number(a.theory_total ?? a.total_questions ?? courseRow?.theory_max_marks ?? 100);
       const practical_total = Number(courseRow?.practical_max_marks ?? 100);
       const exam_date = completed_at.toISOString().slice(0, 10);
