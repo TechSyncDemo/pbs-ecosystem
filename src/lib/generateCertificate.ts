@@ -223,7 +223,7 @@ async function renderCertOnDoc(
 
   // Bottom-left meta block
   const sn = serialNo(data);
-  doc.setFont(fontFamily, 'normal');
+  doc.setFont(metaFontFamily, 'normal');
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   const metaY = 230;
