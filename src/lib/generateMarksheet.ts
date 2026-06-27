@@ -54,6 +54,11 @@ function rollNoFrom(data: MarksheetData) {
   return data.enrollmentNo || serialNo(data);
 }
 
+function toTitleCase(str: string): string {
+  if (!str) return str;
+  return str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
