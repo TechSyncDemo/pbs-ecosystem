@@ -75,6 +75,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
 }
 
 let birthstoneFontPromise: Promise<string | null> | null = null;
+let robotoFontPromise: Promise<string | null> | null = null;
 
 async function loadBirthstoneFont(): Promise<string | null> {
   if (birthstoneFontPromise) return birthstoneFontPromise;
@@ -93,7 +94,30 @@ async function loadBirthstoneFont(): Promise<string | null> {
   return birthstoneFontPromise;
 }
 
-async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: string, fontBase64: string | null) {
+async function loadRobotoFont(): Promise<string | null> {
+  if (robotoFontPromise) return robotoFontPromise;
+
+  robotoFontPromise = (async () => {
+    try {
+      const response = await fetch('/fonts/Roboto-Regular.ttf');
+      if (!response.ok) return null;
+      const buffer = await response.arrayBuffer();
+      return await arrayBufferToBase64(buffer);
+    } catch {
+      return null;
+    }
+  })();
+
+  return robotoFontPromise;
+}
+
+async function renderCertOnDoc(
+  doc: jsPDF,
+  data: CertificateData,
+  templateData: string,
+  fontBase64: string | null,
+  robotoBase64: string | null
+) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   const cx = w / 2;
@@ -110,6 +134,13 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
     doc.addFont('Birthstone.ttf', 'Birthstone', 'bold');
     doc.addFont('Birthstone.ttf', 'Birthstone', 'italic');
     doc.addFont('Birthstone.ttf', 'Birthstone', 'bolditalic');
+  }
+
+  // Register Roboto font for meta block
+  const metaFontFamily = robotoBase64 ? 'Roboto' : 'helvetica';
+  if (robotoBase64) {
+    doc.addFileToVFS('Roboto.ttf', robotoBase64);
+    doc.addFont('Roboto.ttf', 'Roboto', 'normal');
   }
 
   doc.setTextColor(0, 0, 0);
@@ -192,7 +223,7 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
 
   // Bottom-left meta block
   const sn = serialNo(data);
-  doc.setFont(fontFamily, 'normal');
+  doc.setFont(metaFontFamily, 'normal');
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   const metaY = 230;
@@ -213,11 +244,12 @@ async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: 
 
 export async function generateCertificate(data: CertificateData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const [templateData, fontBase64] = await Promise.all([
+  const [templateData, fontBase64, robotoBase64] = await Promise.all([
     loadImage(certificateTemplateSrc),
     loadBirthstoneFont(),
+    loadRobotoFont(),
   ]);
-  await renderCertOnDoc(doc, data, templateData, fontBase64);
+  await renderCertOnDoc(doc, data, templateData, fontBase64, robotoBase64);
   doc.save(`${data.provisional ? 'Provisional_' : ''}Certificate_${data.enrollmentNo}.pdf`);
 }
 
@@ -225,13 +257,14 @@ export async function generateCertificatesBulk(items: CertificateData[]) {
   if (items.length === 0) return;
   if (items.length === 1) return generateCertificate(items[0]);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const [templateData, fontBase64] = await Promise.all([
+  const [templateData, fontBase64, robotoBase64] = await Promise.all([
     loadImage(certificateTemplateSrc),
     loadBirthstoneFont(),
+    loadRobotoFont(),
   ]);
   for (let i = 0; i < items.length; i++) {
     if (i > 0) doc.addPage();
-    await renderCertOnDoc(doc, items[i], templateData, fontBase64);
+    await renderCertOnDoc(doc, items[i], templateData, fontBase64, robotoBase64);
   }
   doc.save(`${items[0].provisional ? 'Provisional_' : ''}Certificates_Bulk_${Date.now()}.pdf`);
 }
