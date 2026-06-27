@@ -136,6 +136,13 @@ async function renderCertOnDoc(
     doc.addFont('Birthstone.ttf', 'Birthstone', 'bolditalic');
   }
 
+  // Register Roboto font for meta block
+  const metaFontFamily = robotoBase64 ? 'Roboto' : 'helvetica';
+  if (robotoBase64) {
+    doc.addFileToVFS('Roboto.ttf', robotoBase64);
+    doc.addFont('Roboto.ttf', 'Roboto', 'normal');
+  }
+
   doc.setTextColor(0, 0, 0);
 
   const bodySize = 17;
