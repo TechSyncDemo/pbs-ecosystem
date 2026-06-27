@@ -119,7 +119,7 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
 
   // Header info block (Roll No / Candidate Name / Center / Course)
   const leftX = 20;
-  let y = 78;
+  let y = 90;
   const label = (k: string, v: string, maxWidth?: number) => {
     doc.setFont('helvetica', 'normal');
     doc.text(`${k} : `, leftX, y);
