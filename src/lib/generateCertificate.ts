@@ -75,6 +75,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
 }
 
 let birthstoneFontPromise: Promise<string | null> | null = null;
+let robotoFontPromise: Promise<string | null> | null = null;
 
 async function loadBirthstoneFont(): Promise<string | null> {
   if (birthstoneFontPromise) return birthstoneFontPromise;
@@ -93,7 +94,30 @@ async function loadBirthstoneFont(): Promise<string | null> {
   return birthstoneFontPromise;
 }
 
-async function renderCertOnDoc(doc: jsPDF, data: CertificateData, templateData: string, fontBase64: string | null) {
+async function loadRobotoFont(): Promise<string | null> {
+  if (robotoFontPromise) return robotoFontPromise;
+
+  robotoFontPromise = (async () => {
+    try {
+      const response = await fetch('/fonts/Roboto-Regular.ttf');
+      if (!response.ok) return null;
+      const buffer = await response.arrayBuffer();
+      return await arrayBufferToBase64(buffer);
+    } catch {
+      return null;
+    }
+  })();
+
+  return robotoFontPromise;
+}
+
+async function renderCertOnDoc(
+  doc: jsPDF,
+  data: CertificateData,
+  templateData: string,
+  fontBase64: string | null,
+  robotoBase64: string | null
+) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   const cx = w / 2;
