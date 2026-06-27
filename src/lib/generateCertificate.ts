@@ -145,9 +145,26 @@ async function renderCertOnDoc(
 
   doc.setTextColor(0, 0, 0);
 
-  const bodySize = 17;
-  const nameSize = 28;
-  const courseSize = 22;
+  const bodySize = 18;
+  const nameSize = 34;
+  const courseSize = 28;
+  const gradeSize = 20;
+
+  // Helper: render "bolder" text by overprinting with a tiny offset.
+  // Birthstone only ships Regular, so jsPDF's bold style is synthetic;
+  // overprinting gives a genuinely darker, heavier stroke.
+  const drawBold = (
+    text: string,
+    x: number,
+    y: number,
+    opts?: { align?: 'left' | 'center' | 'right'; maxWidth?: number }
+  ) => {
+    doc.setTextColor(0, 0, 0);
+    doc.text(text, x, y, opts);
+    doc.text(text, x + 0.15, y, opts);
+    doc.text(text, x, y + 0.15, opts);
+    doc.text(text, x + 0.15, y + 0.15, opts);
+  };
 
   const { month, year } = monthYear(data.resultDate);
   const gradeText = data.grade;
@@ -160,15 +177,24 @@ async function renderCertOnDoc(
     return doc.getTextWidth(text);
   };
 
+  // Vertical baseline shifted a few mm down so the text doesn't sit on the
+  // template's pre-printed border.
+  const yL1 = 100;
+  const yName = 120;
+  const yL3 = 140;
+  const yCourse = 160;
+  const yL5 = 180;
+  const yL6 = 196;
+
   // Line 1: "This Certificate is awarded to"
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
-  doc.text('This Certificate is awarded to', cx, 92, { align: 'center' });
+  doc.text('This Certificate is awarded to', cx, yL1, { align: 'center' });
 
-  // Candidate name — bold italic, prominent, Title Case
+  // Candidate name — bold italic, prominent, Title Case (overprinted for weight)
   doc.setFont(fontFamily, 'bolditalic');
   doc.setFontSize(nameSize);
-  doc.text(studentName, cx, 108, { align: 'center', maxWidth: w - 50 });
+  drawBold(studentName, cx, yName, { align: 'center', maxWidth: w - 50 });
 
   // Line 3: "the within signed [BOX] upon successful completion of the"
   const segBeforeBox = 'the within signed ';
@@ -182,22 +208,22 @@ async function renderCertOnDoc(
 
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
-  doc.text(segBeforeBox, startX3, 126);
+  doc.text(segBeforeBox, startX3, yL3);
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
-  doc.rect(startX3 + wBefore, 126 - 7, boxW, boxH);
-  doc.text(segAfterBox, startX3 + wBefore + boxW, 126);
+  doc.rect(startX3 + wBefore, yL3 - 7, boxW, boxH);
+  doc.text(segAfterBox, startX3 + wBefore + boxW, yL3);
 
-  // Course / subject name — bold italic
+  // Course / subject name — bold italic (overprinted for weight)
   doc.setFont(fontFamily, 'bolditalic');
   doc.setFontSize(courseSize);
-  doc.text(data.courseName, cx, 144, { align: 'center', maxWidth: w - 60 });
+  drawBold(data.courseName, cx, yCourse, { align: 'center', maxWidth: w - 60 });
 
   // Line 5: "having passed the examination with [GRADE] Grade on [MONTH YEAR]"
   const seg5a = 'having passed the examination with ';
   const seg5b = ' Grade on ';
   const w5a = measure(seg5a, 'italic', bodySize);
-  const w5grade = measure(gradeText, 'bolditalic', bodySize);
+  const w5grade = measure(gradeText, 'bolditalic', gradeSize);
   const w5b = measure(seg5b, 'italic', bodySize);
   const w5date = measure(dateText, 'bolditalic', bodySize);
   const totalLine5 = w5a + w5grade + w5b + w5date;
@@ -205,21 +231,23 @@ async function renderCertOnDoc(
 
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
-  doc.text(seg5a, startX5, 162);
+  doc.text(seg5a, startX5, yL5);
   let x5 = startX5 + w5a;
   doc.setFont(fontFamily, 'bolditalic');
-  doc.text(gradeText, x5, 162);
+  doc.setFontSize(gradeSize);
+  drawBold(gradeText, x5, yL5);
   x5 += w5grade;
   doc.setFont(fontFamily, 'italic');
-  doc.text(seg5b, x5, 162);
+  doc.setFontSize(bodySize);
+  doc.text(seg5b, x5, yL5);
   x5 += w5b;
   doc.setFont(fontFamily, 'bolditalic');
-  doc.text(dateText, x5, 162);
+  doc.text(dateText, x5, yL5);
 
   // Line 6: "in witness whereof..."
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
-  doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, 178, { align: 'center', maxWidth: w - 40 });
+  doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, yL6, { align: 'center', maxWidth: w - 40 });
 
   // Bottom-left meta block
   const sn = serialNo(data);
