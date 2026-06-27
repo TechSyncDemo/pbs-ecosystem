@@ -145,10 +145,10 @@ async function renderCertOnDoc(
 
   doc.setTextColor(0, 0, 0);
 
-  const bodySize = 18;
-  const nameSize = 34;
-  const courseSize = 28;
-  const gradeSize = 20;
+  const bodySize = 21;
+  const nameSize = 36;
+  const courseSize = 30;
+  const gradeSize = 23;
 
   // Helper: render "bolder" text by overprinting with a tiny offset.
   // Birthstone only ships Regular, so jsPDF's bold style is synthetic;
@@ -197,8 +197,8 @@ async function renderCertOnDoc(
   drawBold(studentName, cx, yName, { align: 'center', maxWidth: w - 50 });
 
   // Line 3: "the within signed [BOX] upon successful completion of the"
-  const segBeforeBox = 'the within signed ';
-  const segAfterBox = ' upon successful completion of the';
+  const segBeforeBox = 'the within signed  ';
+  const segAfterBox = '  upon successful completion of the';
   const boxW = 40;
   const boxH = 10;
   const wBefore = measure(segBeforeBox, 'italic', bodySize);
@@ -244,10 +244,18 @@ async function renderCertOnDoc(
   doc.setFont(fontFamily, 'bolditalic');
   doc.text(dateText, x5, yL5);
 
-  // Line 6: "in witness whereof..."
+  // Line 6: "in witness whereof..." with bold "Director, CBITVT" at the end
+  const seg6a = 'in witness whereof is set the signature and seal of the ';
+  const seg6b = 'Director, CBITVT.';
+  const w6a = measure(seg6a, 'italic', bodySize);
+  const w6b = measure(seg6b, 'bolditalic', bodySize);
+  const totalLine6 = w6a + w6b;
+  const startX6 = (w - totalLine6) / 2;
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
-  doc.text('in witness whereof is set the signature and seal of the Director, cbitvt.', cx, yL6, { align: 'center', maxWidth: w - 40 });
+  doc.text(seg6a, startX6, yL6);
+  doc.setFont(fontFamily, 'bolditalic');
+  drawBold(seg6b, startX6 + w6a, yL6);
 
   // Bottom-left meta block
   const sn = serialNo(data);
