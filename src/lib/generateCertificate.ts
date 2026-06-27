@@ -182,9 +182,9 @@ async function renderCertOnDoc(
   const yL1 = 100;
   const yName = 120;
   const yL3 = 140;
-  const yCourse = 160;
-  const yL5 = 180;
-  const yL6 = 196;
+  const yCourse = 155;
+  const yL5 = 186;
+  const yL6 = 202;
 
   // Line 1: "This Certificate is awarded to"
   doc.setFont(fontFamily, 'italic');
