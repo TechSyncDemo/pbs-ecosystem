@@ -244,11 +244,12 @@ async function renderCertOnDoc(
 
 export async function generateCertificate(data: CertificateData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const [templateData, fontBase64] = await Promise.all([
+  const [templateData, fontBase64, robotoBase64] = await Promise.all([
     loadImage(certificateTemplateSrc),
     loadBirthstoneFont(),
+    loadRobotoFont(),
   ]);
-  await renderCertOnDoc(doc, data, templateData, fontBase64);
+  await renderCertOnDoc(doc, data, templateData, fontBase64, robotoBase64);
   doc.save(`${data.provisional ? 'Provisional_' : ''}Certificate_${data.enrollmentNo}.pdf`);
 }
 
@@ -256,13 +257,14 @@ export async function generateCertificatesBulk(items: CertificateData[]) {
   if (items.length === 0) return;
   if (items.length === 1) return generateCertificate(items[0]);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const [templateData, fontBase64] = await Promise.all([
+  const [templateData, fontBase64, robotoBase64] = await Promise.all([
     loadImage(certificateTemplateSrc),
     loadBirthstoneFont(),
+    loadRobotoFont(),
   ]);
   for (let i = 0; i < items.length; i++) {
     if (i > 0) doc.addPage();
-    await renderCertOnDoc(doc, items[i], templateData, fontBase64);
+    await renderCertOnDoc(doc, items[i], templateData, fontBase64, robotoBase64);
   }
   doc.save(`${items[0].provisional ? 'Provisional_' : ''}Certificates_Bulk_${Date.now()}.pdf`);
 }
