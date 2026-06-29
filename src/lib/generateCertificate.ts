@@ -179,12 +179,12 @@ async function renderCertOnDoc(
 
   // Vertical baselines — extra breathing room around the course name for
   // easier reading.
-  const yL1 = 98;
-  const yName = 118;
-  const yL3 = 138;
-  const yCourse = 160;     // more space above course title
-  const yL5 = 182;          // more space below course title
-  const yL6 = 200;
+  const yL1 = 96;
+  const yName = 114;
+  const yL3 = 132;
+  const yCourse = 152;     // more space above course title
+  const yL5 = 172;          // more space below course title
+  const yL6 = 188;
 
   // Subtle character spacing — wide enough to aid legibility but tight
   // enough to prevent glyph overlap with the calligraphic font.
