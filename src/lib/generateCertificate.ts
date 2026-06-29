@@ -199,11 +199,30 @@ async function renderCertOnDoc(
   doc.text('This Certificate is awarded to', cx, yL1, { align: 'center' });
 
   // Candidate name — bold italic, prominent, Title Case (overprinted for weight)
-  doc.setFont(fontFamily, 'bolditalic');
-  doc.setFontSize(nameSize);
-  doc.setCharSpace?.(nameCharSpace);
-  drawBold(studentName, cx, yName, { align: 'center', maxWidth: w - 50 });
-  doc.setCharSpace?.(bodyCharSpace);
+  // Auto-shrink + wrap if the name is too long to fit cleanly on one line.
+  {
+    const maxW = w - 60;
+    let size = nameSize;
+    let cs = nameCharSpace;
+    doc.setFont(fontFamily, 'bolditalic');
+    doc.setCharSpace?.(cs);
+    doc.setFontSize(size);
+    while (size > 20 && doc.getTextWidth(studentName) > maxW) {
+      size -= 1;
+      doc.setFontSize(size);
+    }
+    if (doc.getTextWidth(studentName) > maxW && cs > 0) {
+      cs = 0;
+      doc.setCharSpace?.(cs);
+    }
+    const lines = doc.splitTextToSize(studentName, maxW) as string[];
+    const lineH = size * 0.45;
+    const startY = yName - ((lines.length - 1) * lineH) / 2;
+    lines.forEach((ln, i) => {
+      drawBold(ln, cx, startY + i * lineH, { align: 'center' });
+    });
+    doc.setCharSpace?.(bodyCharSpace);
+  }
 
   // Line 3: "the within signed [BOX] upon successful completion of the"
   const segBeforeBox = 'the within signed  ';
@@ -224,11 +243,30 @@ async function renderCertOnDoc(
   doc.text(segAfterBox, startX3 + wBefore + boxW, yL3);
 
   // Course / subject name — bold italic (overprinted for weight)
-  doc.setFont(fontFamily, 'bolditalic');
-  doc.setFontSize(courseSize);
-  doc.setCharSpace?.(courseCharSpace);
-  drawBold(data.courseName, cx, yCourse, { align: 'center', maxWidth: w - 60 });
-  doc.setCharSpace?.(bodyCharSpace);
+  // Auto-shrink + wrap to avoid running into the surrounding lines.
+  {
+    const maxW = w - 60;
+    let size = courseSize;
+    let cs = courseCharSpace;
+    doc.setFont(fontFamily, 'bolditalic');
+    doc.setCharSpace?.(cs);
+    doc.setFontSize(size);
+    while (size > 14 && doc.getTextWidth(data.courseName) > maxW) {
+      size -= 1;
+      doc.setFontSize(size);
+    }
+    if (doc.getTextWidth(data.courseName) > maxW && cs > 0) {
+      cs = 0;
+      doc.setCharSpace?.(cs);
+    }
+    const lines = doc.splitTextToSize(data.courseName, maxW) as string[];
+    const lineH = size * 0.5;
+    const startY = yCourse - ((lines.length - 1) * lineH) / 2;
+    lines.forEach((ln, i) => {
+      drawBold(ln, cx, startY + i * lineH, { align: 'center' });
+    });
+    doc.setCharSpace?.(bodyCharSpace);
+  }
 
   // Line 5: "having passed the examination with [GRADE] Grade on [MONTH YEAR]"
   const seg5a = 'having passed the examination with ';
