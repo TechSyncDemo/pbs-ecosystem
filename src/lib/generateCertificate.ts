@@ -299,7 +299,7 @@ async function renderCertOnDoc(
   const w6a = measure(seg6a, 'italic', bodySize);
   const w6b = measure(seg6b, 'bolditalic', bodySize);
   const totalLine6 = w6a + w6b;
-  const startX6 = (w - totalLine6) / 2 + 10;
+  const startX6 = (w - totalLine6) / 2 + 5;
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
   doc.text(seg6a, startX6, yL6);
