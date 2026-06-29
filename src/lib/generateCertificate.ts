@@ -183,8 +183,8 @@ async function renderCertOnDoc(
   const yName = 118;
   const yL3 = 138;
   const yCourse = 160;     // more space above course title
-  const yL5 = 188;          // more space below course title
-  const yL6 = 206;
+  const yL5 = 182;          // more space below course title
+  const yL6 = 200;
 
   // Subtle character spacing — wide enough to aid legibility but tight
   // enough to prevent glyph overlap with the calligraphic font.
@@ -294,12 +294,12 @@ async function renderCertOnDoc(
   doc.text(dateText, x5, yL5);
 
   // Line 6: "in witness whereof..." with bold "Director, CBITVT" at the end
-  const seg6a = 'in witness whereof is set the signature and seal of the      ';
+  const seg6a = 'in witness whereof is set the signature and seal of the ';
   const seg6b = '  Director, CBITVT.';
   const w6a = measure(seg6a, 'italic', bodySize);
   const w6b = measure(seg6b, 'bolditalic', bodySize);
   const totalLine6 = w6a + w6b;
-  const startX6 = (w - totalLine6) / 2;
+  const startX6 = (w - totalLine6) / 2 + 10;
   doc.setFont(fontFamily, 'italic');
   doc.setFontSize(bodySize);
   doc.text(seg6a, startX6, yL6);
