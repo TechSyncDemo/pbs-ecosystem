@@ -270,7 +270,7 @@ async function renderCertOnDoc(
 
   // Line 5: "having passed the examination with [GRADE] Grade on [MONTH YEAR]"
   const seg5a = 'having passed the examination with     ';
-  const seg5b = ' Grade on ';
+  const seg5b = ' Grade on    ';
   const w5a = measure(seg5a, 'italic', bodySize);
   const w5grade = measure(gradeText, 'bolditalic', gradeSize);
   const w5b = measure(seg5b, 'italic', bodySize);
@@ -294,7 +294,7 @@ async function renderCertOnDoc(
   doc.text(dateText, x5, yL5);
 
   // Line 6: "in witness whereof..." with bold "Director, CBITVT" at the end
-  const seg6a = 'in witness whereof is set the signature and seal of the     ';
+  const seg6a = 'in witness whereof is set the signature and seal of the      ';
   const seg6b =  'Director, CBITVT.';
   const w6a = measure(seg6a, 'italic', bodySize);
   const w6b = measure(seg6b, 'bolditalic', bodySize);
