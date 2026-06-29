@@ -177,14 +177,20 @@ async function renderCertOnDoc(
     return doc.getTextWidth(text);
   };
 
-  // Vertical baseline shifted a few mm down so the text doesn't sit on the
-  // template's pre-printed border.
-  const yL1 = 100;
-  const yName = 120;
-  const yL3 = 140;
-  const yCourse = 155;
-  const yL5 = 186;
-  const yL6 = 202;
+  // Vertical baselines — extra breathing room around the course name for
+  // easier reading.
+  const yL1 = 98;
+  const yName = 118;
+  const yL3 = 138;
+  const yCourse = 160;     // more space above course title
+  const yL5 = 188;          // more space below course title
+  const yL6 = 206;
+
+  // Wider character spacing across the body copy for legibility.
+  const bodyCharSpace = 0.6;
+  const nameCharSpace = 1.2;
+  const courseCharSpace = 1.0;
+  doc.setCharSpace?.(bodyCharSpace);
 
   // Line 1: "This Certificate is awarded to"
   doc.setFont(fontFamily, 'italic');
@@ -194,7 +200,9 @@ async function renderCertOnDoc(
   // Candidate name — bold italic, prominent, Title Case (overprinted for weight)
   doc.setFont(fontFamily, 'bolditalic');
   doc.setFontSize(nameSize);
+  doc.setCharSpace?.(nameCharSpace);
   drawBold(studentName, cx, yName, { align: 'center', maxWidth: w - 50 });
+  doc.setCharSpace?.(bodyCharSpace);
 
   // Line 3: "the within signed [BOX] upon successful completion of the"
   const segBeforeBox = 'the within signed  ';
@@ -217,7 +225,9 @@ async function renderCertOnDoc(
   // Course / subject name — bold italic (overprinted for weight)
   doc.setFont(fontFamily, 'bolditalic');
   doc.setFontSize(courseSize);
+  doc.setCharSpace?.(courseCharSpace);
   drawBold(data.courseName, cx, yCourse, { align: 'center', maxWidth: w - 60 });
+  doc.setCharSpace?.(bodyCharSpace);
 
   // Line 5: "having passed the examination with [GRADE] Grade on [MONTH YEAR]"
   const seg5a = 'having passed the examination with ';
@@ -261,6 +271,7 @@ async function renderCertOnDoc(
   const sn = serialNo(data);
   doc.setFont(metaFontFamily, 'normal');
   doc.setFontSize(10);
+  doc.setCharSpace?.(0);
   doc.setTextColor(40, 40, 40);
   const metaY = 230;
   doc.text(`S/N   : ${sn}`, 22, metaY);
