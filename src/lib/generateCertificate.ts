@@ -145,10 +145,10 @@ async function renderCertOnDoc(
 
   doc.setTextColor(0, 0, 0);
 
-  const bodySize = 36;
+  const bodySize = 24;
   const nameSize = 36;
-  const courseSize = 36;
-  const gradeSize = 36;
+  const courseSize = 25;
+  const gradeSize = 25;
 
   // Helper: render "bolder" text by overprinting with a tiny offset.
   // Birthstone only ships Regular, so jsPDF's bold style is synthetic;
