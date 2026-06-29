@@ -186,10 +186,11 @@ async function renderCertOnDoc(
   const yL5 = 188;          // more space below course title
   const yL6 = 206;
 
-  // Wider character spacing across the body copy for legibility.
-  const bodyCharSpace = 0.6;
-  const nameCharSpace = 1.2;
-  const courseCharSpace = 1.0;
+  // Subtle character spacing — wide enough to aid legibility but tight
+  // enough to prevent glyph overlap with the calligraphic font.
+  const bodyCharSpace = 0.2;
+  const nameCharSpace = 0.4;
+  const courseCharSpace = 0.3;
   doc.setCharSpace?.(bodyCharSpace);
 
   // Line 1: "This Certificate is awarded to"
