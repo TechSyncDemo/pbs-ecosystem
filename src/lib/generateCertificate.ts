@@ -294,8 +294,8 @@ async function renderCertOnDoc(
   doc.text(dateText, x5, yL5);
 
   // Line 6: "in witness whereof..." with bold "Director, CBITVT" at the end
-  const seg6a = 'in witness whereof is set the signature and seal of the ';
-  const seg6b = '  Director, CBITVT.';
+  const seg6a = 'in witness whereof is set the signature and seal of the     ';
+  const seg6b =  'Director, CBITVT.';
   const w6a = measure(seg6a, 'italic', bodySize);
   const w6b = measure(seg6b, 'bolditalic', bodySize);
   const totalLine6 = w6a + w6b;
