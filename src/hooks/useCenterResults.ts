@@ -7,9 +7,9 @@ const Q = `
   id, student_id, course_id, exam_date,
   theory_marks, theory_total, practical_marks, practical_total,
   theory_grace, practical_grace,
-  status, result_date, practical_submitted_at, certificate_printed_at,
-  students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code ) ),
-  courses!inner ( id, name, code, duration_months, theory_max_marks, practical_max_marks )
+  status, result_date, practical_submitted_at, certificate_printed_at, certificate_no,
+  students!inner ( id, name, enrollment_no, center_id, centers ( id, name, code, city ) ),
+  courses!inner ( id, name, code, duration_months, theory_max_marks, practical_max_marks, course_topics ( topic_name, sort_order ) )
 `;
 
 export function useCenterResults() {

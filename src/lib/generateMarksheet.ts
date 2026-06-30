@@ -206,7 +206,9 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   // Restore font size for numeric cells
   doc.setFontSize(10);
   doc.text(String(Math.round(data.theoryTotal)), tableX + col1W + col2W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
-  doc.text(String(Math.round(data.theoryMarks)), tableX + col1W + col2W + col3W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
+  // Theory marks shown = final theory marks (raw + grace), matching the Results section.
+  const theoryFinal = Math.round(Number(data.theoryMarks) + Number(data.theoryGrace || 0));
+  doc.text(String(theoryFinal), tableX + col1W + col2W + col3W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
   doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + theoryRowH / 2 + 1, { align: 'center' });
   ty += theoryRowH;
 
@@ -218,7 +220,8 @@ async function renderMarksheetOnDoc(doc: jsPDF, data: MarksheetData, templateDat
   doc.rect(tableX + col1W + col2W + col3W, ty, col4W, rowH);
   doc.text('Practical / Project', tableX + 3, ty + 6);
   doc.text(String(Math.round(data.practicalTotal)), tableX + col1W + col2W / 2, ty + 6, { align: 'center' });
-  doc.text(String(Math.round(data.practicalMarks)), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
+  const practicalFinal = Math.round(Number(data.practicalMarks) + Number(data.practicalGrace || 0));
+  doc.text(String(practicalFinal), tableX + col1W + col2W + col3W / 2, ty + 6, { align: 'center' });
   doc.text('-', tableX + col1W + col2W + col3W + col4W / 2, ty + 6, { align: 'center' });
   ty += rowH;
 
